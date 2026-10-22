@@ -9,7 +9,7 @@ workflows:
     max_build_duration: 60
     environment:
       android_signing:
-        - playbox_upload_key          # the keystore you upload in Codemagic (see guide)
+        - playbox_key          # the keystore you upload in Codemagic (see guide)
       node: 22
       java: 21
     scripts:
