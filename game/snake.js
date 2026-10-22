@@ -94,7 +94,7 @@
       const it = st.items.find(i => i.x === nx && i.y === ny);
       if (it) eat(it);
     }
-    function eat(it){
+    function eat(it){ if (PB.sfx) PB.sfx('eat');
       st.items.splice(st.items.indexOf(it), 1);
       const cx = BX + (it.x + 0.5) * CELL, cy = BY + (it.y + 0.5) * CELL;
       if (it.kind === 'pow') {
@@ -398,17 +398,25 @@
     let down = null;
     function swipe(dx, dy){ turn(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down')); }
     return {
-      id:'snake', title:'ANACONDA', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
+      id:'snake', sfxScore:false, music:'snake', title:'ANACONDA', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
       tile:{ order:8, name:'Anaconda', kind:'Jungle snake', art: artTile, isNew: true },
-      controls: ['Swipe up, down, left or right to steer the anaconda.', 'Or tap on the side of the board you want to turn toward.', 'Eat fruit to grow. Golden eggs are worth extra and grow you by 3.', 'Every 8 fruit is a new level: faster, with more rocks and logs.', "Don't hit the edge, a rock, or your own tail.", 'On a keyboard, use the arrow keys.'],
+      controls: ['Keep your finger on the screen and slide it the way you want to go. No need to lift it!', 'Or tap on the side of the board you want to turn toward.', 'Eat fruit to grow. Golden eggs are worth extra and grow you by 3.', 'Every 8 fruit is a new level: faster, with more rocks and logs.', "Don't hit the edge, a rock, or your own tail.", 'On a keyboard, use the arrow keys.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => powOrb(g, k, 23, 14, 12) })),
       init(){},
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
       start(mode, rand, lives, msg){ const R = mode === 'daily' ? mulberry(seedFrom('snake-daily-' + PB.today())) : rand; fresh(mode, R, lives, 'ready'); st.msg = msg ? msg + ' Swipe to go' : 'Swipe to start slithering'; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
-      pointerDown(x, y){ down = { x, y, used: false }; },
-      pointerMove(x, y){ if (!down || down.used) return; const dx = x - down.x, dy = y - down.y; if (Math.hypot(dx, dy) > 26) { down.used = true; swipe(dx, dy); } },
+      // Keep your finger down and slide it around: every new direction you drag turns the snake (no need to lift)
+      pointerDown(x, y){ down = { x, y, used: false, last: null }; },
+      pointerMove(x, y){
+        if (!down) return;
+        const dx = x - down.x, dy = y - down.y;
+        if (Math.hypot(dx, dy) < 16) return;
+        const d = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+        if (d !== down.last) { turn(d); down.last = d; }
+        down.used = true; down.x = x; down.y = y;
+      },
       pointerUp(x, y){
         if (!down) return;
         if (!down.used) {

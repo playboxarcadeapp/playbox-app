@@ -213,8 +213,8 @@
       const p = st.player;
       if (dir === 'left') p.lane = Math.max(0, p.lane - 1);
       else if (dir === 'right') p.lane = Math.min(2, p.lane + 1);
-      else if (dir === 'up') { if (p.h <= 0.01) { p.slide = 0; p.vy = st.fx.spring > 0 ? 13.4 : 9.85; } }
-      else if (dir === 'down') { if (p.h > 0.01) { p.vy = -16; p.queueSlide = true; } else p.slide = 0.62; }
+      else if (dir === 'up') { if (p.h <= 0.01) { if (PB.sfx) PB.sfx('jump'); p.slide = 0; p.vy = st.fx.spring > 0 ? 13.4 : 9.85; } }
+      else if (dir === 'down') { if (PB.sfx) PB.sfx('whoosh'); if (p.h > 0.01) { p.vy = -16; p.queueSlide = true; } else p.slide = 0.62; }
     }
     function pop(wp, text, color, life){ st.pops.push({ wp, text, color, life: life || 1, rise: 0 }); }
     function sparkle(pos, color, n = 10){
@@ -232,7 +232,7 @@
       pop(playerPos(), 'Ouch!', '#ff3d6e');
       if (st.lives <= 0) { st.phase = 'over'; shell.gameOver(st.score, `You ran ${fmt(st.dist)} m and grabbed ${st.food} snacks`); }
     }
-    function collect(o){
+    function collect(o){ if (PB.sfx) PB.sfx(o.kind === 'pow' ? 'power' : 'coin');
       o.gone = true;
       if (o.kind === 'food') {
         st.food++; st.score += st.fx.double > 0 ? 20 : 10;
@@ -708,9 +708,9 @@
     }
     function draw(){
       if (!loadAssets()) { ctx.fillStyle = '#222'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.font = '700 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('This game needs a device with 3D graphics.', W/2, H/2); return; }
-      E.resize(W, H, Math.min(dpr, 2));
+      E.resize(W, H, Math.min(dpr, 1.75));
       render(W, H);
-      ctx.drawImage(E.canvas, 0, 0, W, H);
+      E.present(ctx, W, H);
       if (!sunC) { sunC = layer(W, H); const g = sunC[1]; const sg = g.createRadialGradient(W * 0.85, -20, 10, W * 0.85, -20, H * 0.75); sg.addColorStop(0, 'rgba(255,236,170,.3)'); sg.addColorStop(0.4, 'rgba(255,220,150,.12)'); sg.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = sg; g.fillRect(0, 0, W, H); const vg = g.createRadialGradient(W / 2, H * 0.5, H * 0.35, W / 2, H * 0.55, H * 0.8); vg.addColorStop(0, 'rgba(40,20,60,0)'); vg.addColorStop(1, 'rgba(40,20,60,.28)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); }
       ctx.drawImage(sunC[0], 0, 0, W, H);
       drawHUD();
@@ -726,7 +726,7 @@
     let down = null, sunC = null;
     function swipe(dx, dy){ if (Math.abs(dx) > Math.abs(dy)) act(dx < 0 ? 'left' : 'right'); else act(dy < 0 ? 'up' : 'down'); }
     return {
-      id:'dash', title:'ZOOM DASH', W, H, statLabel:'Snacks', maxLives: MAX_LIVES, type:'endless', scoreKey:'zd-scores',
+      id:'dash', sfxScore:false, music:'dash', title:'ZOOM DASH', W, H, statLabel:'Snacks', maxLives: MAX_LIVES, type:'endless', scoreKey:'zd-scores',
       tile:{ order:2, name:'Zoom Dash', kind:'Run, dodge, grab snacks', art: artDash },
       controls: ['Swipe left or right to switch lanes.', 'Swipe up to jump over cones and trash cans.', 'Swipe down to slide under striped barriers.', 'Trucks block the whole lane, so switch lanes!', 'Tapping works too: left or right side to move, middle to jump.', 'On a keyboard, use the arrow keys.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: (g) => bubble(g, k, 23, 14, 12.5, 0.6) })),

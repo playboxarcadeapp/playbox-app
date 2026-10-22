@@ -206,14 +206,14 @@
     function crash(o){
       o.dead = true;
       burst([o.x, o.y, -rel(o)], [1, 0.7, 0.4], 26, 10); st.flash = 0.25;
-      if (st.fx.turbo > 0) { st.score += 20; pop(shipPos(), 'SMASH!', '#ff9a3d'); return; }
+      if (st.fx.turbo > 0) { if (PB.sfx) PB.sfx('crash'); st.score += 20; pop(shipPos(), 'SMASH!', '#ff9a3d'); return; }
       if (st.inv > 0) return;
       if (st.fx.shield > 0) { st.fx.shield = 0; st.inv = 0.8; pop(shipPos(), 'Shield saved you!', '#5ee0ff'); return; }
       st.lives--; st.inv = 1.6; st.hitSlow = 1; st.shake = 14;
       pop(shipPos(), 'Ouch!', '#ff5d7a');
       if (st.lives <= 0) { st.phase = 'over'; shell.gameOver(st.score, st.level > 1 ? `You finished ${st.level - 1} race${st.level > 2 ? 's' : ''} and reached ${st.gal.name}` : `You crashed out of race 1. Try again!`); }
     }
-    function collect(o){
+    function collect(o){ if (PB.sfx) PB.sfx('coin');
       o.dead = true;
       if (o.kind === 'star') { st.stars++; st.raceStars++; st.score += 10; burst([o.x, o.y, -rel(o)], [1, 0.85, 0.3], 8, 4); return; }
       const P = POWERS[o.type];
@@ -274,7 +274,7 @@
           if (st.phase !== 'play') return;
         } else if (o.kind === 'star' && near && Math.hypot(o.x - p.x, o.y - p.y) < 1.5) collect(o);
         else if (o.kind === 'pow' && near && Math.hypot(o.x - p.x, o.y - p.y) < 1.7) collect(o);
-        else if (o.kind === 'gate' && !o.used && near && Math.hypot(o.x - p.x, o.y - p.y) < 2.6) { o.used = true; st.boost = 1.6; pop(shipPos(), 'BOOST!', '#5ee0ff', 0.8); }
+        else if (o.kind === 'gate' && !o.used && near && Math.hypot(o.x - p.x, o.y - p.y) < 2.6) { o.used = true; st.boost = 1.6; if (PB.sfx) PB.sfx('whoosh'); pop(shipPos(), 'BOOST!', '#5ee0ff', 0.8); }
       }
       st.objs = st.objs.filter(o => !o.dead && -rel(o) < 12);
       st.score += st.speed * dt * 0.15;
@@ -421,8 +421,8 @@
     }
     function draw(){
       if (!loadAssets()) { ctx.fillStyle = '#05030f'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.font = '700 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('This game needs a device with 3D graphics.', W/2, H/2); return; }
-      E.resize(W, H, Math.min(dpr, 2)); render(W, H);
-      ctx.drawImage(E.canvas, 0, 0, W, H);
+      E.resize(W, H, Math.min(dpr, 1.75)); render(W, H);
+      E.present(ctx, W, H);
       drawHUD();
     }
     function artTile(g){
@@ -437,7 +437,7 @@
     }
 
     return {
-      id:'racer', title:'GALAXY RACER', W, H, statLabel:'Race', maxLives: MAX_LIVES, type:'endless',
+      id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Race', maxLives: MAX_LIVES, type:'endless',
       tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing', art: artTile },
       controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Finish each race to fly to a new galaxy. Better places earn more points.', 'Crashing costs a heart. Lose them all and the game ends.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => drawOrb2D(g, k, 23, 14, 12) })),

@@ -66,7 +66,7 @@
       st.paddle = { x: W/2 - BASE_W/2, w: BASE_W, h: 14, y: H - 54 };
       clearRound();
     }
-    function clearRound(){
+    function clearRound(){ if (PB.sfx) PB.sfx('level');
       st.fx = { wide:0, laser:0, fire:0, slow:0, magnet:0, shrink:0 };
       st.drops = []; st.lasers = []; st.laserCD = 0; st.combo = 0;
       st.balls = [{ x: W/2, y: st.paddle.y - 10, r: 9, vx: 0, vy: -baseSpeed(), held:true, off:0, trail:[] }];
@@ -89,7 +89,7 @@
     function launch(){
       if (!st || st.phase !== 'play') return;
       let any = false; for (const b of st.balls) if (b.held) { fire(b); any = true; }
-      if (any) st.msg = null;
+      if (any) { st.msg = null; if (PB.sfx) PB.sfx('jump'); }
     }
     function setPaddleW(w){ const p = st.paddle, cx = p.x + p.w/2; p.w = w; p.x = Math.max(0, Math.min(W - p.w, cx - p.w/2)); }
     function updatePaddleW(){ setPaddleW(st.fx.wide > 0 ? 148 : st.fx.shrink > 0 ? 56 : BASE_W); }
@@ -115,7 +115,7 @@
       if (st.combo === 8 || st.combo === 16 || st.combo === 24) pop(W/2, H/2 - 40, st.combo + ' COMBO!', N.pink, 1.2);
       if (st.rand() < 0.2) st.drops.push({ type: pickPower(), x: k.x + k.w/2 - 23, y: k.y, w: 46, h: 22, vy: 130 });
     }
-    function catchPower(type){
+    function catchPower(type){ if (PB.sfx) PB.sfx('power');
       const P = POWERS[type], fx = st.fx;
       if (type === 'wide') { fx.wide = P.time; fx.shrink = 0; }
       else if (type === 'shrink') { fx.shrink = P.time; fx.wide = 0; }
@@ -153,7 +153,7 @@
           else {
             const hit = (b.x - (p.x + p.w/2)) / (p.w/2), speed = Math.hypot(b.vx, b.vy);
             const ang = Math.max(-1.1, Math.min(1.1, hit * 1.05));
-            b.vx = speed * Math.sin(ang); b.vy = -Math.abs(speed * Math.cos(ang)); b.y = p.y - b.r;
+            b.vx = speed * Math.sin(ang); b.vy = -Math.abs(speed * Math.cos(ang)); b.y = p.y - b.r; if (PB.sfx) PB.sfx('tap');
           }
           continue;
         }
@@ -288,7 +288,7 @@
       }
     }
     return {
-      id:'bricks', title:'BRICK BASH', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', scoreKey:'bb-scores',
+      id:'bricks', music:'bricks', title:'BRICK BASH', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', scoreKey:'bb-scores',
       tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker', art(g){ const { neonBg, rr, dot } = PB; neonBg(g); const cols=[N.pink,N.yellow,N.lime,N.cyan]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,18+r*20,32,14,4,cols[r]); rr(g,88,150,64,10,5,N.cyan); dot(g,140,118,7,'#fff'); rr(g,40,112,32,14,7,N.orange); } },
       controls: ['Slide your finger (or mouse) to move the paddle.', 'Tap to launch the ball.', 'Break bricks in a row without touching the paddle to multiply your points.', 'Every 3,000 points earns a bonus life.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: (g) => capsule(g, 0, 3, 46, 22, k, false) })),

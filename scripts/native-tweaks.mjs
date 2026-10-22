@@ -1,5 +1,5 @@
 // Small settings in the generated iOS and Android projects:
-//  - portrait only, iPhone layout, version numbers from the build server, Android release signing
+//  - portrait or sideways (follows the phone's rotation lock), iPhone layout, version numbers from the build server, Android release signing
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -10,8 +10,8 @@ const which = process.argv[2] || 'both';
 const edit = async (file, fn) => { const p = path.join(root, file); const before = await fs.readFile(p, 'utf8'); const after = fn(before); if (after !== before) await fs.writeFile(p, after); console.log('updated', file); };
 
 if (which === 'android' || which === 'both') {
-  await edit('android/app/src/main/AndroidManifest.xml', s => s.includes('android:screenOrientation') ? s :
-    s.replace(/<activity(\s)/, '<activity android:screenOrientation="portrait"$1'));
+  await edit('android/app/src/main/AndroidManifest.xml', s => s.includes('android:screenOrientation') ? s.replace(/android:screenOrientation="[^"]*"/, 'android:screenOrientation="fullUser"') :
+    s.replace(/<activity(\s)/, '<activity android:screenOrientation="fullUser"$1'));
   await edit('android/app/build.gradle', s => {
     s = s.replace(/versionCode\s+\d+/, `versionCode ${build}`).replace(/versionName\s+"[^"]*"/, `versionName "${version}"`);
     if (!s.includes('CM_KEYSTORE_PATH')) {
@@ -34,7 +34,7 @@ if (which === 'android' || which === 'both') {
 
 if (which === 'ios' || which === 'both') {
   await edit('ios/App/App/Info.plist', s => {
-    const portrait = '<array>\n\t\t<string>UIInterfaceOrientationPortrait</string>\n\t</array>';
+    const portrait = '<array>\n\t\t<string>UIInterfaceOrientationPortrait</string>\n\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n\t</array>';
     s = s.replace(/(<key>UISupportedInterfaceOrientations<\/key>\s*)<array>[\s\S]*?<\/array>/, `$1${portrait}`);
     s = s.replace(/(<key>UISupportedInterfaceOrientations~ipad<\/key>\s*)<array>[\s\S]*?<\/array>/, `$1${portrait}`);
     if (!s.includes('ITSAppUsesNonExemptEncryption')) s = s.replace(/<dict>/, '<dict>\n\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>');

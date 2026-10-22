@@ -278,7 +278,7 @@
     }
 
     return {
-      id:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
+      id:'cubes', music:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
       tile:{ order:5, name:'Cube Escape', kind:'Neon block puzzle', art: artTile },
       controls: ['Drag a block to slide it around the box.', 'Push it into the glowing bar of the same color to send it out.', 'The block has to fit inside the bar to get through.', 'Free every block before the timer runs out.', "If time runs out you lose a heart and try the level again."],
       powersTitle: 'Helpers',
@@ -295,7 +295,7 @@
       pointerDown(x, y){
         if (st.phase !== 'play' || st.pending != null || st.retry != null) return;
         if (st.msg) { st.msg = null; st.running = true; return; }
-        if (y > H - 70 && Math.abs(x - W/2) < 84) { if (st.freezes > 0 && st.running) { st.freezes--; st.freezeT = 8; pop(W/2, H - 90, 'Time frozen!', '#9fe8ff'); } return; }
+        if (y > H - 70 && Math.abs(x - W/2) < 84) { if (st.freezes > 0 && st.running) { st.freezes--; st.freezeT = 8; if (PB.sfx) PB.sfx('power'); pop(W/2, H - 90, 'Time frozen!', '#9fe8ff'); } return; }
         const b = blockAt(x, y); if (!b) return;
         st.drag = { id: b.id, x, y, r0: b.r, c0: b.c };
       },
@@ -312,7 +312,7 @@
           if (preferX && dc) res = tryStep(b, 0, dc, g);
           if (res === 'blocked' && dr) res = tryStep(b, dr, 0, g);
           if (res === 'blocked' && !preferX && dc) res = tryStep(b, 0, dc, g);
-          if (res !== 'moved') break;
+          if (res !== 'moved') break; if (PB.sfx) PB.sfx('tap');
         }
       },
       pointerUp(){ st.drag = null; },

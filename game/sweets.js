@@ -102,7 +102,7 @@
     function damage(r, c){
       if (st.frost && st.frost[r][c] > 0) { st.frost[r][c]--; if (st.frost[r][c] === 0) st.frostLeft--; burst(r, c, '#c9ecff', 6); }
     }
-    function clearSet(cells, keep){
+    function clearSet(cells, keep){ if (PB.sfx) PB.sfx('gem', Math.min(1, (st.chain || 0) * 0.15));
       const queue = [...cells], seen = new Set();
       let n = 0;
       while (queue.length) {
@@ -159,7 +159,7 @@
         for (let r=write;r>=0;r--) { st.grid[r][c] = newTile(randType(), r, c, spawn--); }
       }
     }
-    function trySwap(a, b){
+    function trySwap(a, b){ if (PB.sfx) PB.sfx('swap');
       if (st.busy || st.over) return;
       const A = T(...a), B = T(...b); if (!A || !B) return;
       st.sel = null; st.idle = 0; st.hint = null;
@@ -174,7 +174,7 @@
       if (!ok) { swapCells(a, b); st.moves++; st.wiggle = { a, b, t: 0.3 }; return; }
       st.busy = true; st.pivots = [a, b];
     }
-    function fireCombo(){
+    function fireCombo(){ if (PB.sfx) PB.sfx('boom');
       const { a, b, A, B } = st.pendingCombo; st.pendingCombo = null;
       const at = a; // where A now sits
       if (A.sp === 'c' && B.sp === 'c') { const all = []; for (let r=0;r<N;r++) for (let c=0;c<N;c++) all.push([r,c]); pop(W/2, BY + 200, 'Gem storm!', '#ffd23f'); clearSet(all); return; }
@@ -533,7 +533,7 @@
     }
 
     return {
-      id:'sweets', title:'GEM MINE', W, H, statLabel:'Moves', type:'levels', levels:100, maxLives: 0,
+      id:'sweets', sfxScore:false, music:'sweets', title:'GEM MINE', W, H, statLabel:'Moves', type:'levels', levels:100, maxLives: 0,
       failTitle:'Out of moves', dailyText:'Score attack: 25 moves', powersTitle:'Special gems',
       tile:{ order:3, name:'Gem Mine', kind:'Mining match 3 \u00b7 100 levels', art: artTile, isNew: true },
       controls: ['Swipe a gem into its neighbor to swap them.', 'Line up 3 or more of the same gem to mine them.', 'Every gem has its own shape: hearts, triangles, diamonds and more.', 'Meet the goal at the top before your moves run out.', 'Rock tiles crack open when you match on top of them.', 'Moves you have left at the end turn into bonus points.'],

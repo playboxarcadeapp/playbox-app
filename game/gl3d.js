@@ -236,7 +236,7 @@
 
   function create(){
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2', { antialias: true, preserveDrawingBuffer: true, alpha: false, powerPreference: 'high-performance' });
+    const gl = canvas.getContext('webgl2', { antialias: true, preserveDrawingBuffer: false, alpha: false, powerPreference: 'high-performance' });
     if (!gl) return null;
     const compile = (vs, fs) => {
       const p = gl.createProgram();
@@ -293,6 +293,15 @@
     };
     // replace vertex positions/normals of a mesh made with { dynamic: true } (same vertex count)
     E.updateMesh = (m, p, n) => { gl.bindBuffer(gl.ARRAY_BUFFER, m.bp); gl.bufferSubData(gl.ARRAY_BUFFER, 0, p); gl.bindBuffer(gl.ARRAY_BUFFER, m.bn); gl.bufferSubData(gl.ARRAY_BUFFER, 0, n); };
+    // Show the 3D picture directly on screen, underneath the 2D game canvas (much faster on phones than copying it every frame)
+    canvas.className = 'gl3d-layer';
+    E.present = (ctx2d, w, h) => {
+      const host = ctx2d.canvas;
+      if (canvas.parentNode !== host.parentNode) host.parentNode.insertBefore(canvas, host);
+      if (canvas.style.display !== 'block') canvas.style.display = 'block';
+      ctx2d.clearRect(0, 0, w, h);
+    };
+    E.hide = () => { canvas.style.display = 'none'; };
     let W = 1, H = 1, dpr = 1;
     E.resize = (w, h, d) => { W = w; H = h; dpr = d; const cw = Math.round(w * d), ch = Math.round(h * d); if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; } };
     const queue = [], sprites = [], lights = [];
@@ -402,5 +411,5 @@
     return E;
   }
   let shared = null;
-  PB.gl3d = { M, G, noise3, fbm, get(){ if (shared === null) { try { shared = create(); } catch (e) { console.error(e); shared = false; } } return shared || null; } };
+  PB.gl3d = { M, G, noise3, fbm, hide(){ if (shared) shared.hide(); }, get(){ if (shared === null) { try { shared = create(); } catch (e) { console.error(e); shared = false; } } return shared || null; } };
 })();

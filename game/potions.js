@@ -8,18 +8,22 @@
     const FONT = '"Cinzel Decorative", Georgia, serif';
     const BODY = '"Nunito", "Segoe UI", sans-serif';
     const GOLD = '#f5c84c';
-    const COLORS = ['#ff4d6d','#ff9f1c','#ffe14d','#b5e655','#2fbf71','#2ec4b6','#5ad1ff','#4361ee','#9d4edd','#f72585','#a0673a','#f2f2f2'];
-    const NAMES = ['Dragon fire','Pumpkin brew','Sunbeam','Frog juice','Forest tonic','Mermaid tears','Sky elixir','Midnight ink','Wizard mist','Pixie punch','Troll tea','Unicorn milk'];
+    const COLORS = ['#ff4d6d','#ff9f1c','#ffe14d','#b5e655','#2fbf71','#2ec4b6','#5ad1ff','#4361ee','#9d4edd','#f72585','#a0673a','#f2f2f2','#ffb3c6','#8c1c3a'];
+    const NAMES = ['Dragon fire','Pumpkin brew','Sunbeam','Frog juice','Forest tonic','Mermaid tears','Sky elixir','Midnight ink','Wizard mist','Pixie punch','Troll tea','Unicorn milk','Fairy blush','Vampire wine'];
     let st = null;
 
     // ---------- Level design ----------
+    // Every few levels adds a new potion color (up to 14). Later levels hide layers, give less time,
+    // fewer undos, and pick the trickiest shuffle out of several.
     function levelSpec(n){
-      const k = Math.min(3 + Math.floor((n - 1) / 7), 12);
-      const hidden = n >= 60 ? 'all' : n >= 30 ? 'bottom' : 'none';
-      const time = Math.round((25 + k * 13) * (1.3 - Math.min(0.45, n / 200)));
-      return { n, k, hidden, time, seed: 'potions-' + n };
+      const k = Math.min(3 + Math.floor((n - 1) / 4), COLORS.length);
+      const hidden = n >= 55 ? 'all' : n >= 22 ? 'bottom' : 'none';
+      const time = Math.round((22 + k * 12) * (1.25 - Math.min(0.5, n / 160)));
+      const undos = n >= 60 ? 1 : n >= 25 ? 2 : 3;
+      const tries = 1 + Math.min(4, Math.floor(n / 10));
+      return { n, k, hidden, time, undos, tries, mixed: n >= 10, seed: 'potions-' + n };
     }
-    function dailySpec(){ return { n:'daily', k: 9, hidden:'bottom', time: 150, seed: 'potions-daily-' + PB.today() }; }
+    function dailySpec(){ return { n:'daily', k: 10, hidden:'bottom', time: 150, undos: 2, tries: 4, mixed: true, seed: 'potions-daily-' + PB.today() }; }
 
     function solvable(bottles){
       const seen = new Set(); let nodes = 0;
@@ -27,7 +31,7 @@
       function key(b){ return b.map(t => t.join(',')).sort().join('|'); }
       function dfs(b){
         if (done(b)) return true;
-        if (++nodes > 25000) return false;
+        if (++nodes > 60000) return false;
         const k = key(b); if (seen.has(k)) return false; seen.add(k);
         for (let i=0;i<b.length;i++) {
           const s = b[i]; if (!s.length) continue;
@@ -47,21 +51,29 @@
         }
         return false;
       }
-      return dfs(bottles.map(t => t.slice()));
+      return dfs(bottles.map(t => t.slice())) ? nodes : 0;
     }
     function makeBottles(spec){
       const R = mulberry(seedFrom(spec.seed));
-      let best = null;
-      for (let attempt = 0; attempt < 25; attempt++) {
+      let best = null, bestHard = -1, fallback = null, found = 0;
+      for (let attempt = 0; attempt < 40 && found < (spec.tries || 1); attempt++) {
         const pool = []; for (let c=0;c<spec.k;c++) for (let i=0;i<CAP;i++) pool.push(c);
         shuffle(pool, R);
         const bottles = []; for (let b=0;b<spec.k;b++) bottles.push(pool.slice(b*CAP, b*CAP + CAP));
         bottles.push([], []);
         const trivial = bottles.some(t => t.length === CAP && t.every(c => c === t[0]));
         if (trivial) continue;
-        best = bottles;
-        if (solvable(bottles)) break;
+        // harder levels: no two layers of the same color touching
+        const pairs = bottles.reduce((a, t) => a + t.filter((c, i) => i && c === t[i - 1]).length, 0);
+        if (spec.mixed && pairs > (attempt > 25 ? 2 : 0)) continue;
+        fallback = fallback || bottles;
+        const hard = solvable(bottles);
+        if (!hard) continue;
+        found++;
+        if (hard > bestHard) { bestHard = hard; best = bottles; }
       }
+      best = best || fallback;
+      if (!best) return makeBottles({ ...spec, mixed: false, seed: spec.seed + '-b' });
       return best.map(t => t.map((c, i) => ({ c, hidden: (spec.hidden === 'all' && i < t.length - 1) || (spec.hidden === 'bottom' && i === 0) })));
     }
 
@@ -86,7 +98,7 @@
 
     function fresh(mode, level){
       const spec = mode === 'daily' ? dailySpec() : levelSpec(level);
-      st = { mode, spec, bottles: makeBottles(spec), sel: -1, anim: null, undo: [], undos: 3, time: spec.time, clock: 0,
+      st = { mode, spec, bottles: makeBottles(spec), sel: -1, anim: null, undo: [], undos: spec.undos || 3, time: spec.time, clock: 0,
         score: 0, over: false, parts: [], pops: [], sealed: new Set(), shake: 0, bubbles: [], phase:'play',
         motes: Array.from({ length: 26 }, () => ({ x: 160 + Math.random() * 220, y: 160 + Math.random() * 440, v: 4 + Math.random() * 8, r: 0.8 + Math.random() * 1.4, ph: Math.random() * 6 })) };
       layout();
@@ -109,7 +121,7 @@
       else if (st.bottles[i].length && !isSealed(st.bottles[i])) { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = i; }
       else { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = -1; }
     }
-    function startPour(i, j){
+    function startPour(i, j){ if (PB.sfx) PB.sfx('pour');
       const s = st.bottles[i], d = st.bottles[j];
       const amt = Math.min(topRun(s), CAP - d.length);
       st.undo.push(st.bottles.map(b => b.map(l => ({ ...l }))));
@@ -153,7 +165,7 @@
     function restart(){
       if (st.anim || st.over) return;
       const time = st.time, spec = st.spec;
-      st.bottles = makeBottles(spec); st.sel = -1; st.undo = []; st.undos = 3; st.sealed = new Set(); st.score = 0;
+      st.bottles = makeBottles(spec); st.sel = -1; st.undo = []; st.undos = spec.undos || 3; st.sealed = new Set(); st.score = 0;
       st.time = time; layout();
     }
     function sparkle(x, y, color, n){
@@ -581,7 +593,7 @@
     }
 
     return {
-      id:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:100, maxLives:0,
+      id:'potions', sfxScore:false, music:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:100, maxLives:0,
       failTitle:"Time's up!", dailyText:'One big brew, one try a day', powersTitle:'Magic tips',
       tile:{ order:4, name:'Potion Sort', kind:"Wizard's potion puzzle \u00b7 100 levels", art: artTile },
       controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can only pour onto the same color, or into an empty flask.', 'Fill every flask with a single color before the hourglass runs out.', 'Finish faster for more stars.'],

@@ -79,12 +79,23 @@
   // ---------- Play screen ----------
   function fit(){
     const stage = screen.parentElement;
-    const w = stage.clientWidth - 20, h = stage.clientHeight - 14;
+    const cs = getComputedStyle(stage);
+    const w = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 8, h = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 8;
     const s = Math.min(w/G.W, h/G.H);
     screen.style.width = Math.floor(G.W*s)+'px'; screen.style.height = Math.floor(G.H*s)+'px';
   }
+  let prevHud = null;
+  function soundCues(h){
+    if (!PB.sfx || phase !== 'play') { prevHud = null; return; }
+    const p = prevHud; prevHud = { lives: h.lives, score: h.score, stat: h.stat };
+    if (!p) return;
+    if (h.lives != null && p.lives != null) { if (h.lives < p.lives) PB.sfx('hurt'); else if (h.lives > p.lives) PB.sfx('life'); }
+    const d = h.score - p.score;
+    if (G.sfxScore !== false && d >= 5) PB.sfx('point', Math.log10(d) / 3);
+    if (G.type !== 'levels' && G.statLabel === 'Level' && typeof h.stat === 'number' && h.stat > p.stat) PB.sfx('level');
+  }
   function updateHud(){
-    const h = G.hud();
+    const h = G.hud(); soundCues(h);
     $('hLives').hidden = h.lives == null;
     if (h.lives != null) $('hLives').textContent = '\u2665'.repeat(Math.max(h.lives, 0)) || '\u2013';
     $('hStatLabel').textContent = h.statLabel || G.statLabel;
@@ -125,6 +136,7 @@
       $('mClassicBest').textContent = 'Best: ' + fmt(bestFor(G, 'classic'));
       $('btnLevels').hidden = true;
     }
+    if (PB.music) PB.music.duck(true);
     const db = bestFor(G, 'daily');
     $('mDailyBest').textContent = db ? `Today's best: ${fmt(db)}` : (G.dailyText || 'A new challenge every day');
     showView('menu');
@@ -177,7 +189,8 @@
       G.start(m, rand, Math.min(3 + bonus, G.maxLives), bonus ? `+${bonus} streak life!` : null);
       cachedBest = bestFor(G, m);
     }
-    lastEntryId = null;
+    lastEntryId = null; prevHud = null;
+    if (PB.sfx) PB.sfx('start'); if (PB.music) PB.music.duck(false);
     showView(null);
   }
 
@@ -185,6 +198,7 @@
   shell.gameOver = function(score, summary){
     phase = 'over'; lastScore = Math.floor(score);
     const prevBest = bestFor(G, mode), q = qualifies(G, mode, lastScore);
+    if (PB.sfx) PB.sfx(lastScore > prevBest && lastScore > 0 ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
     $('oTitle').textContent = mode === 'daily' ? 'Challenge over' : 'Game over';
     $('oScore').textContent = fmt(lastScore);
     $('oSummary').textContent = summary;
@@ -202,6 +216,7 @@
   shell.levelDone = function({ win, stars, score, summary }){
     if (mode === 'daily') { shell.gameOver(score, summary); return; }
     phase = 'over'; lastScore = Math.floor(score);
+    if (PB.sfx) PB.sfx(win ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
     const p = progress(G);
     let newBest = false;
     if (win) {
@@ -265,13 +280,19 @@
   cv.addEventListener('pointercancel', e => { if (!G || phase !== 'play') return; G.pointerUp(...toGame(e)); });
   window.addEventListener('keydown', e => { if (play.hidden || !G || phase !== 'play') return; G.key(e); });
 
+  // Smooth out uneven frame times so movement doesn't stutter; allow up to 1/20 s per frame so slower phones don't go slow-motion
+  let smooth = 1 / 60;
   function loop(t){
-    const dt = Math.min(window.__pbMaxDt || 0.033, (t - last)/1000 || 0); last = t; clock += dt;
+    const raw = Math.min(window.__pbMaxDt || 0.05, (t - last)/1000 || 0); last = t;
+    smooth += (raw - smooth) * (Math.abs(raw - smooth) > 0.02 ? 1 : 0.2);
+    const dt = window.__pbMaxDt ? raw : smooth; clock += dt;
     G.frame(dt, clock); updateHud();
     raf = requestAnimationFrame(loop);
   }
   function openGame(id){
     G = GAMES[id]; G.init();
+    if (PB.gl3d) PB.gl3d.hide();
+    if (PB.music) PB.music.play(G.music || id);
     play.dataset.game = id;
     cv.width = G.W * dpr; cv.height = G.H * dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
     $('hub').hidden = true; play.hidden = false;
@@ -281,10 +302,32 @@
   function closeGame(){
     clearTimeout(overTimer);
     cancelAnimationFrame(raf); raf = null; play.hidden = true; $('hub').hidden = false;
+    if (PB.music) PB.music.play('hub');
     refreshHub(); $('tile-' + G.id).focus();
   }
   $('backBtn').addEventListener('click', closeGame);
+  // ---------- Sound switches ----------
+  const ICON = {
+    music: on => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 18.5a3 3 0 1 1-2-2.83V5l12-2v12.5a3 3 0 1 1-2-2.83V7.4L9 8.8z"/>${on ? '' : '<path d="M3 3l18 18" stroke="#ff4766" stroke-width="2.6" stroke-linecap="round"/>'}</svg>`,
+    sfx: on => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/>${on ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' : '<path d="M16 9l5 6M21 9l-5 6" stroke="#ff4766" stroke-width="2.4" stroke-linecap="round"/>'}</svg>`,
+  };
+  function paintSound(){
+    if (!PB.sound) return;
+    const m = PB.sound.music, f = PB.sound.sfx;
+    $('tglMusic').innerHTML = ICON.music(m) + (m ? 'Music' : 'Music off'); $('tglMusic').setAttribute('aria-pressed', String(m));
+    $('tglSfx').innerHTML = ICON.sfx(f) + (f ? 'Sounds' : 'Sounds off'); $('tglSfx').setAttribute('aria-pressed', String(f));
+    const any = m || f; $('muteBtn').innerHTML = ICON.sfx(any); $('muteBtn').setAttribute('aria-label', any ? 'Turn sound off' : 'Turn sound on');
+  }
+  if (PB.sound) {
+    $('tglMusic').addEventListener('click', () => { PB.sound.setMusic(!PB.sound.music); if (PB.sound.music) PB.music.play(play.hidden ? 'hub' : (G.music || G.id)); paintSound(); });
+    $('tglSfx').addEventListener('click', () => { PB.sound.setSfx(!PB.sound.sfx); paintSound(); });
+    $('muteBtn').addEventListener('click', () => { const on = !(PB.sound.music || PB.sound.sfx); PB.sound.setSfx(on); PB.sound.setMusic(on); if (on) PB.music.play(G.music || G.id); paintSound(); });
+    paintSound(); PB.music.play('hub');
+  } else { $('tglMusic').hidden = true; $('tglSfx').hidden = true; $('muteBtn').hidden = true; }
+  // a little click for every button
+  document.addEventListener('click', e => { if (PB.sfx && e.target.closest && e.target.closest('button')) PB.sfx('click'); }, true);
   window.addEventListener('resize', () => { if (!play.hidden) fit(); });
+  window.addEventListener('orientationchange', () => setTimeout(() => { if (!play.hidden) fit(); }, 250));
   // In the installed phone app, the Android back button returns to the game list (or closes the app from there)
   try {
     const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
