@@ -44,8 +44,8 @@ kids games,arcade,brick breaker,match 3,gems,puzzle,runner,racing,catapult,snake
 - Google Play: App category "Game", genre "Casual". Tags: Arcade, Puzzle, Family.
 
 ## URLs
-- Privacy policy: https://YOUR-GITHUB-NAME.github.io/playbox-app/privacy.html
-- Support / marketing: https://YOUR-GITHUB-NAME.github.io/playbox-app/
+- Privacy policy: https://playboxarcadeapp.github.io/playbox-app/privacy.html
+- Support / marketing: https://playboxarcadeapp.github.io/playbox-app/
 
 ## Privacy answers
 - Apple App Privacy: "Data Not Collected".
