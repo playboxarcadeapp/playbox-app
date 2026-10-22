@@ -739,6 +739,12 @@
         effects(dt); if (E) rigUpdate(dt); draw();
       },
       hud(){ return { lives: st.lives, stat: st.food, score: st.score }; },
+      metrics(){ return { score: st.score, food: st.food, dist: Math.floor(st.dist) }; },
+      dailyGoals: [
+        { text:'Grab {n} snacks', m:'food', n:[30, 45, 60] },
+        { text:'Run {n} meters', m:'dist', n:[600, 900, 1200] },
+        { text:'Grab {n} snacks without crashing', m:'food', n:[15, 20, 25], noHit:true },
+      ],
       pointerDown(x, y){ down = { x, y, used:false }; },
       pointerMove(x, y){ if (!down || down.used) return; const dx = x - down.x, dy = y - down.y; if (Math.hypot(dx, dy) > 34) { down.used = true; swipe(dx, dy); } },
       pointerUp(x, y){

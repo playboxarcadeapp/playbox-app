@@ -120,7 +120,7 @@
         else if (t.sp === 'b') { for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) queue.push([r+dr,c+dc]); st.shake = 8; }
         else if (t.sp === 'c') { const k = commonKind(); for (let i=0;i<N;i++) for (let j=0;j<N;j++) if (kind(T(i,j)) === k) queue.push([i,j]); }
       }
-      addScore(n * 30 * (1 + st.chain * 0.5));
+      st.gems = (st.gems || 0) + n; addScore(n * 30 * (1 + st.chain * 0.5));
       return n;
     }
     function commonKind(){
@@ -214,7 +214,7 @@
       if (anyDying) { gravity(); return; }
       const runs = findRuns();
       if (runs.length) {
-        st.chain++;
+        st.chain++; st.maxChain = Math.max(st.maxChain || 0, st.chain);
         if (st.chain === 2) pop(W/2, BY - 26, 'Shiny!', '#5ce1ff');
         if (st.chain === 3) pop(W/2, BY - 26, 'Sparkly!', '#ffd23f');
         if (st.chain >= 4) pop(W/2, BY - 26, 'Gem-tastic!', '#d07bff');
@@ -548,6 +548,12 @@
       start(mode, rand, lives, msg, level){ fresh(mode, rand, level === 'daily' ? 1 : level); },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: st.moves, score: st.score }; },
+      metrics(){ return { score: st.score, gems: st.gems || 0, chain: st.maxChain || 0 }; },
+      dailyGoals: [
+        { text:'Mine {n} gems', m:'gems', n:[80, 100, 120] },
+        { text:'Score {n} points', m:'score', n:[4000, 6000, 8000] },
+        { text:'Make a {n}-in-a-row chain reaction', m:'chain', n:[3, 4] },
+      ],
       pointerDown(x, y){
         if (st.busy || st.over) return;
         const cell = cellAt(x, y); st.drag = cell ? { cell, x, y } : null;
@@ -568,7 +574,7 @@
         if (st.sel && Math.abs(st.sel[0] - cell[0]) + Math.abs(st.sel[1] - cell[1]) === 1) trySwap(st.sel, cell);
         else st.sel = (st.sel && st.sel[0] === cell[0] && st.sel[1] === cell[1]) ? null : cell;
       },
-      key(){}, debug(){ return st; },
+      key(){}, debug(){ return st; }, debugMove(){ const m = findMove(); if (m) trySwap(m[0], m[1]); return m; },
     };
   }
   PB.register(createSweets);

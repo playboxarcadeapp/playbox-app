@@ -300,6 +300,12 @@
         effects(dt); draw(clock);
       },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      metrics(){ return { score: st.score, level: st.level }; },
+      dailyGoals: [
+        { text:'Score {n} points', m:'score', n:[2500, 4000, 6000] },
+        { text:'Reach level {n}', m:'level', n:[3, 4, 5] },
+        { text:'Reach level {n} without losing a ball', m:'level', n:[2, 3], noHit:true },
+      ],
       pointerDown(x){ movePaddle(x); launch(); },
       pointerMove(x){ movePaddle(x); },
       pointerUp(){},

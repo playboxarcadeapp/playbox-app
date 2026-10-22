@@ -292,6 +292,12 @@
       start(mode, rand, lives, msg){ fresh(mode, rand, lives, 'play'); st.msg = msg ? msg + ' Tap to start' : 'Level 1 \u00b7 Tap to start'; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      metrics(){ return { score: st.score, level: st.level }; },
+      dailyGoals: [
+        { text:'Reach level {n}', m:'level', n:[4, 6, 8] },
+        { text:'Score {n} points', m:'score', n:[3000, 5000, 7000] },
+        { text:'Reach level {n} without losing a life', m:'level', n:[3, 4, 5], noHit:true },
+      ],
       pointerDown(x, y){
         if (st.phase !== 'play' || st.pending != null || st.retry != null) return;
         if (st.msg) { st.msg = null; st.running = true; return; }

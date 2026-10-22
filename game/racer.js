@@ -446,6 +446,12 @@
       start(mode, rand, lives, msg){ fresh(mode, rand, lives, 'play'); st.msg = msg ? msg + ' Tap to race' : `${st.gal.name} \u00b7 Tap to race`; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      metrics(){ return { score: st.score, level: st.level, stars: st.stars }; },
+      dailyGoals: [
+        { text:'Collect {n} stars', m:'stars', n:[40, 60, 80] },
+        { text:'Reach race {n}', m:'level', n:[3, 4] },
+        { text:'Reach race {n} without crashing', m:'level', n:[2, 3], noHit:true },
+      ],
       pointerDown(x, y){
         if (st.phase !== 'play') return;
         if (st.msg) { st.msg = null; st.count = st.count > 0 ? st.count : 2.6; return; }

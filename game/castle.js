@@ -180,14 +180,14 @@
         if (d.off) { if (b.y > GROUND - b.hh - 4 && !d.landed) { d.landed = true; dust3(W3(b.x, GROUND, st.lanes[d.lane].lat), '#b7a27a', 8); } continue; }
         // A goblin that tumbles down from its perch or gets knocked over is bonked, wherever it lands
         if (d.mat === 'goblin' && (b.y > d.y0 + 16 || Math.abs(b.a - d.a0) > 1.0) && b.y <= TABLE_Y + 6 && b.x >= TX0 - 4 && b.x <= TX1 + 4) {
-          d.off = true; d.gone = true; st.knocked++; st.score += 500;
+          d.off = true; d.gone = true; st.knocked++; st.gobs = (st.gobs || 0) + 1; st.score += 500;
           const wp = W3(b.x, b.y, st.lanes[d.lane].lat);
           pop(wp, 'Goblin bonked! +500', '#9cff5a', 1.4); dust3(wp, '#9cff5a', 14);
           st.lanes[d.lane].world.remove(b); if (PB.sfx) PB.sfx('bonk');
           continue;
         }
         if (b.y > TABLE_Y + 6 || b.x < TX0 - 4 || b.x > TX1 + 4) {
-          d.off = true; st.knocked++;
+          d.off = true; st.knocked++; if (d.mat === 'goblin') st.gobs = (st.gobs || 0) + 1;
           const pts = d.mat === 'goblin' ? 500 : 100 + (d.mat === 'dark' ? 60 : d.mat === 'gray' ? 30 : 0);
           st.score += pts; if (PB.sfx) PB.sfx(d.mat === 'goblin' ? 'bonk' : 'crash'); pop(W3(b.x, Math.min(TABLE_Y - 10, b.y), st.lanes[d.lane].lat), d.mat === 'goblin' ? 'Goblin bonked! +500' : '+' + pts, d.mat === 'goblin' ? '#9cff5a' : '#ffe08a', d.mat === 'goblin' ? 1.4 : 0.9);
         }
@@ -598,6 +598,12 @@
       start(mode, rand, lives, msg, level){ fresh(mode, level === 'daily' ? 1 : level); },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: st.ammo.length, score: st.score }; },
+      metrics(){ return { score: st.score, blocks: st.knocked - (st.gobs || 0), goblins: st.gobs || 0, left: st.over && st.win ? st.ammo.length : 0, won: st.over && st.win ? 1 : 0 }; },
+      dailyGoals: [
+        { text:'Knock {n} blocks off the table', m:'blocks', n:[14, 18, 22] },
+        { text:'Bonk every goblin with {n} stones to spare', m:'left', n:[1, 2, 3] },
+        { text:'Bonk {n} goblins', m:'goblins', n:[3, 4] },
+      ],
       pointerDown(x, y){
         if (st.over || !E) return;
         const tri = st.shots.find(s => s.data.type === 'triple' && !s.data.split);

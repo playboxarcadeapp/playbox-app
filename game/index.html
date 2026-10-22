@@ -345,6 +345,35 @@ ol.scores li.empty { display: block; text-align: center; color: var(--pmuted); b
   #play .panel { max-width: 460px; }
   #play .lvlgrid { grid-template-columns: repeat(8, minmax(0, 1fr)); max-height: 46vh; }
 }
+/* Coins + daily challenges */
+svg.coin { width: 18px; height: 18px; flex: none; }
+.chip.coins b { color: #ffc21a; }
+.chalhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: -8px; }
+.chalhead h2 { margin: 0; }
+.chalhead span { color: var(--muted); font-weight: 800; font-size: .85rem; }
+.challist { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.chal { appearance: none; font: inherit; color: inherit; text-align: left; cursor: pointer; display: grid; grid-template-columns: 26px minmax(0,1fr) auto; align-items: center; gap: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 9px 12px; }
+.chal:hover { border-color: var(--yellow); }
+.chal .ck { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 900; }
+.chal.done .ck { background: var(--lime); border-color: var(--lime); color: #06210a; }
+.chal .tx { display: grid; min-width: 0; }
+.chal .tx b { font-size: .8rem; color: var(--muted); letter-spacing: .04em; }
+.chal .tx span { font-weight: 800; font-size: .92rem; line-height: 1.25; }
+.chal .rw { display: inline-flex; align-items: center; gap: 4px; font-weight: 900; color: #ffc21a; font-size: .88rem; }
+.chal.done .rw { color: var(--lime); }
+.chal.done .tx span { color: var(--muted); }
+.wallet { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.wallet b { color: var(--ptext); }
+.earned { display: inline-flex; justify-self: center; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: #2a1e00; color: #ffd23f; font-weight: 900; font-size: .95rem; }
+.earned svg.coin { width: 20px; height: 20px; }
+.panel p.chalres { color: var(--ptext); font-weight: 800; }
+.panel p.chalres.ok { color: var(--pacc); }
+.toast { position: absolute; z-index: 3; left: 50%; top: 21%; transform: translateX(-50%); max-width: calc(100% - 24px); width: max-content;
+  display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; font-weight: 900; font-size: .92rem; text-align: center;
+  background: rgba(10,14,40,.92); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.35); pointer-events: none; animation: toastIn .35s ease; }
+.toast.good { background: #2a1e00; color: #ffd23f; border: 2px solid #ffc21a; }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, -10px); } }
 @media (prefers-reduced-motion: reduce) { .tile, .bigstars span { transition: none; } }
 </style>
 
@@ -360,12 +389,15 @@ ol.scores li.empty { display: block; text-align: center; color: var(--pmuted); b
     </div>
     <div class="sound" id="soundRow">
       <span class="chip" id="hubStreak"></span>
+      <span class="chip coins" id="hubCoins"></span>
       <button class="chip" id="tglMusic" aria-pressed="true">Music</button>
       <button class="chip" id="tglSfx" aria-pressed="true">Sounds</button>
     </div>
   </header>
   <h2>Games</h2>
   <div class="grid" id="grid"></div>
+  <div class="chalhead"><h2>Today's challenges</h2><span id="chalCount"></span></div>
+  <div class="challist" id="chalList"></div>
   <p class="note">Play any game each day to keep your streak going. A 3-day streak gives you a bonus life in every game with hearts, and a 7-day streak gives you two.</p>
 </div>
 </div>
@@ -388,6 +420,7 @@ ol.scores li.empty { display: block; text-align: center; color: var(--pmuted); b
     <div class="screen" id="screen">
       <canvas id="cv" aria-label="Game"></canvas>
 
+      <div class="toast" id="toast" hidden></div>
       <div class="view" id="vMenu">
         <div class="panel">
           <h3 id="mTitle">PLAYBOX</h3>
@@ -396,6 +429,7 @@ ol.scores li.empty { display: block; text-align: center; color: var(--pmuted); b
             <strong id="mStreak">Start your streak</strong>
             <span id="mBonus"></span>
           </div>
+          <p class="wallet"><svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#ffc21a" stroke="#b77800" stroke-width="2"/></svg><span><b id="hCoins">0</b> coins saved for the Swag Shop</span></p>
           <button class="btn primary" id="btnClassic"><span id="btnClassicLabel">Play</span><small id="mClassicBest">Best: 0</small></button>
           <button class="btn ghost" id="btnLevels" hidden>All levels</button>
           <button class="btn gold" id="btnDaily"><span>Daily Challenge</span><small id="mDailyBest">New every day</small></button>
@@ -430,6 +464,8 @@ ol.scores li.empty { display: block; text-align: center; color: var(--pmuted); b
           <h3 id="oTitle">Game over</h3>
           <div class="big-score" id="oScore">0</div>
           <p class="summary" id="oSummary"></p>
+          <div class="earned" id="oCoins"></div>
+          <p class="chalres" id="oChal" hidden></p>
           <div class="flag" id="oFlag" hidden></div>
           <form class="name" id="nameForm" hidden>
             <input id="nameIn" maxlength="10" autocomplete="off" aria-label="Your name for the high score list" placeholder="Your name">
@@ -449,6 +485,7 @@ ol.scores li.empty { display: block; text-align: center; color: var(--pmuted); b
           <div class="bigstars" id="lStars"></div>
           <div class="big-score" id="lScore">0</div>
           <p class="summary" id="lSummary"></p>
+          <div class="earned" id="lCoins"></div>
           <div class="flag" id="lFlag" hidden></div>
           <button class="btn primary" id="btnNext">Next level</button>
           <div class="btnrow">

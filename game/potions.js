@@ -122,7 +122,7 @@
       else { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = -1; }
     }
     function startPour(i, j){ if (PB.sfx) PB.sfx('pour');
-      const s = st.bottles[i], d = st.bottles[j];
+      const s = st.bottles[i], d = st.bottles[j]; st.pours = (st.pours || 0) + 1;
       const amt = Math.min(topRun(s), CAP - d.length);
       st.undo.push(st.bottles.map(b => b.map(l => ({ ...l }))));
       if (st.undo.length > 30) st.undo.shift();
@@ -141,7 +141,7 @@
     }
     function checkWin(){
       if (st.bottles.every(b => !b.length || isSealed(b))) {
-        st.over = true;
+        st.over = true; st.won = true;
         const frac = st.time / st.spec.time;
         const stars = frac >= 0.5 ? 3 : frac >= 0.25 ? 2 : 1;
         st.score += Math.round(st.time * 10) + st.spec.k * 50;
@@ -607,6 +607,12 @@
       start(mode, rand, lives, msg, level){ fresh(mode, level); },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: timeStr(st.time), score: st.score }; },
+      metrics(){ return { score: st.score, won: st.won ? 1 : 0, timeLeft: st.won ? Math.ceil(st.time) : 0, undoUsed: (st.spec.undos || 3) - st.undos, pours: st.pours || 0 }; },
+      dailyGoals: [
+        { text:'Sort every potion with {n} seconds left', m:'timeLeft', n:[30, 45, 60] },
+        { text:'Sort every potion without using Undo', m:'won', n:[1], zero:'undoUsed' },
+        { text:'Sort every potion in {n} pours or less', m:'won', n:[1], max:'pours', limit:[60, 55, 50] },
+      ],
       pointerDown(x, y){
         if (st.over) return;
         if (x > W - 122 && y < 94) { if (y < 53) doUndo(); else restart(); return; }

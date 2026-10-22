@@ -26,10 +26,58 @@
     return { count: alive ? s.count : 0, best: s.best || 0, playedToday: s.last === today() };
   }
   function markPlayed(){
-    const s = streakInfo(); if (s.playedToday) return;
+    const s = streakInfo(); if (s.playedToday) return false;
     store.set('pb-streak', { last: today(), count: s.count + 1, best: Math.max(s.best, s.count + 1) });
+    return 10 + Math.min(s.count + 1, 7) * 2;   // a few coins for coming back each day
   }
   const streakBonus = c => c >= 7 ? 2 : c >= 3 ? 1 : 0;
+
+  // ---------- Coins (saved for the Swag Shop) ----------
+  const coinSvg = '<svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#ffc21a" stroke="#b77800" stroke-width="2"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#ffe27a" stroke-width="1.5"/><path d="M12 7.6l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3-2.2-2.1 3-.4z" fill="#b77800"/></svg>';
+  const wallet = {
+    get(){ return store.get('pb-coins') || 0; },
+    add(n){ n = Math.floor(n); if (n <= 0) return; store.set('pb-coins', wallet.get() + n); const e = store.get('pb-coins-earned') || 0; store.set('pb-coins-earned', e + n); paintCoins(); },
+    spend(n){ if (wallet.get() < n) return false; store.set('pb-coins', wallet.get() - n); paintCoins(); return true; },
+  };
+  PB.wallet = wallet;
+  function paintCoins(){ const c = fmt(wallet.get()); $('hubCoins').innerHTML = coinSvg + `<b>${c}</b> coins`; $('hCoins').textContent = c; }
+  const coinsForScore = score => Math.max(1, Math.min(60, Math.round(Math.sqrt(Math.max(0, score)) / 2.5)));
+
+  // ---------- Daily challenges: one real goal per game per day ----------
+  function challengeFor(g, day = today()){
+    if (!g.dailyGoals || !g.dailyGoals.length) return null;
+    const R = mulberry(seedFrom('goal-' + g.id + '-' + day));
+    const t = g.dailyGoals[Math.floor(R() * g.dailyGoals.length)];
+    const goal = t.n[Math.floor(R() * t.n.length)];
+    const lim = t.limit ? t.limit[Math.floor(R() * t.limit.length)] : null;
+    return { ...t, goal, lim, label: t.text.replace('{n}', fmt(lim != null ? lim : goal)) };
+  }
+  const dailyLog = () => { const d = store.get('pb-daily-done') || {}; return d.date === today() ? d : { date: today(), games: {} }; };
+  const challengeDone = g => !!dailyLog().games[g.id];
+  const CHALLENGE_COINS = 50;
+  let chal = null;  // the challenge being played right now
+  function checkChallenge(){
+    if (!chal || chal.done || chal.failed || !G.metrics) return;
+    const m = G.metrics(), h = G.hud();
+    if (chal.noHit && h.lives != null && h.lives < chal.lives0) return missChallenge('You got bumped! Try again for the goal.');
+    if (chal.zero && m[chal.zero] > 0) return missChallenge('Try again without using it!');
+    if (chal.max && chal.lim != null && m[chal.max] > chal.lim) return missChallenge('Too many! Try again for the goal.');
+    chal.value = m[chal.m] || 0;
+    if (chal.value >= chal.goal) {
+      chal.done = true;
+      const first = !challengeDone(G);
+      if (first) { const d = dailyLog(); d.games[G.id] = true; store.set('pb-daily-done', d); wallet.add(CHALLENGE_COINS); }
+      toast(first ? `Challenge complete! +${CHALLENGE_COINS} coins` : 'Challenge complete again!', true);
+      if (PB.sfx) PB.sfx('life');
+    }
+  }
+  function missChallenge(msg){ chal.failed = true; toast(msg, false); }
+  let toastT = null;
+  function toast(text, good){
+    const t = $('toast'); t.innerHTML = (good ? coinSvg : '') + '<span></span>'; t.querySelector('span').textContent = text;
+    t.className = 'toast ' + (good ? 'good' : 'meh'); t.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 2600);
+  }
   function progress(g){
     const p = store.get(g.id + '-progress') || {};
     return { unlocked: p.unlocked || 1, stars: p.stars || {}, best: p.best || {}, last: p.last || 1 };
@@ -55,6 +103,20 @@
   function refreshHub(){
     const s = streakInfo();
     $('hubStreak').innerHTML = flameSvg + (s.count ? `<b>${s.count}</b> day streak` : 'Start a streak today');
+    paintCoins();
+    const list = $('chalList'); list.innerHTML = '';
+    let doneN = 0;
+    for (const g of ordered) {
+      const c = challengeFor(g); if (!c) continue;
+      const done = challengeDone(g); if (done) doneN++;
+      const b = document.createElement('button'); b.className = 'chal' + (done ? ' done' : '');
+      b.innerHTML = `<span class="ck" aria-hidden="true">${done ? '\u2713' : ''}</span><span class="tx"><b></b><span></span></span><span class="rw">${done ? 'Done' : coinSvg + '+' + CHALLENGE_COINS}</span>`;
+      b.querySelector('b').textContent = g.tile.name; b.querySelector('.tx span').textContent = c.label;
+      b.setAttribute('aria-label', `${g.tile.name}: ${c.label}${done ? ', done' : ''}`);
+      b.addEventListener('click', () => { openGame(g.id); startGame('daily'); });
+      list.appendChild(b);
+    }
+    $('chalCount').textContent = `${doneN} of ${list.children.length} done`;
     for (const g of ordered) {
       const el = $('best-' + g.id); if (!el) continue;
       if (g.type === 'levels') { const p = progress(g); el.textContent = `Level ${Math.min(p.unlocked, g.levels)} \u00b7 \u2605 ${totalStars(p)}`; }
@@ -95,6 +157,7 @@
     if (G.type !== 'levels' && G.statLabel === 'Level' && typeof h.stat === 'number' && h.stat > p.stat) PB.sfx('level');
   }
   function updateHud(){
+    if (mode === 'daily' && phase === 'play') checkChallenge();
     const h = G.hud(); soundCues(h);
     $('hLives').hidden = h.lives == null;
     if (h.lives != null) $('hLives').textContent = '\u2665'.repeat(Math.max(h.lives, 0)) || '\u2013';
@@ -103,7 +166,10 @@
     $('hScore').textContent = fmt(h.score);
     $('hBest').textContent = fmt(Math.max(cachedBest, h.score));
     const tag = $('hMode');
-    if (mode === 'daily' && phase !== 'menu') { tag.hidden = false; tag.textContent = 'DAILY'; }
+    if (mode === 'daily' && phase !== 'menu') {
+      tag.hidden = false;
+      tag.textContent = !chal ? 'DAILY' : chal.done ? '\u2605 GOAL DONE' : chal.failed ? 'GOAL MISSED' : chal.m === 'won' || chal.m === 'timeLeft' || chal.m === 'left' ? '\u2605 GOAL' : `\u2605 ${fmt(Math.min(chal.value || 0, chal.goal))}/${fmt(chal.goal)}`;
+    }
     else if (G.type === 'levels' && phase !== 'menu') { tag.hidden = false; tag.textContent = 'LEVEL ' + level; }
     else tag.hidden = true;
   }
@@ -137,8 +203,8 @@
       $('btnLevels').hidden = true;
     }
     if (PB.music) PB.music.duck(true);
-    const db = bestFor(G, 'daily');
-    $('mDailyBest').textContent = db ? `Today's best: ${fmt(db)}` : (G.dailyText || 'A new challenge every day');
+    const c = challengeFor(G);
+    $('mDailyBest').textContent = c ? (challengeDone(G) ? '\u2713 ' + c.label : c.label + ` \u00b7 +${CHALLENGE_COINS} coins`) : (G.dailyText || 'A new challenge every day');
     showView('menu');
   }
   function openHelp(){
@@ -176,7 +242,9 @@
   }
   function startGame(m, lvl){
     clearTimeout(overTimer);
-    markPlayed(); refreshHub();
+    const streakCoins = markPlayed();
+    if (streakCoins) { wallet.add(streakCoins); setTimeout(() => toast(`Daily streak bonus +${streakCoins} coins`, true), 400); }
+    refreshHub();
     mode = m; phase = 'play';
     const bonus = G.type === 'levels' ? 0 : streakBonus(streakInfo().count);
     const rand = m === 'daily' ? mulberry(seedFrom(G.id + '-' + today())) : Math.random;
@@ -190,13 +258,19 @@
       cachedBest = bestFor(G, m);
     }
     lastEntryId = null; prevHud = null;
+    chal = m === 'daily' ? challengeFor(G) : null;
+    if (chal) { chal.lives0 = G.hud().lives; chal.value = 0; setTimeout(() => { if (chal && phase === 'play') toast('Goal: ' + chal.label, false); }, 900); }
     if (PB.sfx) PB.sfx('start'); if (PB.music) PB.music.duck(false);
     showView(null);
   }
 
   // Endless games (and daily challenges) end here
   shell.gameOver = function(score, summary){
+    if (mode === 'daily') checkChallenge();
     phase = 'over'; lastScore = Math.floor(score);
+    const earned = coinsForScore(lastScore); wallet.add(earned);
+    $('oCoins').innerHTML = coinSvg + `<span>+${fmt(earned)} coins</span>`;
+    $('oChal').hidden = !chal; if (chal) { $('oChal').textContent = chal.done ? '\u2605 Daily goal complete!' : 'Daily goal: ' + chal.label + (chal.failed ? ' (missed)' : ''); $('oChal').className = 'chalres' + (chal.done ? ' ok' : ''); }
     const prevBest = bestFor(G, mode), q = qualifies(G, mode, lastScore);
     if (PB.sfx) PB.sfx(lastScore > prevBest && lastScore > 0 ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
     $('oTitle').textContent = mode === 'daily' ? 'Challenge over' : 'Game over';
@@ -216,6 +290,9 @@
   shell.levelDone = function({ win, stars, score, summary }){
     if (mode === 'daily') { shell.gameOver(score, summary); return; }
     phase = 'over'; lastScore = Math.floor(score);
+    const firstClear = win && !(progress(G).stars[level] > 0);
+    const earned = win ? 5 + stars * 3 + (firstClear ? 10 : 0) : 1; wallet.add(earned);
+    $('lCoins').innerHTML = coinSvg + `<span>+${earned} coin${earned === 1 ? '' : 's'}${firstClear ? ' (first clear bonus!)' : ''}</span>`;
     if (PB.sfx) PB.sfx(win ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
     const p = progress(G);
     let newBest = false;

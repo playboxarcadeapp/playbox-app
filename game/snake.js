@@ -407,6 +407,12 @@
       start(mode, rand, lives, msg){ const R = mode === 'daily' ? mulberry(seedFrom('snake-daily-' + PB.today())) : rand; fresh(mode, R, lives, 'ready'); st.msg = msg ? msg + ' Swipe to go' : 'Swipe to start slithering'; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      metrics(){ return { score: st.score, eaten: st.eaten, level: st.level, length: st.snake.length }; },
+      dailyGoals: [
+        { text:'Eat {n} fruit', m:'eaten', n:[20, 30, 40] },
+        { text:'Grow to {n} long', m:'length', n:[25, 35, 45] },
+        { text:'Reach level {n} without bumping into anything', m:'level', n:[3, 4], noHit:true },
+      ],
       // Keep your finger down and slide it around: every new direction you drag turns the snake (no need to lift)
       pointerDown(x, y){ down = { x, y, used: false, last: null }; },
       pointerMove(x, y){
