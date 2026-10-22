@@ -1,0 +1,20 @@
+{
+  "name": "playbox-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playbox: eight kids' games in one app (Capacitor wrapper for iOS and Android).",
+  "scripts": {
+    "prepare-web": "node scripts/prepare-web.mjs",
+    "native-tweaks": "node scripts/native-tweaks.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.0"
+  }
+}

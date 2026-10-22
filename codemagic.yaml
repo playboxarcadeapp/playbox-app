@@ -1,0 +1,68 @@
+# Codemagic builds the phone apps in the cloud, so no Mac or Android Studio is needed.
+# Two workflows: one makes the Android app bundle (.aab) for Google Play,
+# the other makes the iPhone app and sends it to TestFlight / App Store Connect.
+workflows:
+
+  android-release:
+    name: Android - Google Play bundle
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      android_signing:
+        - playbox_upload_key          # the keystore you upload in Codemagic (see guide)
+      node: 22
+      java: 21
+    scripts:
+      - name: Install tools
+        script: npm install
+      - name: Build the game files
+        script: npm run prepare-web
+      - name: Create the Android project
+        script: |
+          [ -d android ] || npx cap add android
+          npx cap sync android
+      - name: App icon and splash screen
+        script: npx capacitor-assets generate --android --iconBackgroundColor '#070b1f' --iconBackgroundColorDark '#070b1f' --splashBackgroundColor '#070b1f' --splashBackgroundColorDark '#070b1f'
+      - name: Phone settings (portrait, version, signing)
+        script: BUILD_NUMBER=$PROJECT_BUILD_NUMBER node scripts/native-tweaks.mjs android
+      - name: Build the signed app bundle
+        script: cd android && ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+
+  ios-release:
+    name: iOS - TestFlight / App Store
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: Playbox App Store key   # the API key name you add in Codemagic (see guide)
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.playboxgames.app
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Install tools
+        script: npm install
+      - name: Build the game files
+        script: npm run prepare-web
+      - name: Create the iOS project
+        script: |
+          [ -d ios ] || npx cap add ios
+          npx cap sync ios
+      - name: App icon and splash screen
+        script: npx capacitor-assets generate --ios --iconBackgroundColor '#070b1f' --splashBackgroundColor '#070b1f' --splashBackgroundColorDark '#070b1f'
+      - name: Phone settings (portrait, iPhone, version)
+        script: BUILD_NUMBER=$PROJECT_BUILD_NUMBER node scripts/native-tweaks.mjs ios
+      - name: Use signing profiles
+        script: xcode-project use-profiles --project "ios/App/App.xcodeproj"
+      - name: Build the iPhone app
+        script: xcode-project build-ipa --project "ios/App/App.xcodeproj" --scheme "App"
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

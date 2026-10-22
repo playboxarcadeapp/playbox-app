@@ -1,0 +1,8 @@
+{
+  "appId": "com.playboxgames.app",
+  "appName": "Playbox",
+  "webDir": "www",
+  "backgroundColor": "#070b1f",
+  "android": { "backgroundColor": "#070b1f" },
+  "ios": { "backgroundColor": "#070b1f", "contentInset": "never", "scrollEnabled": false }
+}
