@@ -330,7 +330,8 @@
         gl.clear(gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST); gl.colorMask(false, false, false, false);
         gl.enable(gl.CULL_FACE); gl.cullFace(gl.FRONT); gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
         gl.useProgram(sprog.p); gl.uniformMatrix4fv(sprog.u.uLightVP, false, LVP);
-        for (const q of queue) { if (q.mat.noShadow || q.mat.unlit || (q.mat.alpha != null && q.mat.alpha < 1)) continue; gl.uniformMatrix4fv(sprog.u.uModel, false, q.model); gl.bindVertexArray(q.mesh.vao); gl.drawElements(gl.TRIANGLES, q.mesh.count, q.mesh.type, 0); }
+        const scx = c[0], scz = c[2], sr2 = (r * 1.6) * (r * 1.6);
+        for (const q of queue) { if (q.mat.noShadow || q.mat.unlit || (q.mat.alpha != null && q.mat.alpha < 1)) continue; const dx = q.model[12] - scx, dz = q.model[14] - scz; if (dx * dx + dz * dz > sr2) continue; gl.uniformMatrix4fv(sprog.u.uModel, false, q.model); gl.bindVertexArray(q.mesh.vao); gl.drawElements(gl.TRIANGLES, q.mesh.count, q.mesh.type, 0); }
         gl.disable(gl.POLYGON_OFFSET_FILL); gl.cullFace(gl.BACK); gl.colorMask(true, true, true, true);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }

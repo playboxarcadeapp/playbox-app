@@ -118,6 +118,7 @@
     oof: t => critter(t, 330, 170, 0.22, 0.24),
     nom: t => { critter(t, 600, 700, 0.06, 0.12); critter(t + 0.08, 640, 520, 0.07, 0.12); },
     yay: t => { critter(t, 600, 1000, 0.12, 0.18); critter(t + 0.14, 800, 1250, 0.2, 0.18, 6); },
+    bark: t => { for (const dt of [0, 0.16]) { critter(t + dt, 420, 260, 0.09, 0.26); noise(sfxBus, t + dt, { ft: 'bandpass', f: 700, q: 1.5, vol: 0.12, len: 0.08 }); } },
     step: t => noise(sfxBus, t, { ft: 'bandpass', f: 900 + Math.random() * 300, q: 2, vol: 0.05, len: 0.04 }),
     land: t => { noise(sfxBus, t, { ft: 'lowpass', f: 600, vol: 0.18, len: 0.12 }); voice(sfxBus, t, 120, { type: 'sine', slide: 0.6, vol: 0.18, d: 0.1, s: 0.01, len: 0.02 }); },
     seal: t => [784, 1175, 1568].forEach((f, i) => voice(sfxBus, t + i * 0.06, f, { type: ['sine', 'sine'], mult: [1, 2.5], vol: 0.12, d: 0.35, s: 0.05, len: 0.02, r: 0.2 })),
