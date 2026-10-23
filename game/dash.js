@@ -288,6 +288,7 @@
           else if (r < 0.7) st.objs.push({ kind:'hydrant', seg: s.id, side, at: s.decoAt + 1 });
           else if (r < 0.85) st.objs.push({ kind:'lamp', seg: s.id, side, at: s.decoAt + 3 });
         }
+        if (s.kind === 'open' && R() < 0.12 && s.decoAt > s.start + 20) st.objs.push({ kind:'bunting', seg: s.id, at: s.decoAt + 4, x: 0, c: Math.floor(R() * 4) });
         if (s.kind === 'open' && R() < 0.35) st.objs.push({ kind:'decal', type:'manhole', seg: s.id, x: (Math.floor(R() * 3) - 1) * LANE + (R() - .5) * 0.8, at: s.decoAt + R() * 9 });
         s.decoAt += 9;
       }
@@ -603,6 +604,7 @@
         else if (o.kind === 'pow') drawPow(o, z);
         else if (o.kind === 'coin') drawCoin(o, z);
         else if (o.kind === 'sign') drawSign(o, z);
+        else if (o.kind === 'bunting') drawBunting(o, z);
         else if (o.kind === 'barrier') drawBarrier(o, z);
       }
       FR = frames[cs.id];
@@ -687,6 +689,15 @@
         D(A.cone, M.trs([sd * 3.0, 0.42, z + 0.5], [0, 0, 0], [0.5, 0.84, 0.5]), { color: C('#ff7a2f'), spec: 0.4 });
         D(A.bump, M.trs([sd * 4.4, 0.25, zc], [0, 0, 0], [1.6, 0.7, L * 1.2]), { color: C('#8a6a48'), spec: 0.05 });
       }
+    }
+    // party flags strung across the street between two poles
+    function drawBunting(o, z){
+      const M = E.M, sets = [['#ff3d6e','#ffd23f','#3fa9ff','#7dff6a'], ['#ff9f1c','#c77dff','#5ee0ff','#ffffff'], ['#ff5a4a','#ffffff','#3f7fd6','#ffd23f'], ['#ff6fb5','#7dd85a','#ffe04a','#5ab8e8']][o.c];
+      for (const sx of [-6.6, 6.6]) D(A.cyl, M.trs([sx, 2.4, z], [0, 0, 0], [0.1, 4.8, 0.1]), { color: [0.95, 0.95, 0.95], spec: 0.4, ol: 0.02 });
+      const n = 16;
+      for (let i=0;i<n;i++) { const t = (i + 0.5) / n, x = -6.6 + 13.2 * t, y = 4.6 - Math.sin(Math.PI * t) * 0.9, sw = Math.sin(st.time * 3 + i) * 0.15;
+        D(A.cone, M.trs([x, y - 0.28, z], [Math.PI + sw, 0, 0], [0.42, 0.55, 0.06]), { color: C(sets[i % 4]), spec: 0.3, doubleSided: true, noShadow: true }); }
+      D(A.box, M.trs([0, 4.25, z], [0, 0, 0], [13.2, 0.02, 0.02]), { color: [0.3, 0.3, 0.3], noShadow: true });
     }
     function drawSign(o, z){
       const M = E.M, wood = { color: [0.98, 0.98, 0.95], spec: 0.2 }, y = 2.4;

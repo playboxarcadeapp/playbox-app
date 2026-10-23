@@ -201,7 +201,9 @@
       }
       if (!st.over) {
         const left = st.blocks.filter(b => !b.data.off).length, gobs = st.blocks.filter(b => b.data.mat === 'goblin' && !b.data.off).length;
-        if (left === 0) { st.over = true; st.endTimer = 1.4; st.win = true; pop(W3(AIMD, TABLE_Y - 140, 0), 'Castle crushed!', '#ffd23f', 1.8); }
+        if (left === 0) { st.over = true; st.endTimer = 1.4; st.win = true; pop(W3(AIMD, TABLE_Y - 140, 0), 'Castle crushed!', '#ffd23f', 1.8);
+          if (!reduceMotion) { const c0 = W3(AIMD, TABLE_Y - 200, 0); const cols = [[1, 0.3, 0.3], [1, 0.85, 0.2], [0.3, 0.7, 1], [0.4, 0.9, 0.4], [1, 0.5, 0.9]]; for (let i=0;i<90;i++) st.parts.push({ p: [c0[0] + (Math.random() - .5) * 2.5, c0[1] + Math.random(), c0[2] + (Math.random() - .5) * 1.5], v: [(Math.random() - .5) * 3, 1 + Math.random() * 3, (Math.random() - .5) * 2], life: 1.8, max: 1.8, color: cols[i % 5], size: 0.07 + Math.random() * 0.05, g: 2.5 }); }
+        }
         else if (!st.ammo.length && !st.shots.length && st.armV === 0) {
           const calm = st.blocks.every(b => b.data.off || b.rest > 0.6);
           st.settle = calm ? st.settle + dt : 0;
@@ -452,6 +454,9 @@
     function scenery(M){
       E.draw(A.ground, M.trs([0, 0, -10], [0, 0, 0], [80, 1, 80]), { tex: A.tGrass, color: [0.9, 0.95, 0.85], spec: 0.05, uvScale: [1, 1] });
       E.draw(A.quad, M.trs([0, 8.5, -60], [0, 0, 0], [140, 35, 1]), { tex: A.tBack, unlit: true, color: [0.98, 1, 1], blend: true, fogless: true, noShadow: true });
+      // puffy clouds drifting over the fair
+      for (let k=0;k<6;k++) { const cx = ((k * 23 + st.time * (0.6 + k * 0.1)) % 120) - 60, cy = 13 + (k % 3) * 2.5, cz = -55 - (k % 2) * 6;
+        for (let q=0;q<5;q++) E.sprite([cx + (q - 2) * 2.2, cy + Math.sin(q * 1.7 + k) * 0.8 + (q === 2 ? 0.8 : 0), cz], 4.5 + (q === 2 ? 1.5 : 0), [1, 1, 1], 0.92, false); }
       // dirt patch under the table
       E.draw(A.flat, M.trs(W3(AIMD, GROUND, 0), [0, 0, 0], [5.5, 0.01, 4.2]), { color: [0.62, 0.5, 0.34], spec: 0.05, noShadow: true });
       // table
