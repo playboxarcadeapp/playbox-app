@@ -14,6 +14,9 @@
       zoom:   { name:'Zoom boots',    color:'#ff7a2f', time:5,  weight:11, desc:'Super speed! Smash through anything' },
       spring: { name:'Spring shoes',  color:'#4cc96a', time:10, weight:14, desc:'Mega high jumps' },
       slow:   { name:'Slow-mo',       color:'#9a6bff', time:8,  weight:12, desc:'Everything slows down' },
+      gift:   { name:'Mystery box',   color:'#c77dff', time:0,  weight:13, desc:'A surprise inside: coins, a heart or a power-up!' },
+      gold:   { name:'Golden paws',   color:'#ffc21a', time:10, weight:12, desc:'Snacks turn into gold coins, and coins count double' },
+      giant:  { name:'Giant raccoon', color:'#ff5a4a', time:6,  weight:9,  desc:'Grow huge and stomp right through everything' },
       life:   { name:'Extra life',    color:'#ff3d6e', time:0,  weight:8,  desc:'Adds one heart (up to 5)' },
     };
     const FOODS = ['donut','cookie','chips','donut','cookie','chips','burger'];
@@ -23,7 +26,7 @@
     let st = null, E = null, A = null; // A = assets (meshes, textures)
 
     // ---------- suburban "kids movie" look ----------
-    const HOUSE_COLS = ['#f3d9a4','#a9d8e8','#f6b8a8','#c8e3b0','#f2efe6','#d9c7ef','#ffe08a','#b7d3f2'];
+    const HOUSE_COLS = ['#ffcf5c','#6fd0f0','#ff9e8a','#9be07a','#fff3e0','#c7a6ff','#ffd84a','#7fb4ff'];
     const ROOF_COLS = ['#a8473a','#4a5f86','#6b4a3a','#3f6b5a','#8a3d5a','#5a5a66'];
     const DOOR_COLS = ['#c0392b','#2e6fb7','#2f8f5b','#f2b134','#7d3c98','#1f3a5f'];
     const VANS = ['#ff8a65','#4fc3f7','#ffd54f','#81c784','#ba68c8','#f06292'];
@@ -62,6 +65,22 @@
     }
     function crossTex(){
       return canvas(256, 64, (g, w, h) => { g.clearRect(0, 0, w, h); for (let x=8;x<w;x+=32) { g.fillStyle = 'rgba(250,248,240,.9)'; g.fillRect(x, 0, 18, h); g.fillStyle = 'rgba(84,90,102,.35)'; for (let k=0;k<12;k++) g.fillRect(x + Math.random() * 18, Math.random() * h, 2, 2); } });
+    }
+    // the side of a school bus: a row of windows, black trim and kid doodles
+    function busSideTex(){
+      return canvas(1024, 160, (g, w, h) => {
+        g.fillStyle = '#ffcc33'; g.fillRect(0, 0, w, h);
+        for (let x = 30; x < w - 60; x += 82) { g.fillStyle = '#2b2140'; g.fillRect(x - 4, 10, 74, 58); const gl = g.createLinearGradient(x, 14, x + 66, 64); gl.addColorStop(0, '#bfe6ff'); gl.addColorStop(1, '#4f86b8'); g.fillStyle = gl; g.fillRect(x, 14, 66, 50); g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.moveTo(x + 6, 58); g.lineTo(x + 30, 18); g.lineTo(x + 40, 18); g.lineTo(x + 16, 58); g.fill(); }
+        g.fillStyle = '#1e1a22'; g.fillRect(0, 78, w, 8); g.fillRect(0, 96, w, 8);
+        const doodle = [['#ff3d6e', 'heart'], ['#3fa9ff', 'star'], ['#7dff6a', 'smile'], ['#ff7a2f', 'star'], ['#c77dff', 'heart']];
+        for (let k=0;k<7;k++) { const [c, t] = doodle[k % doodle.length], cx = 90 + k * 135, cy = 132; g.fillStyle = c; g.strokeStyle = '#2b2140'; g.lineWidth = 4;
+          g.beginPath();
+          if (t === 'star') for (let i=0;i<10;i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 9 : 20; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+          else if (t === 'heart') { g.moveTo(cx, cy + 16); g.bezierCurveTo(cx - 28, cy - 4, cx - 12, cy - 22, cx, cy - 8); g.bezierCurveTo(cx + 12, cy - 22, cx + 28, cy - 4, cx, cy + 16); }
+          else g.arc(cx, cy, 17, 0, 7);
+          g.closePath(); g.stroke(); g.fill();
+          if (t === 'smile') { g.fillStyle = '#2b2140'; g.beginPath(); g.arc(cx - 6, cy - 4, 3, 0, 7); g.arc(cx + 6, cy - 4, 3, 0, 7); g.fill(); g.beginPath(); g.arc(cx, cy + 2, 9, 0.2, Math.PI - 0.2); g.stroke(); } }
+      });
     }
     function walkTex(){
       return canvas(256, 256, (g, w, h) => {
@@ -176,7 +195,7 @@
         walk: E.mesh(G.plane(1.7, VIEW + 20, 1, (VIEW + 20) / 1.7)),
         lawn: E.mesh(G.plane(40, VIEW + 20, 40 / 4, (VIEW + 20) / 4)),
         curb: E.mesh(G.box(0.25, 0.18, VIEW + 20)),
-        tAsph: T(asphaltTex()), tStripe: T(canvas(64, 16, (g, w, h) => { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ff5a2a'; for (let x=-16;x<w;x+=16) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 8, 0); g.lineTo(x + 16, 0); g.lineTo(x + 8, h); g.fill(); } })), tManhole: T(manholeTex(), { repeat: false }), tCross: T(crossTex(), { repeat: false }), tBlossom: T(blossomTex()), tWalk: T(walkTex()), tGrass: T(grassTex()), tHedge: T(hedgeTex()), tLeaf: T(leafTex()), tBark: T(barkTex()), tFur: T(furTex()),
+        tAsph: T(asphaltTex()), tBusSide: T(busSideTex(), { repeat: false }), tStripe: T(canvas(64, 16, (g, w, h) => { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ff5a2a'; for (let x=-16;x<w;x+=16) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 8, 0); g.lineTo(x + 16, 0); g.lineTo(x + 8, h); g.fill(); } })), tManhole: T(manholeTex(), { repeat: false }), tCross: T(crossTex(), { repeat: false }), tBlossom: T(blossomTex()), tWalk: T(walkTex()), tGrass: T(grassTex()), tHedge: T(hedgeTex()), tLeaf: T(leafTex()), tBark: T(barkTex()), tFur: T(furTex()),
         tHills: T(hillsTex(), { repeat: true, clampV: true }), tSky: T(skyTex(), { repeat: false }), tCloud: T(cloudTex(), { repeat: false }),
         fronts: HOUSES.map(s => T(houseFront(s), { repeat: false })), sides: HOUSES.map(s => T(sidingTex(s.col))), roofs: ROOF_COLS.map(c => T(roofTex(c))),
         shirts: [['#ff6b6b','#ffffff'], ['#4fc3f7','#ffffff'], ['#ffd54f','#ff8a65'], ['#81c784','#2e7d32']].map(([a, b]) => T(shirtTex(a, b))),
@@ -211,7 +230,7 @@
       st = {
         mode, phase, rand, lives, score:0, food:0, dist:0, t:0, time:0, speed:12,
         player:{ lane:1, x:0, h:0, vy:0, slide:0, queueSlide:false, inv:0, run:0, turnQ:null },
-        objs:[], powIn:6, fx:{ magnet:0, shield:0, double:0, zoom:0, spring:0, slow:0, balloon:0 }, mult: 1,
+        objs:[], powIn:6, fx:{ magnet:0, shield:0, double:0, zoom:0, spring:0, slow:0, balloon:0, gold:0, giant:0 }, mult: 1,
         pops:[], parts:[], shake:0, msg:null,
         segs:[], segN:0, cur:0, prev:-1, camTh:0, turns:0,
         dog:{ d: phase === 'menu' ? 99 : 3.2, chase: phase === 'menu' ? 0 : 3.5, bark:0 },
@@ -228,6 +247,9 @@
         decoAt: parent == null ? start - 10 : start + 9, rowAt: start + 26, crossDone: false };
       st.segs[s.id] = s; return s;
     }
+    // streets get shorter (corners come faster) the longer you run
+    const segLen = () => (140 + Math.random() * 90) * (1 - 0.35 * diff());
+    const diff = () => Math.min(1, (st.t || 0) / 150);
     function planJunction(s, len){
       s.J = s.start + len;
       const r = Math.random();
@@ -237,6 +259,7 @@
       const o = segPt(s, s.J, 0);
       const L = newSeg(s.J, o, s.th - Math.PI / 2, s.id, s.jtype === 'R' ? 'closed' : 'open', -1);
       const Rr = newSeg(s.J, o, s.th + Math.PI / 2, s.id, s.jtype === 'L' ? 'closed' : 'open', 1);
+      for (const a of [L, Rr]) if (a.kind === 'open') planJunction(a, segLen());
       s.arms = { left: L, right: Rr };
       // big arrow sign across the street, and a crosswalk before the corner
       st.objs.push({ kind:'sign', seg: s.id, at: s.J + 8.2, x: 0, dirs: s.jtype });
@@ -271,7 +294,7 @@
     }
     function fillScenery(){
       const s = curSeg(), horizon = st.dist + VIEW + 10;
-      if (st.phase === 'play' && s.J === Infinity) planJunction(s, 140 + Math.random() * 90);
+      if (st.phase === 'play' && s.J === Infinity) planJunction(s, segLen());
       genSeg(s, horizon);
       if (s.J < horizon + 30 && !s.arms) makeArms(s);
       if (s.arms) for (const a of [s.arms.left, s.arms.right]) genSeg(a, Math.max(horizon, s.J + 70));
@@ -296,7 +319,8 @@
       const R = st.rand, sg = curSeg();
       const r = R(), early = st.t < 10;
       // school buses parked in the lanes: run up a ramp and along the roofs
-      if (!early && r < 0.2 && at + 34 < sg.J - 32) {
+      const df = diff();
+      if (!early && r < 0.2 + 0.12 * df && at + 34 < sg.J - 32) {
         const lanes = [0, 1, 2].sort(() => R() - .5), n = R() < 0.55 ? 1 : 2, buses = lanes.slice(0, n);
         let longest = 0;
         buses.forEach((l, i) => {
@@ -311,7 +335,7 @@
         return longest + 6;
       }
       // a construction trench across the street: jump it!
-      if (!early && r < 0.32 && at + 10 < sg.J - 32) {
+      if (!early && r < 0.32 + 0.2 * df && at + 10 < sg.J - 32) {
         st.objs.push({ kind:'obs', seg: st.cur, type:'gap', lane: -1, at, len: 2.6 });
         const arcL = Math.floor(R() * 3);
         trail('coin', arcL, at - 2.4, 6, 1.05, (i) => 0.45 + 1.4 * Math.sin(Math.PI * i / 5));
@@ -320,15 +344,15 @@
       const lanes = [0,1,2].sort(() => R() - .5);
       const pick = () => { const q = R(); return q < .28 ? 'cone' : q < .52 ? 'can' : q < .76 ? 'bar' : 'truck'; };
       const pat = R(), used = [];
-      if (pat < 0.38) used.push(lanes[0]); else if (pat < 0.8) used.push(lanes[0], lanes[1]);
-      const row = used.map(l => ({ kind:'obs', seg: st.cur, type: pick(), lane:l, at, color: VANS[Math.floor(R()*VANS.length)] }));
+      if (pat < 0.38 - 0.22 * df) used.push(lanes[0]); else if (pat < 0.8 + 0.15 * df) used.push(lanes[0], lanes[1]);
+      const row = used.map(l => { const o = { kind:'obs', seg: st.cur, type: pick(), lane:l, at, color: VANS[Math.floor(R()*VANS.length)] }; if (o.type === 'truck' && df > 0.25 && R() < 0.25 + 0.5 * df) { o.moving = 5 + 5 * df; o.at += o.moving * 3; } return o; });
       st.objs.push(...row);
       const free = [0,1,2].filter(l => !used.includes(l));
       const ft = FOODS[Math.floor(R()*FOODS.length)];
       if (free.length && R() < (st.t < 30 ? 0.5 : 0.6)) { const fl = free[Math.floor(R()*free.length)]; const coins = R() < 0.45; trail(coins ? 'coin' : 'food', fl, at - 6, coins ? 9 : (st.t < 30 ? 4 : 5), coins ? 1.5 : 2.2, null, coins ? null : { type: ft }); }
       const low = row.find(o => o.type === 'cone' || o.type === 'can');
       if (low && R() < 0.3) trail(R() < 0.5 ? 'coin' : 'food', low.lane, at - 2.4, 5, 1.2, (i) => 0.45 + 1.5 * Math.sin(Math.PI * i / 4), { type: ft });
-      if (st.powIn <= 0 && free.length) { const pl = free[free.length-1]; st.objs.push({ kind:'pow', seg: st.cur, type: pickPower(), lane: pl, x: laneX(pl), at: at + 9, h: 0.9 }); st.powIn = 8 + R()*6; }
+      if (st.powIn <= 0 && free.length) { const pl = free[free.length-1]; st.objs.push({ kind:'pow', seg: st.cur, type: pickPower(), lane: pl, x: laneX(pl), at: at + 9, h: 0.9 }); st.powIn = 5.5 + R() * 4; }
       return 0;
     }
 
@@ -352,10 +376,10 @@
     function stumble(o){
       o.hit = true;
       const p = st.player; if (p.inv > 0) return;
-      if (st.fx.zoom > 0 || st.fx.shield > 0) { crash(o); return; }
+      if (st.fx.zoom > 0 || st.fx.shield > 0 || st.fx.giant > 0) { crash(o); return; }
       o.fly = { vy: 6, y: 0, rot: 0, vr: (Math.random() < .5 ? -1 : 1) * 5, vx: (Math.random() - .5) * 4 };
       if (st.dog.chase > 0 && st.dog.d < 6) { st.dog.d = 0.6; st.dog.chase = 0; st.dog.caught = 0.8; crash(o, 'Caught!'); return; }
-      st.dog.chase = 7; st.dog.d = Math.min(st.dog.d, 3.6); st.dog.bark = 0.01; p.inv = 0.5; st.shake = 6; st.lookT = 0.9;
+      st.dog.chase = 7 + 3 * diff(); st.dog.d = Math.min(st.dog.d, 3.6); st.dog.bark = 0.01; p.inv = 0.5; st.shake = 6; st.lookT = 0.9;
       if (PB.sfx) { PB.sfx('oof'); PB.sfx('bark'); }
       pop(playerPos(), 'Whoa!', '#ffb800');
       if (st.rig) st.rig.trip = 0.45;
@@ -364,22 +388,32 @@
       o.hit = true; if (PB.sfx) { PB.sfx('oof'); PB.sfx('crash'); }
       const p = st.player;
       if (p.inv > 0) return;
-      if (st.fx.zoom > 0) { o.fly = { vy: 9, y: 0, rot: 0, vr: (Math.random() < .5 ? -1 : 1) * 6, vx: (Math.random() - .5) * 6 }; st.score += 25; pop(playerPos(), 'SMASH!', '#ff7a2f'); st.shake = 6; return; }
+      if (st.fx.zoom > 0 || st.fx.giant > 0) { if (st.fx.giant > 0 && PB.sfx) PB.sfx('boom'); o.fly = { vy: 9, y: 0, rot: 0, vr: (Math.random() < .5 ? -1 : 1) * 6, vx: (Math.random() - .5) * 6 }; st.score += 25; pop(playerPos(), 'SMASH!', '#ff7a2f'); st.shake = 6; return; }
       if (st.fx.shield > 0) { st.fx.shield = 0; if (!o.type || o.type !== 'bus') o.fly = { vy: 7, y: 0, rot: 0, vr: 5, vx: 3 }; p.inv = 1; st.boardFly = { t: 0, x: p.x, h: p.h }; pop(playerPos(), 'Board saved you!', '#3fa9ff'); if (PB.sfx) PB.sfx('crash'); return; }
       st.lives--; p.inv = 1.6; st.shake = 14; st.lookT = 1.0; if ((st.mult || 1) > 1) { st.mult = 1; } st.turnCrashed = true; st.dog.chase = Math.max(st.dog.chase, 4); st.dog.d = Math.min(st.dog.d, 4);
       pop(playerPos(), label || 'Ouch!', '#ff3d6e');
       if (st.lives <= 0) { st.phase = 'over'; if (PB.wallet && st.coins) PB.wallet.add(st.coins); shell.gameOver(st.score, `You ran ${fmt(st.dist)} m, grabbed ${st.food} snacks and ${st.coins || 0} gold coins`); }
     }
+    function openGift(){
+      const p = st.player, r = Math.random();
+      sparkle([p.x, p.h + 1, -0.3], [0.8, 0.5, 1], 24);
+      if (r < 0.45) { const n = 15 + Math.floor(Math.random() * 3) * 10; st.coins = (st.coins || 0) + n; pop(playerPos(), `+${n} coins!`, '#ffd23f', 1.4); if (PB.sfx) PB.sfx('win'); }
+      else if (r < 0.6 && st.lives < MAX_LIVES) { st.lives++; pop(playerPos(), 'Extra heart!', '#ff3d6e', 1.4); if (PB.sfx) PB.sfx('life'); }
+      else { const pick = ['magnet', 'shield', 'double', 'spring', 'gold', 'giant'][Math.floor(Math.random() * 6)]; st.fx[pick] = POWERS[pick].time; pop(playerPos(), POWERS[pick].name + '!', POWERS[pick].color, 1.4); if (PB.sfx) PB.sfx('power'); }
+    }
     function collect(o){ if (PB.sfx) PB.sfx(o.kind === 'pow' ? 'power' : 'coin');
       o.gone = true;
       if (o.kind === 'food') {
         st.food++; st.score += 10 * mult(); if (PB.sfx && st.food % 3 === 0) PB.sfx('nom');
+        if (st.fx.gold > 0) st.coins = (st.coins || 0) + 1;
         sparkle([st.player.x, st.player.h + 1.2, -0.3], [1, 0.85, 0.3], 5);
         if (st.rig) st.rig.fly.push({ type: o.type, p: [o.x, o.h, wz(o.at)], t: 0 });
         if (st.food % 25 === 0) pop(playerPos(), st.food + ' snacks!', '#ffb800');
       } else {
         const Pw = POWERS[o.type];
+        if (o.type === 'gift') { openGift(); return; }
         if (o.type === 'life') st.lives = Math.min(MAX_LIVES, st.lives + 1); else st.fx[o.type] = Pw.time;
+        if (o.type === 'giant' && PB.sfx) PB.sfx('boom');
         if (o.type === 'balloon') {
           const span = Math.min(Pw.time * st.speed, curSeg().J - st.dist - 25);
           st.fx.balloon = Math.max(1.5, span / st.speed);
@@ -395,13 +429,13 @@
       st.t += dt;
       for (const k in fx) if (fx[k] > 0) fx[k] = Math.max(0, fx[k] - dt);
       st.powIn -= dt;
-      st.speed = Math.min(26, 12 + st.t * 0.17);
+      st.speed = st.t < 82 ? 12 + st.t * 0.17 : Math.min(31, 26 + (st.t - 82) * 0.04);
       const sp = st.speed * (fx.zoom > 0 ? 1.8 : 1) * (fx.slow > 0 ? 0.6 : 1);
       const dz = sp * dt;
       st.dist += dz;
       st.score += dz * 1.7 * mult();
       const sg = curSeg();
-      while (st.dist + 75 > sg.rowAt && sg.rowAt < sg.J - 32) { const extra = spawnRow(sg.rowAt); sg.rowAt += Math.max(12, 19 - st.t * 0.08) + extra; }
+      while (st.dist + 75 > sg.rowAt && sg.rowAt < sg.J - 32) { const extra = spawnRow(sg.rowAt); sg.rowAt += Math.max(10.5, 19 - st.t * 0.08 - 2 * diff()) + extra; }
       fillScenery();
       // the corner
       if (sg.arms && st.dist >= sg.J) {
@@ -434,8 +468,10 @@
         if (o.gone) continue;
         const rel = o.at - st.dist;
         if (o.seg !== st.cur) continue;
+        if (o.moving && !o.hit) { o.at -= o.moving * dt; }
         if (o.kind === 'obs' && o.type === 'bus') {
           const inLane = Math.abs(laneX(o.lane) - p.x) < 1.15;
+          if (!o.hit && inLane && rel < 0.35 && rel > -o.len && p.h < BUS_H - 0.4 && fx.giant > 0) { o.hit = true; o.squash = 1; st.score += 50; pop(playerPos(), 'STOMP!', '#ff5a4a'); st.shake = 10; if (PB.sfx) PB.sfx('boom'); }
           if (!o.hit && inLane && rel < 0.35 && rel > -o.len && p.h < BUS_H - 0.4) {
             if (rel > -0.7) { crash(o, 'Bonk! A bus!'); if (st.phase !== 'play') return; bounceLane(o); }
             else { stumble({}); if (st.phase !== 'play') return; bounceLane(o); }
@@ -443,7 +479,7 @@
           continue;
         }
         if (o.kind === 'obs' && o.type === 'gap') {
-          if (!o.hit && rel < 0 && rel > -o.len + 0.3 && p.h < 0.12) { crash(o, 'Into the hole!'); p.vy = 11; if (st.phase !== 'play') return; }
+          if (!o.hit && rel < 0 && rel > -o.len + 0.3 && p.h < 0.12 && !(fx.giant > 0)) { crash(o, 'Into the hole!'); p.vy = 11; if (st.phase !== 'play') return; }
           continue;
         }
         if (o.kind === 'coin') {
@@ -480,7 +516,7 @@
     function groundAt(x, d){
       let g = 0;
       for (const o of st.objs) {
-        if (o.type !== 'bus' || o.seg !== st.cur || Math.abs(laneX(o.lane) - x) > 1.0) continue;
+        if (o.type !== 'bus' || o.squash || o.seg !== st.cur || Math.abs(laneX(o.lane) - x) > 1.0) continue;
         const r = d - o.at;
         if (r >= 0 && r <= o.len) g = Math.max(g, BUS_H);
         else if (o.ramp && r < 0 && r > -RAMP) g = Math.max(g, BUS_H * (1 + r / RAMP));
@@ -495,7 +531,7 @@
       if (p.lane === o.lane) { p.vy = 14; }
     }
     function collectCoin(o){
-      o.gone = true; st.coins = (st.coins || 0) + 1; st.score += 5 * mult();
+      o.gone = true; st.coins = (st.coins || 0) + (st.fx.gold > 0 ? 2 : 1); st.score += 5 * mult();
       if (PB.sfx) PB.sfx('gem', Math.min(1, ((st.coinStreak = (st.time - (st.lastCoinT || 0) < 0.35 ? (st.coinStreak || 0) + 1 : 0)) % 8) / 8)); st.lastCoinT = st.time;
       sparkle([st.player.x, st.player.h + 1.1, -0.3], [1, 0.85, 0.2], 3);
     }
@@ -532,8 +568,8 @@
       const camX = Rg.camX + shake[0], cbob = st.phase === 'play' && !p.air ? Math.abs(Math.sin(p.run * 2.2)) * 0.03 : 0;
       // late-afternoon "golden hour": low warm sun from the right, long shadows across the street, cool sky fill
       const aspK = (h / w) / 1.5, fovBase = 2 * Math.atan(Math.tan(0.5) * Math.max(1, aspK));
-      E.begin({ pos: [camX, 4.3 + Rg.camY + cbob + shake[1], 7.6], target: [Rg.camX * 0.64, 0.75 + Rg.camY, -12], up: [Math.sin(-Rg.bank * 0.06), 1, 0], fov: fovBase * Rg.fov, near: 0.2, far: 400 }, {
-        sunDir: [-0.62 * Math.cos(st.camTh) + 0.42 * Math.sin(st.camTh), -0.5, 0.62 * Math.sin(st.camTh) + 0.42 * Math.cos(st.camTh)], sunColor: [3.7, 2.85, 1.95], ambSky: [0.36, 0.45, 0.72], ambGround: [0.36, 0.34, 0.22], toon: 0.8,
+      E.begin({ pos: [camX, 4.3 + Rg.camY + cbob + shake[1] + ((st.giantK || 1) - 1) * 2, 7.6 + ((st.giantK || 1) - 1) * 3.5], target: [Rg.camX * 0.64, 0.75 + Rg.camY, -12], up: [Math.sin(-Rg.bank * 0.06), 1, 0], fov: fovBase * Rg.fov, near: 0.2, far: 400 }, {
+        sunDir: [-0.62 * Math.cos(st.camTh) + 0.42 * Math.sin(st.camTh), -0.5, 0.62 * Math.sin(st.camTh) + 0.42 * Math.cos(st.camTh)], sunColor: [3.9, 3.0, 2.1], ambSky: [0.34, 0.44, 0.78], ambGround: [0.34, 0.36, 0.2], toon: 1.0,
         fogColor: [0.86, 0.88, 0.92], fogDensity: 0.007, fogStart: 40,
         shadow: { center: [0, 2, -16], radius: 30 },
         sky: { zenith: [0.12, 0.4, 0.95], horizon: [0.78, 0.88, 0.98], ground: [0.55, 0.55, 0.38], sunColor: [1.4, 1.0, 0.55], sunSize: 3 },
@@ -579,7 +615,8 @@
     }
     // segment-to-screen frame: puts a street's straight-road coordinates where that street really is, seen from the turning camera
     let FR = null;
-    const D = (mesh, model, mat) => E.draw(mesh, FR ? E.M.mul(FR, model) : model, mat);
+    const INK = [0.12, 0.07, 0.12];
+    const D = (mesh, model, mat) => { const m = FR ? E.M.mul(FR, model) : model; E.draw(mesh, m, mat); if (mat.ol && (mat.alpha == null || mat.alpha >= 1)) E.draw(mesh, m, { color: INK, unlit: true, outline: mat.ol, noShadow: true }); };
     const SP = (pos, ...rest) => E.sprite(FR ? E.M.xform(FR, pos) : pos, ...rest);
     function segFrame(sg){
       const cs = curSeg(), Pc = segPt(cs, st.dist, 0), O = segPt(sg, st.dist, 0);
@@ -620,14 +657,13 @@
     // a big yellow school bus (with an optional wooden ramp to run up)
     function drawBus(o, z){
       const M = E.M, x = laneX(o.lane), L = o.len, zc = z - L / 2;
-      const paint = { color: C(o.color || '#ffcc33'), spec: 0.7, shine: 50 }, black = { color: [0.12, 0.12, 0.14], spec: 0.3 }, glass = { color: [0.25, 0.38, 0.55], spec: 1.4, shine: 90 };
+      if (o.squash) { D(A.box, M.trs([x, 0.25, zc], [0, 0, 0], [2.3, 0.5, L]), { color: C('#ffcc33'), spec: 0.6, ol: 0.04 }); return; }
+      const paint = { color: C(o.color || '#ffcc33'), spec: 0.8, shine: 50, ol: 0.05 }, side = { tex: A.tBusSide, color: [1, 1, 1], spec: 0.6, shine: 40 }, black = { color: [0.12, 0.12, 0.14], spec: 0.3 }, glass = { color: [0.25, 0.38, 0.55], spec: 1.4, shine: 90 };
       D(A.box, M.trs([x, 1.35, zc], [0, 0, 0], [2.05, 1.9, L]), paint);
+      for (const sd of [-1, 1]) D(A.quad, M.trs([x + sd * 1.032, 1.3, zc], [0, sd * Math.PI / 2, 0], [L - 0.3, 1.5, 1]), side);
       D(A.box, M.trs([x, BUS_H - 0.08, zc], [0, 0, 0], [1.95, 0.16, L - 0.1]), { color: C('#f0f0ea'), spec: 0.3 });
       D(A.sphere, M.trs([x, BUS_H - 0.12, zc], [0, 0, 0], [2.0, 0.2, L]), paint);
       for (const sd of [-1, 1]) {
-        D(A.box, M.trs([x + sd * 1.03, 1.85, zc], [0, 0, 0], [0.04, 0.55, L - 1.6]), glass);
-        D(A.box, M.trs([x + sd * 1.035, 1.15, zc], [0, 0, 0], [0.04, 0.08, L - 0.2]), black);
-        D(A.box, M.trs([x + sd * 1.035, 0.9, zc], [0, 0, 0], [0.04, 0.08, L - 0.2]), black);
         for (const wz of [z - 2.0, z - L + 2.0]) D(A.wheel, M.trs([x + sd * 0.92, 0.42, wz]), { color: [0.12, 0.12, 0.14], spec: 0.15 });
       }
       D(A.box, M.trs([x, 1.85, z + 0.01], [0, 0, 0], [1.8, 0.6, 0.04]), glass);
@@ -674,7 +710,7 @@
     function drawDog(){
       const dg = st.dog, p = st.player; if (!dg || dg.d > 8) return;
       const M = E.M, t = st.time * 18, z = 0.9 + dg.d * 0.55, x = p.x * 0.85 - 0.75 + Math.sin(st.time * 3) * 0.15, k = 0.78;
-      const brown = { color: C('#a8693a'), spec: 0.3, shine: 20, rim: 0.5 }, cream = { color: C('#f3e2c6'), spec: 0.2 }, dark = { color: [0.15, 0.1, 0.08], spec: 0.6, shine: 50 };
+      const brown = { color: C('#b8733a'), spec: 0.35, shine: 20, rim: 0.5, ol: 0.035 }, cream = { color: C('#f6e6cc'), spec: 0.2, ol: 0.025 }, dark = { color: [0.15, 0.1, 0.08], spec: 0.6, shine: 50 };
       const bob = Math.abs(Math.sin(t)) * 0.08;
       const Bm = M.trs([x, (0.42 + bob) * k, z], [0.08 * Math.sin(t), 0.55, 0], [k, k, k]);
       const part = (mesh, l, r, sc, mat) => D(mesh, M.mul(Bm, M.trs(l, r || [0, 0, 0], sc)), mat);
@@ -798,18 +834,18 @@
       if (o.type === 'gap') { drawGap(o, z); return; }
       const M = E.M; let x = laneX(o.lane), y = 0, rot = 0;
       if (o.fly) { y = Math.max(-2, o.fly.y); rot = o.fly.rot; x += o.fly.x || 0; }
-      const at = (dx, dy, dz) => [x + dx, y + dy, z + dz], R3 = [rot, 0, rot * 0.5];
+      const mv = o.moving && o.type === 'truck', at = (dx, dy, dz) => [x + dx, y + dy, z + (mv ? -4.6 - dz : dz)], R3 = [rot, 0, rot * 0.5];
       if (o.type === 'cone') {
         // a grumpy garden gnome
         D(A.cyl, M.trs(at(0, 0.06, 0), R3, [0.6, 0.12, 0.6]), { color: [0.55, 0.42, 0.3], spec: 0.1 });
-        D(A.cone, M.trs(at(0, 0.32, 0), R3, [0.62, 0.5, 0.62]), { color: E.hex('#3f7fd6'), spec: 0.3 });
+        D(A.cone, M.trs(at(0, 0.32, 0), R3, [0.62, 0.5, 0.62]), { color: E.hex('#3f7fd6'), spec: 0.3, ol: 0.03 });
         D(A.sphere, M.trs(at(0, 0.6, 0.05), R3, [0.34, 0.32, 0.32]), { color: E.hex('#ffd2b0'), spec: 0.2 });
         D(A.cone, M.trs(at(0, 0.5, 0.12), [rot + 3.14, 0, 0], [0.34, 0.3, 0.2]), { color: [0.98, 0.98, 0.98], spec: 0.2 });
-        D(A.cone, M.trs(at(0, 0.92, 0), [rot - 0.2, 0, 0], [0.4, 0.55, 0.4]), { color: E.hex('#e63b2e'), spec: 0.4 });
+        D(A.cone, M.trs(at(0, 0.92, 0), [rot - 0.2, 0, 0], [0.4, 0.55, 0.4]), { color: E.hex('#e63b2e'), spec: 0.4, ol: 0.03 });
         D(A.sphere, M.trs(at(0, 0.62, 0.21), R3, [0.1, 0.09, 0.09]), { color: E.hex('#ff8a7a'), spec: 0.3 });
       } else if (o.type === 'can') {
         // shiny cartoon trash can with a wobbly lid
-        const metal = { color: [0.78, 0.82, 0.86], spec: 1.0, shine: 50 };
+        const metal = { color: [0.78, 0.82, 0.86], spec: 1.0, shine: 50, ol: 0.035 };
         D(A.cyl, M.trs(at(0, 0.5, 0), [rot, 0, rot], [0.72, 1.0, 0.72]), metal);
         for (const ry of [0.25, 0.55, 0.85]) D(A.cyl, M.trs(at(0, ry, 0), [rot, 0, rot], [0.76, 0.05, 0.76]), { color: [0.66, 0.7, 0.75], spec: 1 });
         const wob = Math.sin(st.time * 6 + o.at) * 0.06;
@@ -827,14 +863,15 @@
         [-0.7, 0, 0.7].forEach((sx, i) => D(A.shirt, M.trs(at(sx, 2.1, 0), [sway * (i % 2 ? -1 : 1), 0, 0], [1.05, 1.05, 1]), { tex: A.shirts[(i + Math.floor(o.at)) % 4], spec: 0.1, doubleSided: true }));
       } else {
         // rounded family minivan blocking the lane
-        const col = E.hex(o.color), paint = { color: col, spec: 0.9, shine: 60 }, glass = { color: [0.25, 0.4, 0.6], spec: 1.4, shine: 90 };
+        const col = E.hex(o.color), paint = { color: col, spec: 0.9, shine: 60, ol: 0.045 }, glass = { color: [0.25, 0.4, 0.6], spec: 1.4, shine: 90 };
         D(A.box, M.trs(at(0, 0.95, -2.3), [rot * 0.3, 0, rot * 0.2], [2.2, 1.1, 4.6]), paint);
         D(A.sphere, M.trs(at(0, 1.5, -2.4), [0, 0, 0], [2.18, 1.4, 4.7]), paint);
         D(A.box, M.trs(at(0, 1.75, 0.0), [0.35, 0, 0], [1.8, 0.75, 0.05]), glass);
         for (const sx of [-1, 1]) D(A.box, M.trs(at(sx * 1.09, 1.72, -2.4), [0, 0, 0], [0.04, 0.6, 3.4]), glass);
         D(A.box, M.trs(at(0, 0.5, 0.04), [0, 0, 0], [2.3, 0.3, 0.2]), { color: [0.85, 0.85, 0.88], spec: 0.8 });
         for (const sx of [-1, 1]) {
-          D(A.sphere, M.trs(at(sx * 0.95, 1.05, 0.05), [0, 0, 0], [0.3, 0.3, 0.1]), { color: [1, 0.2, 0.15], emissive: [1.2, 0.1, 0.05], noShadow: true });
+          D(A.sphere, M.trs(at(sx * 0.95, 1.05, 0.05), [0, 0, 0], [0.3, 0.3, 0.1]), mv ? { color: [1, 1, 0.85], emissive: [1.6, 1.5, 1.1], noShadow: true } : { color: [1, 0.2, 0.15], emissive: [1.2, 0.1, 0.05], noShadow: true });
+          if (mv) SP(at(sx * 0.95, 1.05, 0.3), 1.2, [1, 0.95, 0.7], 0.5, true);
           for (const wz2 of [-0.9, -3.7]) D(A.wheel, M.trs(at(sx * 0.98, 0.42, wz2)), { color: [0.12, 0.12, 0.14], spec: 0.15 });
         }
         D(A.box, M.trs(at(0, 2.25, -2.4), [0, 0, 0], [1.6, 0.06, 2.6]), { color: [0.3, 0.3, 0.32], spec: 0.5 });
@@ -866,6 +903,9 @@
       SP(pos, 2.2, c, 0.55, true);
       const icon = { life: A.heart, zoom: A.bolt, double: A.star }[o.type] || null;
       if (icon) D(icon, M.trs(pos, [0, spin, 0], 1.2), { color: c, emissive: c.map(v => v * 0.6), spec: 0.9, shine: 60 });
+      else if (o.type === 'gift') { D(A.box, M.trs(pos, [0, spin, 0], [0.8, 0.8, 0.8]), { color: c, emissive: c.map(v => v * 0.3), spec: 0.8, ol: 0.03 }); D(A.box, M.trs(pos, [0, spin, 0], [0.84, 0.84, 0.18]), { color: C('#ffd23f'), spec: 0.8 }); D(A.box, M.trs(pos, [0, spin, 0], [0.18, 0.84, 0.84]), { color: C('#ffd23f'), spec: 0.8 }); D(A.torus, M.trs([pos[0], pos[1] + 0.48, pos[2]], [0, spin, 0], [0.9, 0.9, 0.9]), { color: C('#ffd23f'), spec: 0.8 }); }
+      else if (o.type === 'gold') { D(A.sphere, M.trs(pos, [0, spin, 0], [0.6, 0.48, 0.5]), { color: c, emissive: c.map(v => v * 0.4), spec: 1.4, shine: 70, ol: 0.03 }); for (let q=0;q<4;q++) D(A.sphere, M.trs([pos[0] + (q - 1.5) * 0.2 * Math.cos(spin), pos[1] + 0.38 - Math.abs(q - 1.5) * 0.06, pos[2] + (q - 1.5) * 0.2 * Math.sin(spin)], [0, 0, 0], [0.18, 0.18, 0.18]), { color: c, emissive: c.map(v => v * 0.4), spec: 1.4 }); }
+      else if (o.type === 'giant') { D(A.arrow, M.trs(pos, [0, spin, Math.PI / 2], [1.1, 1.1, 2]), { color: c, emissive: c.map(v => v * 0.4), spec: 0.9, ol: 0.03 }); }
       else if (o.type === 'shield') { D(A.box, M.trs(pos, [0.4, spin, 0.3], [0.5, 0.08, 1.2]), { color: c, emissive: c.map(v => v * 0.4), spec: 0.9 }); for (const wz of [-0.4, 0.4]) D(A.wheel, M.trs([pos[0], pos[1] - 0.12, pos[2] + wz * Math.cos(spin)], [0, spin, 0], [0.3, 0.2, 0.2]), { color: C('#7dff6a') }); }
       else if (o.type === 'magnet') D(A.torus, M.trs(pos, [0, spin, Math.PI / 2], 1.4), { color: c, emissive: c.map(v => v * 0.5), spec: 0.9 });
       else if (o.type === 'spring') for (let k=0;k<3;k++) D(A.torus, M.trs([pos[0], pos[1] - 0.2 + k * 0.2, pos[2]], [0, spin, 0], 1.1), { color: c, emissive: c.map(v => v * 0.5), spec: 0.9 });
@@ -932,12 +972,14 @@
       if (R.land > 0) { const k = R.land / 0.24; sy *= 1 - 0.28 * Math.sin(k * Math.PI); }
       if (st.phase === 'menu') { pitch = -0.05; }
       const sx = 1 / Math.sqrt(Math.max(0.5, sy));
-      return { m: E.M.trs([p.x, p.h + bob, 0], [pitch, yaw, roll], [sx, sy, sx]), run, sliding, air, sy };
+      const gk = st.giantK || 1;
+      return { m: E.M.trs([p.x, p.h + bob, 0], [pitch, yaw, roll], [sx * gk, sy * gk, sx * gk]), run, sliding, air, sy };
     }
     function rigUpdate(dt){
       const p = st.player;
       if (!st.rig) st.rig = { bank: 0, yaw: 0, land: 0, spin: 0, prevX: p.x, prevH: p.h, step: 0, tail: null, dust: [], fly: [], camX: 0, camY: 0, fov: 1, lastInv: 0 };
       const R = st.rig; dt = Math.min(dt, 0.05);
+      st.giantK = (st.giantK || 1) + (((st.fx && st.fx.giant > 0.3) ? 1.9 : 1) - (st.giantK || 1)) * Math.min(1, dt * 5);
       { const target = curSeg().th; st.camTh += (target - st.camTh) * Math.min(1, dt * 6.5); if (Math.abs(target - st.camTh) < 1e-4) st.camTh = target; }
       const vx = (p.x - R.prevX) / Math.max(dt, 1e-3);
       R.bank += (Math.max(-0.42, Math.min(0.42, -vx * 0.045)) - R.bank) * Math.min(1, dt * 12);
@@ -989,7 +1031,7 @@
       if (!R) return;
       const B = bodyFrame(), Bm = B.m, run = B.run;
       const flick = p.inv > 0 && Math.floor(p.inv * 10) % 2;
-      const grey = { tex: A.tFur, uvScale: [2, 2], color: [0.64, 0.6, 0.6], spec: 0.3, shine: 24, rim: 0.6, alpha: flick ? 0.45 : 1 }, dark = { color: [0.2, 0.19, 0.22], spec: 0.4, shine: 30, alpha: flick ? 0.45 : 1 }, cream = { color: [0.98, 0.94, 0.88], spec: 0.25, alpha: flick ? 0.45 : 1 }, pink = { color: [1, 0.66, 0.7], spec: 0.2 };
+      const grey = { tex: A.tFur, uvScale: [2, 2], color: [0.62, 0.58, 0.6], spec: 0.35, shine: 24, rim: 0.7, ol: 0.035, alpha: flick ? 0.45 : 1 }, dark = { color: [0.16, 0.15, 0.2], spec: 0.5, shine: 30, ol: 0.03, alpha: flick ? 0.45 : 1 }, cream = { color: [1, 0.95, 0.88], spec: 0.25, ol: 0.025, alpha: flick ? 0.45 : 1 }, pink = { color: [1, 0.6, 0.68], spec: 0.2 };
       const part = (mesh, local, rot, sc, mat, parent) => D(mesh, M.mul(parent || Bm, M.trs(local, rot || [0, 0, 0], sc)), mat);
       // legs: thigh swings from the hip, foot lifts off the ground
       for (const [sx, ph] of [[-0.2, 0], [0.2, Math.PI]]) {
@@ -1012,13 +1054,13 @@
       }
       // little adventurer's backpack (bounces a beat behind the body)
       const pb = B.air ? -0.04 : Math.sin(run * 2 - 0.8) * 0.025;
-      const packM = { color: C('#f0a43a'), spec: 0.35, shine: 30, alpha: flick ? 0.45 : 1 }, packD = { color: C('#c2702a'), spec: 0.3, alpha: flick ? 0.45 : 1 };
+      const packM = { color: C('#ff9f1c'), spec: 0.4, shine: 30, ol: 0.03, alpha: flick ? 0.45 : 1 }, packD = { color: C('#c2602a'), spec: 0.3, ol: 0.02, alpha: flick ? 0.45 : 1 };
       part(A.sphere, [0, 0.74 + pb, 0.3], [0.12, 0, 0], [0.56, 0.6, 0.34], packM);
       part(A.sphere, [0, 0.6 + pb, 0.45], [0.1, 0, 0], [0.34, 0.24, 0.14], packD);
       part(A.box, [0, 0.98 + pb, 0.4], [0.2, 0, 0], [0.4, 0.06, 0.12], packD);
       for (const sx of [-0.2, 0.2]) part(A.box, [sx, 0.9, 0.05], [0.3, 0, 0], [0.07, 0.42, 0.62], packD);
       // scarf with fluttering ends
-      part(A.torus, [0, 0.98, -0.03], [0.12, 0, 0], [1.08, 0.95, 1.02], { color: C('#e8463a'), spec: 0.45 });
+      part(A.torus, [0, 0.98, -0.03], [0.12, 0, 0], [1.08, 0.95, 1.02], { color: C('#ff3b3b'), spec: 0.5, ol: 0.025 });
       for (const [sx, ph] of [[0.12, 0], [-0.02, 1.4]]) { const fl = Math.sin(st.time * 16 + ph) * 0.35 + (st.phase === 'play' ? 0.9 : 0.2); part(A.box, [sx, 0.92, 0.3 + fl * 0.08], [0.6 + fl * 0.5, 0.25 * Math.sign(sx - 0.05), 0.15], [0.13, 0.34, 0.04], { color: C('#e8463a'), spec: 0.3 }); }
       // the head: counter-bobs, tilts into turns and looks back at the camera
       st.look = st.look || 0;
@@ -1048,7 +1090,7 @@
       // dizzy stars after a bump
       if (R.spin > 0 || p.inv > 0.6) { const hc = M.xform(Hm, [0, 0.5, 0]); for (let k=0;k<4;k++) { const a = st.time * 7 + k * Math.PI / 2; SP([hc[0] + Math.cos(a) * 0.45, hc[1] + Math.sin(a * 2) * 0.05, hc[2] + Math.sin(a) * 0.45], 0.28, [1, 0.9, 0.3], 1, true); } }
       // the tail: one smooth, bendy, furry tube
-      if (R.tail) { buildTail(R.tail.q); D(A.tail, M.trs([0, 0, 0]), { tex: A.tTail, color: [1, 1, 1], spec: 0.15, shine: 14, alpha: flick ? 0.45 : 1 }); }
+      if (R.tail) { buildTail(R.tail.q); D(A.tail, M.trs([0, 0, 0]), { tex: A.tTail, color: [1, 1, 1], spec: 0.2, shine: 14, alpha: flick ? 0.45 : 1 }); }
       // dust puffs and snacks being gobbled up
       for (const d of R.dust) SP(d.p, d.size * 0.8, [0.9, 0.84, 0.74], (d.life / d.max) * 0.3, false);
       const mouth = M.xform(Hm, [0, -0.1, -0.4]);
@@ -1089,6 +1131,14 @@
       } else if (type === 'shield') {
         g.beginPath(); g.roundRect(cx - r*0.75, cy - r*0.2, r*1.5, r*0.3, r*0.15); g.fill();
         g.beginPath(); g.arc(cx - r*0.45, cy + r*0.3, r*0.16, 0, 7); g.arc(cx + r*0.45, cy + r*0.3, r*0.16, 0, 7); g.fill();
+      } else if (type === 'gift') {
+        g.fillRect(cx - r*0.5, cy - r*0.2, r, r*0.75); g.fillRect(cx - r*0.6, cy - r*0.42, r*1.2, r*0.26);
+        g.strokeStyle = '#2b2140'; g.lineWidth = r*0.12; g.beginPath(); g.moveTo(cx, cy - r*0.42); g.lineTo(cx, cy + r*0.55); g.stroke();
+      } else if (type === 'gold') {
+        g.beginPath(); g.ellipse(cx, cy + r*0.2, r*0.32, r*0.26, 0, 0, 7); g.fill();
+        for (const [dx, dy] of [[-0.38, -0.2], [-0.13, -0.42], [0.13, -0.42], [0.38, -0.2]]) { g.beginPath(); g.arc(cx + dx*r, cy + dy*r, r*0.13, 0, 7); g.fill(); }
+      } else if (type === 'giant') {
+        g.beginPath(); g.moveTo(cx, cy - r*0.7); g.lineTo(cx + r*0.55, cy - r*0.05); g.lineTo(cx + r*0.2, cy - r*0.05); g.lineTo(cx + r*0.2, cy + r*0.65); g.lineTo(cx - r*0.2, cy + r*0.65); g.lineTo(cx - r*0.2, cy - r*0.05); g.lineTo(cx - r*0.55, cy - r*0.05); g.closePath(); g.fill();
       } else if (type === 'balloon') {
         g.beginPath(); g.ellipse(cx, cy - r*0.2, r*0.42, r*0.5, 0, 0, 7); g.fill();
         g.lineWidth = r*0.08; g.beginPath(); g.moveTo(cx, cy + r*0.3); g.quadraticCurveTo(cx + r*0.2, cy + r*0.55, cx, cy + r*0.8); g.stroke();
@@ -1132,7 +1182,7 @@
         ctx.restore();
       }
       let tx = 30;
-      for (const k of ['magnet','shield','double','zoom','spring','slow','balloon']) {
+      for (const k of ['magnet','shield','double','zoom','spring','slow','balloon','gold','giant']) {
         if (st.fx[k] <= 0) continue;
         bubble(ctx, k, tx, 32, 19, 0.8);
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(tx, 32, 24, -Math.PI/2, -Math.PI/2 + Math.PI*2 * st.fx[k]/POWERS[k].time); ctx.stroke();

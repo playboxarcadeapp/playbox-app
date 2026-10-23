@@ -110,8 +110,7 @@
     function canPour(i, j){
       if (i === j) return false;
       const s = st.bottles[i], d = st.bottles[j];
-      if (!s.length || d.length >= CAP || isSealed(s)) return false;
-      return !d.length || d[d.length-1].c === s[s.length-1].c;
+      return s.length > 0 && d.length < CAP && !isSealed(s);
     }
     function tap(i){
       if (st.anim || st.over) return;
@@ -128,6 +127,8 @@
       if (st.undo.length > 30) st.undo.shift();
       st.anim = { i, j, t: 0, amt, color: s[s.length-1].c, moved: false };
     }
+    const smooth = e => { e = Math.max(0, Math.min(1, e)); return e * e * (3 - 2 * e); };
+    const pourF = a => a.moved ? 1 : smooth((a.t - 0.3) / 0.42);
     function finishPour(){
       const { i, j, amt } = st.anim;
       for (let a=0;a<amt;a++) st.bottles[j].push(st.bottles[i].pop());
@@ -181,12 +182,20 @@
         if (st.time <= 0) timeUp();
       }
       if (st.anim) {
-        st.anim.t += dt / 0.75;
-        if (!st.anim.moved && st.anim.t >= 0.55) { st.anim.moved = true; finishPour(); }
+        const a = st.anim; a.t += dt / 1.05;
+        const pf = pourF(a);
+        if (pf > 0 && pf < 1 && !reduceMotion) {
+          // splashes and bubbles where the stream lands
+          const d = st.pos[a.j], lh = (d.h - 18) / CAP, sy = d.y + d.h - 4 - (st.bottles[a.j].length + a.amt * pf) * lh;
+          if (Math.random() < 0.6) st.parts.push({ x: d.x + d.w / 2 + (Math.random() - .5) * d.w * 0.6, y: sy, vx: (Math.random() - .5) * 90, vy: -60 - Math.random() * 90, life: 0.35, color: COLORS[a.color], small: true });
+          a.wob = (a.wob || 0) + dt;
+        }
+        if (!a.moved && a.t >= 0.74) { a.moved = true; finishPour(); a.ripple = 0.45; }
+        if (a.ripple) a.ripple = Math.max(0, a.ripple - dt);
         if (st.anim.t >= 1) { st.anim = null; checkWin(); }
       }
       if (st.wiggle) { st.wiggle.t -= dt; if (st.wiggle.t <= 0) st.wiggle = null; }
-      for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 160*dt; q.life -= dt; }
+      for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += (q.small ? 650 : 160)*dt; q.life -= dt; }
       st.parts = st.parts.filter(q => q.life > 0);
       for (const q of st.pops) { q.y -= 26*dt; q.life -= dt; }
       st.pops = st.pops.filter(q => q.life > 0);
@@ -210,30 +219,39 @@
       // liquid layers
       ctx.save(); tubePath(ctx, x + 3, y + 3, w - 6, h - 6); ctx.clip();
       const lh = (h - 18) / CAP;
-      const animOut = st.anim && st.anim.i === i && !st.anim.moved;
-      let surface = null, surfCol = null;
+      const a = st.anim, animOut = a && a.i === i && !a.moved, animIn = a && a.j === i && !a.moved;
+      // stack the layers into blocks: touching layers of the same color become one smooth potion
+      const blocks = [];
       b.forEach((l, k) => {
-        const ly = y + h - 4 - (k + 1) * lh;
-        const col = l.hidden ? '#3a2a55' : COLORS[l.c];
-        let top = ly;
-        if (animOut && k >= b.length - st.anim.amt) { const f = Math.min(1, st.anim.t / 0.55); top = ly + lh * f; }
-        if (top >= ly + lh) return;
-        const grd = ctx.createLinearGradient(x, 0, x + w, 0);
-        grd.addColorStop(0, PB.shade(col, -0.55)); grd.addColorStop(0.22, PB.shade(col, -0.12)); grd.addColorStop(0.42, lighten(col)); grd.addColorStop(0.62, col); grd.addColorStop(1, PB.shade(col, -0.6));
-        ctx.fillStyle = grd; ctx.fillRect(x, top, w, ly + lh - top + 1);
-        // soft depth: darker at the bottom of each layer
-        const vg = ctx.createLinearGradient(0, top, 0, ly + lh); vg.addColorStop(0, 'rgba(255,255,255,.10)'); vg.addColorStop(1, 'rgba(0,0,0,.18)');
-        ctx.fillStyle = vg; ctx.fillRect(x, top, w, ly + lh - top + 1);
-        if (l.hidden) { ctx.fillStyle = 'rgba(255,243,214,.6)'; ctx.font = `900 ${Math.round(lh * 0.55)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x + w/2, ly + lh/2 + 2); }
-        surface = top; surfCol = col;
+        const bot = y + h - 4 - k * lh;
+        let top = bot - lh;
+        if (animOut && k >= b.length - a.amt) { const r = b.length - 1 - k, frac = Math.max(0, Math.min(1, 1 - (a.amt * pourF(a) - r))); if (frac <= 0) return; top = bot - lh * frac; }
+        if (top >= bot) return;
+        const col = l.hidden ? '#3a2a55' : COLORS[l.c], last = blocks[blocks.length - 1];
+        if (last && !l.hidden && !last.hidden && last.col === col && Math.abs(last.top - bot) < 0.5) last.top = top;
+        else blocks.push({ col, bot, top, hidden: l.hidden, n: 1 });
       });
-      if (st.anim && st.anim.j === i && !st.anim.moved) {
-        const f = Math.max(0, (st.anim.t - 0.2) / 0.35), col = COLORS[st.anim.color];
-        const base = y + h - 4 - b.length * lh, hh = lh * st.anim.amt * Math.min(1, f);
-        if (hh > 0) {
-          const grd = ctx.createLinearGradient(x, 0, x + w, 0); grd.addColorStop(0, PB.shade(col, -0.55)); grd.addColorStop(0.42, lighten(col)); grd.addColorStop(1, PB.shade(col, -0.6));
-          ctx.fillStyle = grd; ctx.fillRect(x, base - hh, w, hh); surface = base - hh; surfCol = col;
-        }
+      if (animIn) {
+        const col = COLORS[a.color], bot = y + h - 4 - b.length * lh, top = bot - lh * a.amt * pourF(a), last = blocks[blocks.length - 1];
+        if (top < bot - 0.2) { if (last && !last.hidden && last.col === col && Math.abs(last.top - bot) < 0.5) last.top = top; else blocks.push({ col, bot, top }); }
+      }
+      let surface = null, surfCol = null;
+      for (const B of blocks) {
+        const grd = ctx.createLinearGradient(x, 0, x + w, 0);
+        grd.addColorStop(0, PB.shade(B.col, -0.55)); grd.addColorStop(0.22, PB.shade(B.col, -0.12)); grd.addColorStop(0.42, lighten(B.col)); grd.addColorStop(0.62, B.col); grd.addColorStop(1, PB.shade(B.col, -0.6));
+        ctx.fillStyle = grd; ctx.fillRect(x, B.top, w, B.bot - B.top + 1);
+        // gentle depth over the whole run (not per layer, so a color never looks like two shades)
+        const vg = ctx.createLinearGradient(0, B.top, 0, y + h); vg.addColorStop(0, 'rgba(255,255,255,.08)'); vg.addColorStop(1, 'rgba(0,0,0,.16)');
+        ctx.fillStyle = vg; ctx.fillRect(x, B.top, w, B.bot - B.top + 1);
+        if (B.hidden) { ctx.fillStyle = 'rgba(255,243,214,.6)'; ctx.font = `900 ${Math.round(lh * 0.55)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x + w/2, (B.top + B.bot) / 2 + 2); }
+        else if (blocks.indexOf(B) > 0) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(x, B.bot - 1, w, 2); }
+        surface = B.top; surfCol = B.col;
+      }
+      // ripples on the surface while potion is landing
+      if (surface != null && a && a.j === i && (animIn || a.ripple)) {
+        const k = animIn ? 1 : a.ripple / 0.45;
+        ctx.strokeStyle = `rgba(255,255,255,${0.55 * k})`; ctx.lineWidth = 1.5;
+        for (let q=0;q<2;q++) { const rr = ((st.clock * 2 + q * 0.5) % 1); ctx.beginPath(); ctx.ellipse(x + w/2, surface + 1, w * 0.48 * rr, 3 * rr, 0, 0, 7); ctx.stroke(); }
       }
       if (surface != null) {
         // magical inner glow and rising bubbles
@@ -532,14 +550,31 @@
       if (st.anim) {
         const a = st.anim, s = st.pos[a.i], d = st.pos[a.j];
         const side = d.x > s.x ? -1 : 1;
-        const tx2 = d.x + d.w/2 + side * (d.w * 0.9), ty2 = d.y - 70;
-        const e = a.t < 0.25 ? a.t / 0.25 : a.t > 0.8 ? (1 - a.t) / 0.2 : 1;
-        const ease = e * e * (3 - 2 * e);
-        const x = s.x + (tx2 - s.w/2 - s.x) * ease, y = (s.y - 22) + (ty2 - (s.y - 22)) * ease;
-        const rot = -side * 1.15 * ease;
-        if (a.t > 0.22 && a.t < 0.58) {
-          ctx.strokeStyle = COLORS[a.color]; ctx.lineWidth = 7; ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(x + s.w/2 - side * 2 - side * (s.w/2), y + 6); ctx.quadraticCurveTo(d.x + d.w/2, y, d.x + d.w/2, d.y + d.h - 10 - st.bottles[a.j].length * ((d.h - 18) / CAP)); ctx.stroke();
+        const tx2 = d.x + d.w/2 + side * (d.w * 0.95), ty2 = d.y - 78;
+        // lift, swoop over in an arc, tilt to pour, then glide home
+        const go = smooth(a.t / 0.28), back = smooth((a.t - 0.8) / 0.2), e = go * (1 - back);
+        const arc = Math.sin(Math.PI * Math.min(1, a.t / 0.28)) * 40 * (1 - back);
+        const x = s.x + (tx2 - s.w/2 - s.x) * e, y = (s.y - 22) + (ty2 - (s.y - 22)) * e - arc;
+        const pf = pourF(a), tilt = smooth((a.t - 0.22) / 0.12) * (1 - back);
+        const rot = -side * (0.9 + 0.55 * pf) * tilt;
+        if (a.t > 0.3 && a.t < 0.76) {
+          // a wobbly, glowing stream with droplets
+          const lip = [x + s.w/2 - side * (s.w/2) * Math.cos(rot) , y + 4], dlh = (d.h - 18) / CAP;
+          const land = [d.x + d.w/2, d.y + d.h - 4 - (st.bottles[a.j].length + a.amt * pf) * dlh];
+          const thick = 8 * Math.sin(Math.PI * Math.max(0, Math.min(1, (a.t - 0.3) / 0.46)));
+          const wob = Math.sin(st.clock * 30) * 2;
+          ctx.save(); ctx.lineCap = 'round';
+          ctx.shadowColor = COLORS[a.color]; ctx.shadowBlur = 14;
+          ctx.strokeStyle = COLORS[a.color]; ctx.lineWidth = thick;
+          ctx.beginPath(); ctx.moveTo(lip[0], lip[1]); ctx.bezierCurveTo(lip[0] - side * 10, lip[1] - 6, land[0] + wob, lip[1] + 10, land[0] + wob * 0.5, land[1]); ctx.stroke();
+          ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = Math.max(1, thick * 0.25);
+          ctx.beginPath(); ctx.moveTo(lip[0], lip[1]); ctx.bezierCurveTo(lip[0] - side * 10, lip[1] - 6, land[0] + wob - 2, lip[1] + 10, land[0] + wob * 0.5 - 1, land[1]); ctx.stroke();
+          for (let q=0;q<4;q++) { const tt = (st.clock * 3 + q / 4) % 1; ctx.fillStyle = COLORS[a.color]; ctx.beginPath(); ctx.arc(land[0] + (lip[0] - land[0]) * (1 - tt) * 0.15 + Math.sin(q * 7) * 4, lip[1] + (land[1] - lip[1]) * tt, 2.5, 0, 7); ctx.fill(); }
+          ctx.restore();
+          // the target flask glows while it fills
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; const n = parseInt(COLORS[a.color].slice(1), 16);
+          const gg = ctx.createRadialGradient(land[0], land[1], 2, land[0], land[1], d.w * 1.4); gg.addColorStop(0, `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},.35)`); gg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = gg; ctx.fillRect(land[0] - d.w * 1.4, land[1] - d.w * 1.4, d.w * 2.8, d.w * 2.8); ctx.restore();
         }
         drawBottle(a.i, x, y, s.w, s.h, rot);
       }
@@ -562,7 +597,7 @@
       if (!reduceMotion) for (const m of st.motes) { m.y += m.v * 0.016; m.x += Math.sin(st.clock * 0.6 + m.ph) * 0.15; if (m.y > FLOOR) { m.y = 160; } ctx.fillStyle = `rgba(210,220,255,${0.25 + 0.25 * Math.sin(st.clock * 2 + m.ph)})`; ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 7); ctx.fill(); }
       if (!reduceMotion && Math.random() < 0.5) st.parts.push({ x: tip.x, y: tip.y, vx: 40 + Math.random() * 60, vy: 10 + Math.random() * 40, life: 0.7, color: Math.random() < .5 ? '#fff3c4' : '#b9a6ff' });
 
-      for (const q of st.parts) { ctx.globalAlpha = Math.max(0, q.life / 0.8); ctx.fillStyle = q.color; star(ctx, q.x, q.y, 4, 1.8); ctx.fill(); }
+      for (const q of st.parts) { ctx.fillStyle = q.color; if (q.small) { ctx.globalAlpha = Math.max(0, q.life / 0.35); ctx.beginPath(); ctx.arc(q.x, q.y, 2.4, 0, 7); ctx.fill(); } else { ctx.globalAlpha = Math.max(0, q.life / 0.8); star(ctx, q.x, q.y, 4, 1.8); ctx.fill(); } }
       ctx.globalAlpha = 1;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const q of st.pops) {
@@ -596,7 +631,7 @@
       id:'potions', sfxScore:false, music:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:100, maxLives:0,
       failTitle:"Time's up!", dailyText:'One big brew, one try a day', powersTitle:'Magic tips',
       tile:{ order:4, name:'Potion Sort', kind:"Wizard's potion puzzle \u00b7 100 levels", art: artTile },
-      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can only pour onto the same color, or into an empty flask.', 'Fill every flask with a single color before the hourglass runs out.', 'Finish faster for more stars.'],
+      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out.', 'Finish faster for more stars.'],
       powers: [
         { name:'Undo', desc:'Take back a pour. You get 3 per level', icon: g => { g.fillStyle = '#2a1a4a'; g.strokeStyle = GOLD; g.lineWidth = 1.5; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#fff3d6'; g.font = `800 10px ${BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Undo', 23, 14); } },
         { name:'Corked flask', desc:'A full flask of one color seals itself', icon: g => { g.fillStyle = COLORS[0]; g.fillRect(15, 6, 16, 20); g.fillStyle = '#b07a45'; g.fillRect(16, 1, 14, 6); } },
@@ -607,6 +642,7 @@
       start(mode, rand, lives, msg, level){ fresh(mode, level); },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: timeStr(st.time), score: st.score }; },
+      debug(){ return st; },
       metrics(){ return { score: st.score, won: st.won ? 1 : 0, timeLeft: st.won ? Math.ceil(st.time) : 0, undoUsed: (st.spec.undos || 3) - st.undos, pours: st.pours || 0 }; },
       dailyGoals: [
         { text:'Sort every potion with {n} seconds left', m:'timeLeft', n:[30, 45, 60] },
