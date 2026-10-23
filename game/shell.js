@@ -356,6 +356,12 @@
   cv.addEventListener('pointerup', e => { if (!G || phase !== 'play') return; G.pointerUp(...toGame(e)); });
   cv.addEventListener('pointercancel', e => { if (!G || phase !== 'play') return; G.pointerUp(...toGame(e)); });
   window.addEventListener('keydown', e => { if (play.hidden || !G || phase !== 'play') return; G.key(e); });
+  // Games like Brick Bash also follow a finger placed below or beside the game box
+  const stageEl = screen.parentElement; stageEl.style.touchAction = 'none';
+  const outside = e => e.target === stageEl && G && G.touchAnywhere && phase === 'play';
+  stageEl.addEventListener('pointerdown', e => { if (!outside(e)) return; try { stageEl.setPointerCapture(e.pointerId); } catch(_){} G.pointerDown(...toGame(e)); });
+  stageEl.addEventListener('pointermove', e => { if (G && G.touchAnywhere && phase === 'play' && stageEl.hasPointerCapture && stageEl.hasPointerCapture(e.pointerId)) G.pointerMove(...toGame(e)); });
+  stageEl.addEventListener('pointerup', e => { if (G && G.touchAnywhere && phase === 'play' && stageEl.hasPointerCapture && stageEl.hasPointerCapture(e.pointerId)) G.pointerUp(...toGame(e)); });
 
   // Smooth out uneven frame times so movement doesn't stutter; allow up to 1/20 s per frame so slower phones don't go slow-motion
   let smooth = 1 / 60;

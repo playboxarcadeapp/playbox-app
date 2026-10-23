@@ -4,7 +4,7 @@
   //  BRICK BASH (neon)
   // ===============================================================
   function createBricks(shell){
-    const W = 480, H = 640, BASE_W = 92, MAX_BALLS = 9, MAX_LIVES = 6, LIFE_EVERY = 3000;
+    const W = 480, H = 640, PADDLE_Y = H - 122, MAX_DROPS = 3, BASE_W = 92, MAX_BALLS = 9, MAX_LIVES = 6, LIFE_EVERY = 3000;
     const DISPLAY = '"Orbitron", "Arial Black", sans-serif';
     const POWERS = {
       wide:   { label:'WIDE', color:N.lime,   weight:20, time:12, name:'Wide paddle',  desc:'Bigger paddle for 12 seconds' },
@@ -62,18 +62,18 @@
     const baseSpeed = () => 300 + Math.min(st.level, 12)*25;
     function fresh(mode, rand, lives, phase){
       st = { mode, phase, score:0, level:1, lives, nextLife: LIFE_EVERY, rand, parts:[], pops:[], shake:0, msg:null };
-      st.bricks = newLevel(1); st.bdirty = true;
-      st.paddle = { x: W/2 - BASE_W/2, w: BASE_W, h: 14, y: H - 54 };
+      st.bricks = newLevel(1); st.bdirty = true; st.dropsLeft = 2; st.time = 0;
+      st.paddle = { x: W/2 - BASE_W/2, w: BASE_W, h: 14, y: PADDLE_Y };
       clearRound();
     }
     function clearRound(){ if (PB.sfx) PB.sfx('level');
       st.fx = { wide:0, laser:0, fire:0, slow:0, magnet:0, shrink:0 };
-      st.drops = []; st.lasers = []; st.laserCD = 0; st.combo = 0;
+      st.drops = []; st.lasers = []; st.laserCD = 0; st.combo = 0; st.lastDrop = -99;
       st.balls = [{ x: W/2, y: st.paddle.y - 10, r: 9, vx: 0, vy: -baseSpeed(), held:true, off:0, trail:[] }];
     }
     function nextLevel(){
       addPoints(100 * st.level); st.level++;
-      st.bricks = newLevel(st.level); st.bdirty = true;
+      st.bricks = newLevel(st.level); st.bdirty = true; st.dropsLeft = Math.min(MAX_DROPS, 2 + Math.floor(st.level / 3));
       clearRound(); updatePaddleW(); st.msg = 'Level ' + st.level + '! Tap to go';
     }
     function addPoints(n){
@@ -113,7 +113,7 @@
       burst(k.x+k.w/2, k.y+k.h/2, k.color, 12);
       if (mult > 1) pop(k.x+k.w/2, k.y, '+' + pts, N.yellow);
       if (st.combo === 8 || st.combo === 16 || st.combo === 24) pop(W/2, H/2 - 40, st.combo + ' COMBO!', N.pink, 1.2);
-      if (st.rand() < 0.2) st.drops.push({ type: pickPower(), x: k.x + k.w/2 - 23, y: k.y, w: 46, h: 22, vy: 130 });
+      if (st.dropsLeft > 0 && st.time - st.lastDrop > 6 && st.rand() < 0.12) { st.dropsLeft--; st.lastDrop = st.time; st.drops.push({ type: pickPower(), x: k.x + k.w/2 - 23, y: k.y, w: 46, h: 22, vy: 130 }); }
     }
     function catchPower(type){ if (PB.sfx) PB.sfx('power');
       const P = POWERS[type], fx = st.fx;
@@ -137,7 +137,7 @@
       pop(st.paddle.x + st.paddle.w/2, st.paddle.y - 24, P.name + '!', type === 'shrink' ? '#aab6ff' : P.color, 1.1);
     }
     function step(dt){
-      const p = st.paddle, fx = st.fx;
+      const p = st.paddle, fx = st.fx; st.time = (st.time || 0) + dt;
       for (const k in fx) if (fx[k] > 0) { fx[k] = Math.max(0, fx[k] - dt); if (fx[k] === 0 && (k==='wide'||k==='shrink')) updatePaddleW(); }
       if (fx.magnet === 0 && !st.msg) for (const b of st.balls) if (b.held) fire(b);
       const slow = fx.slow > 0 ? 0.6 : 1;
@@ -171,7 +171,7 @@
         }
         if (Math.abs(b.vy) < 90) b.vy = b.vy < 0 ? -90 : 90;
       }
-      st.balls = st.balls.filter(b => b.y < H + 20);
+      st.balls = st.balls.filter(b => b.y < PADDLE_Y + 70);
       if (fx.laser > 0) { st.laserCD -= dt; if (st.laserCD <= 0) { st.laserCD = 0.32; st.lasers.push({ x:p.x+8, y:p.y }, { x:p.x+p.w-8, y:p.y }); } }
       for (const L of st.lasers) {
         L.y -= 640*dt;
@@ -235,12 +235,13 @@
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 11px ${DISPLAY}`;
       g.fillText(P.label, x+w/2, y+h/2+1);
     }
+    let drag = null;
     function draw(clock){
       const fx = st.fx;
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
       ctx.drawImage(bgC, 0, 0, W, H);
-      const vy = H*0.52, off = reduceMotion ? 0 : (clock * 0.6) % 1;
+      const vy = H*0.52, off = 0.5;
       ctx.strokeStyle = fx.fire > 0 ? 'rgba(255,138,61,.28)' : 'rgba(61,139,255,.24)'; ctx.lineWidth = 1;
       for (let i=0;i<10;i++){ const t = (i + off)/10; const y = vy + (H - vy) * t * t; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
       if (st.bdirty) drawBricks();
@@ -267,6 +268,12 @@
         ctx.fillStyle = fx.fire > 0 ? '#ffe2c4' : '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.restore();
       }
       ctx.restore();
+      // finger zone under the paddle
+      const zy = PADDLE_Y + 34;
+      ctx.fillStyle = 'rgba(34,228,255,.05)'; ctx.beginPath(); ctx.roundRect(14, zy, W - 28, H - zy - 12, 18); ctx.fill();
+      ctx.strokeStyle = 'rgba(34,228,255,.18)'; ctx.lineWidth = 1; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(154,166,214,.55)'; ctx.font = `700 12px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('\u2039  SLIDE HERE  \u203a', W / 2, zy + (H - zy - 12) / 2);
       let tx = 10;
       for (const k of ['wide','laser','fire','slow','magnet','shrink']) {
         if (fx[k] <= 0) continue;
@@ -288,9 +295,9 @@
       }
     }
     return {
-      id:'bricks', music:'bricks', title:'BRICK BASH', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', scoreKey:'bb-scores',
+      id:'bricks', music:'bricks', touchAnywhere: true, title:'BRICK BASH', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', scoreKey:'bb-scores',
       tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker', art(g){ const { neonBg, rr, dot } = PB; neonBg(g); const cols=[N.pink,N.yellow,N.lime,N.cyan]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,18+r*20,32,14,4,cols[r]); rr(g,88,150,64,10,5,N.cyan); dot(g,140,118,7,'#fff'); rr(g,40,112,32,14,7,N.orange); } },
-      controls: ['Slide your finger (or mouse) to move the paddle.', 'Tap to launch the ball.', 'Break bricks in a row without touching the paddle to multiply your points.', 'Every 3,000 points earns a bonus life.'],
+      controls: ['Slide your finger anywhere (the strip at the bottom is easiest) and the paddle follows.', 'Tap to launch the ball.', 'Break bricks in a row without touching the paddle to multiply your points.', 'Every 3,000 points earns a bonus life.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: (g) => capsule(g, 0, 3, 46, 22, k, false) })),
       init(){ if (!bgC) paintBg(); },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
@@ -306,9 +313,10 @@
         { text:'Reach level {n}', m:'level', n:[3, 4, 5] },
         { text:'Reach level {n} without losing a ball', m:'level', n:[2, 3], noHit:true },
       ],
-      pointerDown(x){ movePaddle(x); launch(); },
-      pointerMove(x){ movePaddle(x); },
-      pointerUp(){},
+      // Slide anywhere: the paddle follows your finger sideways, so your finger can stay low and out of the way
+      pointerDown(x){ drag = { x, px: st.paddle.x }; launch(); },
+      pointerMove(x){ if (!drag || st.phase !== 'play') return; st.paddle.x = Math.max(0, Math.min(W - st.paddle.w, drag.px + (x - drag.x) * 1.15)); },
+      pointerUp(){ drag = null; },
       key(e){
         if (st.phase !== 'play') return;
         if (e.key==='ArrowLeft') st.paddle.x = Math.max(0, st.paddle.x - 30);
