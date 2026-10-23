@@ -223,7 +223,7 @@
       if (phase === 'menu') for (let i=0;i<3;i++) st.objs.push({ kind:'food', seg: 0, type: FOODS[i % 3], lane:1, x: 0, at: 12 + i * 2.6, h:0.3 });
     }
     function newSeg(start, origin, th, parent, kind, near){
-      const s = { id: st.segN++, start, origin, th, parent, kind, near: near || 0, J: Infinity, jtype: null, arms: null,
+      const s = { id: st.segN++, start, origin, th, parent, kind, near: near || 0, J: Infinity, jtype: null, arms: null, theme: parent == null ? 'houses' : (Math.random() < 0.4 ? 'park' : 'houses'),
         sceneAt: { '-1': parent == null ? start - 10 : (near === -1 ? start + 27 : start), '1': parent == null ? start - 10 : (near === 1 ? start + 27 : start) },
         decoAt: parent == null ? start - 10 : start + 9, rowAt: start + 26, crossDone: false };
       st.segs[s.id] = s; return s;
@@ -252,6 +252,7 @@
       for (const side of [-1, 1]) {
         while (st.segs[s.id].sceneAt[side] < upto && s.sceneAt[side] + 15 < lim) {
           const len = 12 + R() * 3;
+          if (s.theme === 'park') { const v = R(); st.objs.push({ kind:'park', seg: s.id, side, at: s.sceneAt[side], len: 14, v: v < 0.22 ? 'pond' : v < 0.42 ? 'play' : v < 0.58 ? 'fountain' : 'trees', r: R() * 1000 }); s.sceneAt[side] += 14; continue; }
           st.objs.push({ kind:'bld', seg: s.id, side, at: s.sceneAt[side], len, h: Math.floor(R() * HOUSES.length), front: R() < 0.6 ? 'hedge' : 'fence', tree: R() < 0.55, treeS: 0.9 + R() * 0.4, setback: 15 + R() * 2, rot: R() * 6 });
           s.sceneAt[side] += len;
         }
@@ -551,11 +552,12 @@
         const F = frames[o.seg]; if (!F) continue;
         FR = F;
         const z = wz(o.at);
-        const cx = o.kind === 'bld' ? o.side * 20 : (o.x != null ? o.x : (o.side || 0) * 4), cz = o.kind === 'bld' ? z - o.len / 2 : z;
+        const big = o.kind === 'bld' || o.kind === 'park', cx = big ? o.side * 16 : (o.x != null ? o.x : (o.side || 0) * 4), cz = big ? z - o.len / 2 : z;
         const pz = F[2] * cx + F[10] * cz + F[14], px = F[0] * cx + F[8] * cz + F[12];
-        if (pz > (o.kind === 'bld' ? 26 : 9) || pz < -VIEW - 30 || Math.abs(px) > 95) continue;
+        if (pz > (big ? 26 : 9) || pz < -VIEW - 30 || Math.abs(px) > 95) continue;
         if (o.kind === 'decal') { if (o.type === 'manhole') D(A.quad, M.trs([o.x, 0.015, z], [-Math.PI / 2, 0, 0], [1.1, 1.1, 1]), { tex: A.tManhole, spec: 0.5, shine: 30, blend: true, noShadow: true }); else { D(A.quad, M.trs([0, 0.012, z], [-Math.PI / 2, 0, 0], [6.4, 2.6, 1]), { tex: A.tCross, spec: 0.2, blend: true, noShadow: true }); D(A.box, M.trs([0, 0.012, z - 2.2], [0, 0, 0], [6.4, 0.01, 0.3]), { color: [0.97, 0.96, 0.92], noShadow: true }); } continue; }
         if (o.kind === 'bld') drawLot(o, z);
+        else if (o.kind === 'park') drawPark(o, z);
         else if (o.kind === 'tree') drawTree(o, z);
         else if (o.kind === 'lamp') drawLamp(o, z);
         else if (o.kind === 'hydrant') drawHydrant(o, z);
@@ -671,10 +673,10 @@
     // the grumpy bulldog that chases you after a stumble
     function drawDog(){
       const dg = st.dog, p = st.player; if (!dg || dg.d > 8) return;
-      const M = E.M, t = st.time * 18, z = 0.9 + dg.d * 0.55, x = p.x * 0.85 + Math.sin(st.time * 3) * 0.15, k = 0.72;
-      const brown = { color: C('#c98f5a'), spec: 0.25, shine: 20 }, cream = { color: C('#f3e2c6'), spec: 0.2 }, dark = { color: [0.15, 0.1, 0.08], spec: 0.6, shine: 50 };
+      const M = E.M, t = st.time * 18, z = 0.9 + dg.d * 0.55, x = p.x * 0.85 - 0.75 + Math.sin(st.time * 3) * 0.15, k = 0.78;
+      const brown = { color: C('#a8693a'), spec: 0.3, shine: 20, rim: 0.5 }, cream = { color: C('#f3e2c6'), spec: 0.2 }, dark = { color: [0.15, 0.1, 0.08], spec: 0.6, shine: 50 };
       const bob = Math.abs(Math.sin(t)) * 0.08;
-      const Bm = M.trs([x, (0.42 + bob) * k, z], [0.08 * Math.sin(t), 0, 0], [k, k, k]);
+      const Bm = M.trs([x, (0.42 + bob) * k, z], [0.08 * Math.sin(t), 0.55, 0], [k, k, k]);
       const part = (mesh, l, r, sc, mat) => D(mesh, M.mul(Bm, M.trs(l, r || [0, 0, 0], sc)), mat);
       part(A.sphere, [0, 0, 0], null, [0.62, 0.48, 0.82], brown);
       part(A.sphere, [0, -0.06, -0.12], null, [0.44, 0.34, 0.5], cream);
@@ -691,6 +693,8 @@
         part(A.cone, [sx * 0.1, 0.05, -0.72], [Math.PI, 0, 0], [0.05, 0.08, 0.05], { color: [1, 1, 1] });
       }
       part(A.torus, [0, 0.08, -0.3], [Math.PI / 2 - 0.3, 0, 0], [1.25, 1.25, 0.8], { color: C('#e8463a'), spec: 0.5 });
+      for (let q=0;q<6;q++) { const a = q / 6 * Math.PI * 2; part(A.cone, [Math.cos(a) * 0.3, 0.08 + Math.sin(a) * 0.26, -0.3], [Math.PI / 2 - 0.3 + Math.sin(a) * 0.9, 0, -Math.cos(a) * 1.2], [0.06, 0.12, 0.06], { color: [0.85, 0.85, 0.9], spec: 1 }); }
+      part(A.sphere, [0, 0.22, 0.42], [0.6 + Math.sin(t * 1.3) * 0.3, 0, 0], [0.12, 0.24, 0.12], brown);
       if (dg.bark > 0.25) for (let q=0;q<3;q++) SP([x + (q - 1) * 0.2, 1.0 + q * 0.08, z - 0.5], 0.14, [1, 1, 1], 0.8, false);
     }
 
@@ -726,6 +730,49 @@
       D(A.box, M.trs([hx + sd * 1.8, hh + 2.6, hz - 2.8], [0, 0, 0], [0.9, 2.2, 0.9]), { color: [0.72, 0.36, 0.28], spec: 0.1 });
       D(A.box, M.trs([sd * (o.setback - 0.01), hh + 0.02, hz], [0, 0, 0], [0.3, 0.12, wid + 0.8]), { color: [0.98, 0.97, 0.94] });
       if (o.tree) drawTree({ side: sd, s: o.treeS, rot: o.rot, x: sd * 10.6 }, zNear - 3);
+    }
+    // a park instead of houses: ponds with ducks, a playground, a fountain, or a little wood
+    function drawPark(o, z){
+      const M = E.M, sd = o.side, zc = z - o.len / 2, R = PB.mulberry(Math.floor(o.r));
+      // low hedge along the sidewalk with a gap for the path
+      E.M && D(A.hedge, M.trs([sd * 6.75, 0.08, z - o.len * 0.3], [0, 0, 0], [0.8, 0.8, o.len * 0.55]), { tex: A.tHedge, uvScale: [o.len / 3, 1], spec: 0.08 });
+      D(A.box, M.trs([sd * 10, 0.15, z - o.len * 0.8], [0, 0, 0], [7, 0.03, 1.6]), { color: [0.9, 0.82, 0.66], spec: 0.05, noShadow: true });
+      if (o.v === 'pond') {
+        D(A.sphere, M.trs([sd * 15, 0.12, zc], [0, 0, 0], [9, 0.1, 11]), { color: C('#4aa8d8'), spec: 1.6, shine: 90, noShadow: true });
+        D(A.sphere, M.trs([sd * 15, 0.1, zc], [0, 0, 0], [10, 0.08, 12]), { color: C('#c9b98a'), spec: 0.05, noShadow: true });
+        for (let k=0;k<3;k++) { const dx = sd * (13 + R() * 4) + Math.sin(st.time * 0.6 + k) * 0.6, dz = zc + (R() - .5) * 6 + Math.cos(st.time * 0.5 + k) * 0.6;
+          D(A.sphere, M.trs([dx, 0.3, dz], [0, 0, 0], [0.55, 0.38, 0.75]), { color: C('#ffe04a'), spec: 0.4 });
+          D(A.sphere, M.trs([dx, 0.62, dz - 0.25], [0, 0, 0], [0.32, 0.32, 0.32]), { color: C('#ffe04a'), spec: 0.4 });
+          D(A.cone, M.trs([dx, 0.6, dz - 0.46], [-Math.PI / 2, 0, 0], [0.12, 0.18, 0.12]), { color: C('#ff8a3d') }); }
+        for (let k=0;k<5;k++) D(A.cyl, M.trs([sd * (10.5 + R() * 1.5), 0.6, zc + (R() - .5) * 9], [0.1, 0, 0.1], [0.06, 1.2, 0.06]), { color: C('#5a8a3a') });
+      } else if (o.v === 'play') {
+        const x = sd * 13;
+        // slide
+        D(A.box, M.trs([x, 1.2, zc + 2], [0, 0, 0], [1.4, 0.15, 1.4]), { color: C('#5ee0ff'), spec: 0.5 });
+        for (const [dx, dz] of [[-0.6, 1.4], [0.6, 1.4], [-0.6, 2.6], [0.6, 2.6]]) D(A.cyl, M.trs([x + dx, 0.6, zc + dz], [0, 0, 0], [0.12, 1.2, 0.12]), { color: C('#ffd23f'), spec: 0.5 });
+        D(A.box, M.trs([x, 0.7, zc - 0.2], [Math.atan2(1.2, 3), 0, 0], [1.0, 0.1, 3.2]), { color: C('#ff5a4a'), spec: 0.8, shine: 50 });
+        // swings
+        const sx = sd * 17;
+        for (const dz of [-3.8, -0.8]) D(A.cyl, M.trs([sx, 1.3, zc + dz], [0, 0, 0], [0.14, 2.6, 0.14]), { color: C('#7d4cff'), spec: 0.5 });
+        D(A.cyl, M.trs([sx, 2.6, zc - 2.3], [Math.PI / 2, 0, 0], [0.14, 3.2, 0.14]), { color: C('#7d4cff'), spec: 0.5 });
+        for (const [dz, ph] of [[-3.0, 0], [-1.6, 1.7]]) { const sw = Math.sin(st.time * 2.2 + ph) * 0.45; D(A.box, M.mul(M.trs([sx, 2.6, zc + dz], [0, 0, sw]), M.trs([0, -1.7, 0], [0, 0, 0], [0.7, 0.08, 0.35])), { color: C('#ff5fa2'), spec: 0.4 }); for (const e of [-0.3, 0.3]) D(A.box, M.mul(M.trs([sx, 2.6, zc + dz], [0, 0, sw]), M.trs([e, -0.85, 0], [0, 0, 0], [0.02, 1.7, 0.02])), { color: [0.3, 0.3, 0.3], noShadow: true }); }
+        D(A.box, M.trs([x - sd * 0.5, 0.1, zc - 4.5], [0, 0, 0], [3, 0.2, 2.5]), { color: C('#f2d48a'), spec: 0.05 });
+      } else if (o.v === 'fountain') {
+        const x = sd * 14;
+        D(A.cyl, M.trs([x, 0.3, zc], [0, 0, 0], [5, 0.6, 5]), { color: C('#d8d2c6'), spec: 0.3 });
+        D(A.cyl, M.trs([x, 0.58, zc], [0, 0, 0], [4.4, 0.06, 4.4]), { color: C('#5ab8e8'), spec: 1.6, shine: 90, noShadow: true });
+        D(A.cyl, M.trs([x, 1.1, zc], [0, 0, 0], [0.5, 1.4, 0.5]), { color: C('#d8d2c6'), spec: 0.3 });
+        D(A.cyl, M.trs([x, 1.8, zc], [0, 0, 0], [1.8, 0.2, 1.8]), { color: C('#d8d2c6'), spec: 0.3 });
+        for (let k=0;k<8;k++) { const t = (st.time * 1.2 + k / 8) % 1, a = k * 0.8; SP([x + Math.cos(a) * t * 1.4, 2.0 + t * 1.6 - t * t * 2.4, zc + Math.sin(a) * t * 1.4], 0.35, [0.8, 0.92, 1], 0.6 * (1 - t), false); }
+        for (let k=0;k<6;k++) { const a = k / 6 * Math.PI * 2; D(A.sphere, M.trs([x + Math.cos(a) * 3.3, 0.35, zc + Math.sin(a) * 3.3], [0, 0, 0], [0.7, 0.5, 0.7]), { color: C(['#ff6b8a','#ffd166','#c77dff'][k % 3]), spec: 0.3 }); }
+      } else {
+        for (let k=0;k<3;k++) drawTree({ side: sd, s: 0.9 + R() * 0.5, rot: R() * 6, x: sd * (9 + R() * 12), tint: 0.8 + R() * 0.35, bloom: R() < 0.25 }, zc + (R() - .5) * 10);
+      }
+      // a park bench by the path
+      const bx = sd * 8.2, bz = z - o.len * 0.2;
+      D(A.box, M.trs([bx, 0.5, bz], [0, 0, 0], [0.5, 0.08, 1.8]), { color: C('#a86a3a'), spec: 0.2 });
+      D(A.box, M.trs([bx + sd * 0.25, 0.8, bz], [0, 0, 0], [0.06, 0.45, 1.8]), { color: C('#a86a3a'), spec: 0.2 });
+      for (const dz of [-0.75, 0.75]) D(A.box, M.trs([bx, 0.25, bz + dz], [0, 0, 0], [0.45, 0.5, 0.06]), { color: [0.2, 0.2, 0.22] });
     }
     function drawTree(o, z){
       const M = E.M, x = o.x != null ? o.x : o.side * 4.1, s = o.s;
