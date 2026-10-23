@@ -95,7 +95,7 @@
       for (const L of lanes) L.world = makeWorld();
       st.blocks = spec.blocks.map(b => { const body = P.makeBox(b.x, b.y, b.w, b.h, MAT[b.mat].d, { friction: 0.5, data: { block: true, ...b } }); lanes[b.lane].world.add(body); return body; });
       for (const L of lanes) { for (let i=0;i<60;i++) L.world.step(1/120); }
-      for (const b of st.blocks) { b.vx = b.vy = b.w = 0; b.data.y0 = b.y; b.data.a0 = b.a; }
+      for (const b of st.blocks) { b.vx = b.vy = b.w = 0; b.data.y0 = b.y; b.data.a0 = b.a; b.data.x0 = b.x; }
       st.target = { lat: lanes[Math.floor(lanes.length / 2)].lat, y: TABLE_Y - 30 };
     }
     const worldsOf = () => [st.free, ...st.lanes.map(L => L.world)];
@@ -186,6 +186,13 @@
           st.lanes[d.lane].world.remove(b); if (PB.sfx) PB.sfx('bonk');
           continue;
         }
+        if (d.mat !== 'goblin' && b.rest > 1.0 && b.x < AIMD - 40 && (b.y > d.y0 + 8 || Math.abs(b.a - d.a0) > 0.4 || Math.abs(b.x - (d.x0 ?? b.x)) > 20)) {
+          d.off = true; d.gone = true; st.knocked++; st.score += 100;
+          const wp = W3(b.x, b.y, st.lanes[d.lane].lat);
+          pop(wp, 'Crumble! +100', '#ffe08a', 0.9); dust3(wp, '#c9b48a', 14);
+          st.lanes[d.lane].world.remove(b); if (PB.sfx) PB.sfx('crash');
+          continue;
+        }
         if (b.y > TABLE_Y + 6 || b.x < TX0 - 4 || b.x > TX1 + 4) {
           d.off = true; st.knocked++; if (d.mat === 'goblin') st.gobs = (st.gobs || 0) + 1;
           const pts = d.mat === 'goblin' ? 500 : 100 + (d.mat === 'dark' ? 60 : d.mat === 'gray' ? 30 : 0);
@@ -194,7 +201,7 @@
       }
       if (!st.over) {
         const left = st.blocks.filter(b => !b.data.off).length, gobs = st.blocks.filter(b => b.data.mat === 'goblin' && !b.data.off).length;
-        if (left === 0 || gobs === 0) { st.over = true; st.endTimer = 1.4; st.win = true; st.clean = left === 0; pop(W3(AIMD, TABLE_Y - 140, 0), left === 0 ? 'Castle crushed!' : 'All goblins bonked!', '#ffd23f', 1.8); }
+        if (left === 0) { st.over = true; st.endTimer = 1.4; st.win = true; pop(W3(AIMD, TABLE_Y - 140, 0), 'Castle crushed!', '#ffd23f', 1.8); }
         else if (!st.ammo.length && !st.shots.length && st.armV === 0) {
           const calm = st.blocks.every(b => b.data.off || b.rest > 0.6);
           st.settle = calm ? st.settle + dt : 0;
@@ -208,11 +215,11 @@
     }
     function finish(){
       const left = st.ammo.length;
-      if (st.win) st.score += left * 500 + (st.clean ? 1000 : 0);
+      if (st.win) st.score += left * 500;
       const stars = !st.win ? 0 : left >= 2 ? 3 : left >= 1 ? 2 : 1;
       const total = st.blocks.length;
       if (st.mode === 'daily') { shell.gameOver(st.score, `You knocked off ${st.knocked} of ${total} castle blocks`); return; }
-      shell.levelDone({ win: st.win, stars, score: st.score, summary: st.win ? (st.clean ? 'Whole castle crushed! +1,000. ' : '') + (left ? `${left} stone${left > 1 ? 's' : ''} to spare` : 'Just in time!') : 'A goblin is still standing. Try a new spot!' });
+      shell.levelDone({ win: st.win, stars, score: st.score, summary: st.win ? (left ? `${left} stone${left > 1 ? 's' : ''} to spare` : 'Just in time!') : `${total - st.knocked} block${total - st.knocked === 1 ? '' : 's'} still on the table. Try a new spot!` });
     }
     function effects(dt){
       for (const q of st.parts) { q.p[0] += q.v[0]*dt; q.p[1] += q.v[1]*dt; q.p[2] += q.v[2]*dt; q.v[1] -= (q.g ?? 4) * dt; if (q.grow) q.size += q.grow * dt; q.life -= dt; }
@@ -591,7 +598,7 @@
       id:'castle', sfxScore:false, music:'castle', title:'CASTLE CRASH', W, H, statLabel:'Stones', type:'levels', levels:100, maxLives:0,
       failTitle:'Out of stones', dailyText:'One giant fortress a day', powersTitle:'Catapult ammo',
       tile:{ order:7, name:'Castle Crash', kind:'Medieval catapult \u00b7 100 levels', art: artTile, isNew: true },
-      controls: ['Touch the castle you want to hit. Drag to move the target.', 'Let go to fire the catapult at the target.', 'Bonk every goblin to win. Knock a goblin off its perch and it\u2019s bonked!', 'Stones you have left at the end are worth bonus points and stars.', 'Knock the whole castle off the table for a +1,000 bonus.', 'Wood is light, ice is medium, stone is heavy.'],
+      controls: ['Touch the castle you want to hit. Drag to move the target.', 'Let go to fire the catapult at the target.', 'Knock every block off the table to win. Blocks that tumble to the front edge crumble away.', 'Stones you have left at the end are worth bonus points and stars.', 'Bonk the goblins in helmets for big bonus points!', 'Wood is light, ice is medium, stone is heavy.'],
       powers: Object.entries(AMMO).map(([k]) => ({ name: AMMO[k].name, desc: AMMO[k].desc, icon: g => drawBall2D(g, 23, 14, k, 11) })),
       init(){ loadAssets(); },
       preview(){ fresh('classic', 1); st.phase = 'menu'; },
@@ -601,7 +608,7 @@
       metrics(){ return { score: st.score, blocks: st.knocked - (st.gobs || 0), goblins: st.gobs || 0, left: st.over && st.win ? st.ammo.length : 0, won: st.over && st.win ? 1 : 0 }; },
       dailyGoals: [
         { text:'Knock {n} blocks off the table', m:'blocks', n:[14, 18, 22] },
-        { text:'Bonk every goblin with {n} stones to spare', m:'left', n:[1, 2, 3] },
+        { text:'Crush the whole castle with {n} stones to spare', m:'left', n:[1, 2] },
         { text:'Bonk {n} goblins', m:'goblins', n:[3, 4] },
       ],
       pointerDown(x, y){

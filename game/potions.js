@@ -115,11 +115,11 @@
     }
     function tap(i){
       if (st.anim || st.over) return;
-      if (st.sel < 0) { if (st.bottles[i].length && !isSealed(st.bottles[i])) st.sel = i; return; }
+      if (st.sel < 0) { if (st.bottles[i].length && !isSealed(st.bottles[i])) { st.sel = i; if (PB.sfx) PB.sfx('pick'); } return; }
       if (st.sel === i) { st.sel = -1; return; }
       if (canPour(st.sel, i)) { startPour(st.sel, i); st.sel = -1; }
-      else if (st.bottles[i].length && !isSealed(st.bottles[i])) { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = i; }
-      else { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = -1; }
+      else if (st.bottles[i].length && !isSealed(st.bottles[i])) { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = i; if (PB.sfx) PB.sfx('nope'); }
+      else { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = -1; if (PB.sfx) PB.sfx('nope'); }
     }
     function startPour(i, j){ if (PB.sfx) PB.sfx('pour');
       const s = st.bottles[i], d = st.bottles[j]; st.pours = (st.pours || 0) + 1;
@@ -136,7 +136,7 @@
       if (isSealed(st.bottles[j]) && !st.sealed.has(j)) {
         st.sealed.add(j); st.score += 100;
         sparkle(st.pos[j].x + st.pos[j].w/2, st.pos[j].y + 6, COLORS[st.bottles[j][0].c], 22);
-        pop(st.pos[j].x + st.pos[j].w/2, st.pos[j].y - 22, NAMES[st.bottles[j][0].c] + '!', COLORS[st.bottles[j][0].c]);
+        if (PB.sfx) PB.sfx('seal'); pop(st.pos[j].x + st.pos[j].w/2, st.pos[j].y - 22, NAMES[st.bottles[j][0].c] + '!', COLORS[st.bottles[j][0].c]);
       }
     }
     function checkWin(){

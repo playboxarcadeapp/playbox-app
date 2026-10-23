@@ -22,10 +22,25 @@
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     return true;
   }
-  // Browsers only allow sound after the first touch, so we start the audio engine then
-  const unlock = () => { if (boot()) { if (ac.state === 'suspended') ac.resume(); if (want && !timer) music.play(want); } };
-  ['pointerdown', 'touchend', 'keydown'].forEach(ev => window.addEventListener(ev, unlock, { capture: true, passive: true }));
-  document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend(); else ac.resume(); });
+  // Phones only allow sound after a tap, so the audio engine starts on the first tap.
+  // On iPhone we also ask for "playback" audio so music still plays when the ring/silent switch is on silent.
+  let primed = false;
+  function prime(){
+    if (primed) return; primed = true;
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    try { // a tiny silent clip played once switches older iPhones to "playback" audio too
+      const a = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAAAA');
+      a.setAttribute('playsinline', ''); a.volume = 0.01; const p = a.play(); if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  }
+  const unlock = () => {
+    prime();
+    if (!boot()) return;
+    const go = () => { if (ac.state === 'running' && want && !timer && sound.music) music.play(want); };
+    if (ac.state !== 'running') { const p = ac.resume(); if (p && p.then) p.then(go, () => {}); } else go();
+  };
+  ['touchend', 'click', 'pointerup', 'keydown'].forEach(ev => window.addEventListener(ev, unlock, { capture: true, passive: true }));
+  document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) { ac.suspend(); } else { const p = ac.resume(); if (p && p.then) p.then(() => { if (want && !timer && sound.music) music.play(want); }, () => {}); } });
 
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -97,8 +112,32 @@
     level: t => [523, 659, 784, 1047].forEach((f, i) => voice(sfxBus, t + i * 0.09, f, { type: ['triangle', 'sine'], mult: [1, 2], vol: 0.14, d: 0.2, s: 0.25, len: 0.06, r: 0.2 })),
     start: t => [392, 523, 659].forEach((f, i) => voice(sfxBus, t + i * 0.07, f, { type: 'triangle', vol: 0.15, d: 0.12, s: 0.2, len: 0.04, r: 0.12 })),
     win: t => { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => voice(sfxBus, t + i * 0.1, f, { type: ['triangle', 'square'], mult: [1, 1], vol: i === 6 ? 0.12 : 0.09, d: 0.15, s: 0.3, len: i === 6 ? 0.5 : 0.06, r: 0.25, cut: 4000 })); },
+    // cartoon raccoon voice: a little formant "hup!", "wheee", "oof", "nom"
+    hup: t => critter(t, 520, 900, 0.11, 0.2),
+    wheee: t => critter(t, 900, 520, 0.38, 0.17, 7),
+    oof: t => critter(t, 330, 170, 0.22, 0.24),
+    nom: t => { critter(t, 600, 700, 0.06, 0.12); critter(t + 0.08, 640, 520, 0.07, 0.12); },
+    yay: t => { critter(t, 600, 1000, 0.12, 0.18); critter(t + 0.14, 800, 1250, 0.2, 0.18, 6); },
+    step: t => noise(sfxBus, t, { ft: 'bandpass', f: 900 + Math.random() * 300, q: 2, vol: 0.05, len: 0.04 }),
+    land: t => { noise(sfxBus, t, { ft: 'lowpass', f: 600, vol: 0.18, len: 0.12 }); voice(sfxBus, t, 120, { type: 'sine', slide: 0.6, vol: 0.18, d: 0.1, s: 0.01, len: 0.02 }); },
+    seal: t => [784, 1175, 1568].forEach((f, i) => voice(sfxBus, t + i * 0.06, f, { type: ['sine', 'sine'], mult: [1, 2.5], vol: 0.12, d: 0.35, s: 0.05, len: 0.02, r: 0.2 })),
+    nope: t => voice(sfxBus, t, 180, { type: 'square', vol: 0.06, d: 0.12, s: 0.3, len: 0.08, r: 0.05, cut: 900 }),
+    pick: t => voice(sfxBus, t, 740, { type: 'sine', slide: 1.3, slideT: 0.06, vol: 0.12, d: 0.08, s: 0.01, len: 0.02 }),
+    slide: t => noise(sfxBus, t, { ft: 'bandpass', f: 1800, q: 3, vol: 0.06, len: 0.06 }),
+    exit: t => [523, 784, 1047, 1568].forEach((f, i) => voice(sfxBus, t + i * 0.05, f, { type: 'triangle', vol: 0.12, d: 0.15, s: 0.1, len: 0.03, r: 0.1 })),
     lose: t => [392, 370, 349, 294].forEach((f, i) => voice(sfxBus, t + i * 0.2, f, { type: 'triangle', vol: 0.16, d: 0.2, s: 0.4, len: i === 3 ? 0.5 : 0.12, r: 0.25, vib: i === 3 ? 6 : 0 })),
   };
+  function critter(t, f0, f1, len, vol, vib){
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + len);
+    if (vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = vib; lg.gain.value = f0 * 0.05; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + len + 0.1); }
+    // two vowel-like formant filters make it sound like a voice instead of a beep
+    const mix = ac.createGain(); mix.gain.value = 1;
+    for (const [ff, q, gv] of [[f0 * 1.6 + 500, 6, 1], [2400, 8, 0.5]]) { const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(ff, t); bp.frequency.linearRampToValueAtTime(ff * 0.8, t + len); bp.Q.value = q; const gg = ac.createGain(); gg.gain.value = gv; o.connect(bp); bp.connect(gg); gg.connect(mix); }
+    mix.connect(g); g.connect(sfxBus);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol * 2.2, t + 0.015); g.gain.setValueAtTime(vol * 2.2, t + len * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + len + 0.06);
+    o.start(t); o.stop(t + len + 0.1);
+  }
   PB.sfx = function(name, x){
     if (!sound.sfx || !ac || ac.state !== 'running' || !SFX[name]) return;
     const now = ac.currentTime;
@@ -135,7 +174,7 @@
   const THEMES = {
     hub:     { bpm: 104, root: 60, scale: 'major', prog: [0, 5, 3, 4], lead: 'celesta', bass: 'round', pad: 'soft', drums: ['k...t...k.k.t...', '..h...h...h...h.'], seed: 3, density: 0.55 },
     bricks:  { bpm: 124, root: 57, scale: 'minor', prog: [0, 5, 2, 6], lead: 'synth', bass: 'synth', pad: 'strings', drums: ['k...k...k...k...', '....s.......s...', '..h...h...h...h.'], seed: 11, density: 0.7, arp: true },
-    dash:    { bpm: 140, root: 62, scale: 'major', prog: [0, 3, 4, 0, 5, 3, 4, 4], lead: 'whistle', bass: 'pluck', pad: null, drums: ['k.....k.k.......', '....s.......s..s', 'h.h.h.h.h.h.h.h.'], seed: 21, density: 0.75, bounce: true },
+    dash:    { bpm: 144, root: 62, scale: 'major', prog: [0, 3, 4, 0, 5, 3, 4, 4], lead: 'chip', bass: 'pluck', pad: 'soft', arp: true, drums: ['k.....k.k.......', '....s.......s..s', 'h.h.h.h.h.h.h.h.'], seed: 21, density: 0.75, bounce: true },
     sweets:  { bpm: 108, root: 64, scale: 'penta', prog: [0, 3, 4, 3], lead: 'marimba', bass: 'round', pad: 'glass', drums: ['k.......k..k....', '....c.......c...', '..t...t...t.t...'], seed: 31, density: 0.65, sc: 'major' },
     potions: { bpm: 92, root: 57, scale: 'harm', prog: [0, 3, 4, 0, 5, 3, 4, 4], lead: 'celesta', bass: 'pluck', pad: 'glass', drums: ['k.....t.....t...', '................'], seed: 41, density: 0.55, waltz: true },
     cubes:   { bpm: 118, root: 55, scale: 'dorian', prog: [0, 6, 3, 4], lead: 'chip', bass: 'synth', pad: 'strings', drums: ['k..k..k.k..k..k.', '....s.......s...', 'hhhhhhhhhhhhhhhh'], seed: 51, density: 0.6, arp: true },
@@ -174,7 +213,8 @@
   function schedule(){
     if (!ac || !cur) return;
     const th = THEMES[cur], spb = 60 / th.bpm / 4, steps = comp.steps;
-    while (nextT < ac.currentTime + 0.15) {
+    if (nextT < ac.currentTime - 0.1) nextT = ac.currentTime + 0.05;  // the phone was busy: skip ahead instead of piling notes up
+    while (nextT < ac.currentTime + 0.3) {
       const bar = Math.floor(step / steps) % comp.bars, s = step % steps, t = nextT;
       const swing = th.bounce && s % 2 ? spb * 0.18 : 0;
       const chord = th.prog[bar % th.prog.length];
@@ -203,7 +243,7 @@
       if (cur === theme && timer) return;
       clearInterval(timer); cur = theme; comp = compose(THEMES[theme]); step = 0; nextT = ac.currentTime + 0.08;
       musicBus.gain.cancelScheduledValues(ac.currentTime); musicBus.gain.setValueAtTime(0.0001, ac.currentTime); musicBus.gain.linearRampToValueAtTime(0.32, ac.currentTime + 0.6);
-      timer = setInterval(schedule, 40); schedule();
+      timer = setInterval(schedule, 60); schedule();
     },
     stop(){ clearInterval(timer); timer = null; cur = null; },
     // quieter during menus / end screens

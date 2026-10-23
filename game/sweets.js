@@ -12,21 +12,21 @@
 
     // ---------- Level design ----------
     function levelSpec(n, R){
-      const colors = n <= 3 ? 4 : n <= 20 ? 5 : 6;
+      const colors = n <= 5 ? 5 : 6;
       let type = n === 1 ? 'score' : n === 2 ? 'collect' : n === 3 ? 'frost' : ['score','collect','frost','mix'][n % 4];
       if (type === 'mix' && n < 12) type = 'collect';
-      let moves = n <= 3 ? 20 : Math.max(14, 24 - Math.floor(n / 10));
+      let moves = n <= 3 ? 18 : Math.max(12, 22 - Math.floor(n / 8));
       const spec = { n, colors, type, moves, collect: null, frost: null, target: 0 };
-      if (type === 'score') spec.target = Math.round(moves * 95 * (1 + n / 120) / 50) * 50;
+      if (type === 'score') spec.target = Math.round(moves * 120 * (1 + n / 50) / 50) * 50;
       if (type === 'collect' || type === 'mix') {
         const kinds = n < 25 ? 1 : n < 60 ? 2 : 3;
         const pool = shuffle([...Array(colors).keys()], R).slice(0, kinds);
-        const each = Math.round((kinds === 1 ? 12 + n * 0.32 : 9 + n * 0.2) * (type === 'mix' ? 0.7 : 1));
+        const each = Math.round((kinds === 1 ? 15 + n * 0.45 : 11 + n * 0.3) * (type === 'mix' ? 0.75 : 1));
         spec.collect = {}; pool.forEach(t => spec.collect[t] = each);
       }
       if (type === 'frost' || type === 'mix') {
         moves += 4; spec.moves = moves;
-        const count = Math.min(type === 'mix' ? 26 : 40, 10 + Math.floor(n * 0.4));
+        const count = Math.min(type === 'mix' ? 30 : 48, 12 + Math.floor(n * 0.55));
         const dbl = n < 20 ? 0 : Math.min(0.55, (n - 20) / 110);
         const f = Array.from({length:N}, () => Array(N).fill(0));
         let placed = 0, guard = 0;
@@ -38,8 +38,8 @@
         }
         spec.frost = f;
       }
-      spec.star2 = type === 'score' ? Math.round(spec.target * 1.35) : moves * 130;
-      spec.star3 = type === 'score' ? Math.round(spec.target * 1.8) : moves * 190;
+      spec.star2 = type === 'score' ? Math.round(spec.target * 1.3) : moves * 150;
+      spec.star3 = type === 'score' ? Math.round(spec.target * 1.7) : moves * 230;
       return spec;
     }
     function dailySpec(R){
@@ -120,7 +120,7 @@
         else if (t.sp === 'b') { for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) queue.push([r+dr,c+dc]); st.shake = 8; }
         else if (t.sp === 'c') { const k = commonKind(); for (let i=0;i<N;i++) for (let j=0;j<N;j++) if (kind(T(i,j)) === k) queue.push([i,j]); }
       }
-      st.gems = (st.gems || 0) + n; addScore(n * 30 * (1 + st.chain * 0.5));
+      st.gems = (st.gems || 0) + n; addScore(n * 30 * (1 + Math.min(st.chain, 4) * 0.25));
       return n;
     }
     function commonKind(){
@@ -235,7 +235,7 @@
       if (st.bonusMoves > 0) {
         // Every move you saved turns into a bonus treat that pops.
         st.bonusMoves--; st.moves--;
-        addScore(250);
+        addScore(150);
         let r, c, guard = 0; do { r = Math.floor(Math.random()*N); c = Math.floor(Math.random()*N); } while (guard++ < 30 && (!T(r,c) || T(r,c).sp));
         const t = T(r,c); if (t) { t.sp = Math.random() < .5 ? 'h' : 'v'; t.sc = 1.4; }
         st.busy = true; st.bonusDelay = 0.18;
@@ -551,7 +551,7 @@
       metrics(){ return { score: st.score, gems: st.gems || 0, chain: st.maxChain || 0 }; },
       dailyGoals: [
         { text:'Mine {n} gems', m:'gems', n:[80, 100, 120] },
-        { text:'Score {n} points', m:'score', n:[4000, 6000, 8000] },
+        { text:'Score {n} points', m:'score', n:[3000, 4500, 6000] },
         { text:'Make a {n}-in-a-row chain reaction', m:'chain', n:[3, 4] },
       ],
       pointerDown(x, y){

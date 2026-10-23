@@ -71,12 +71,12 @@
     }
     function loadLevel(){
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.rand;
-      const lv = genLevel(st.level, R);
+      const lv = genLevel(st.level + 3, R);
       st.size = lv.size; st.exits = lv.exits;
       st.blocks = lv.blocks.map((b, i) => ({ ...b, id: i, vx: b.c, vy: b.r, out: null }));
       st.cell = Math.min(54, Math.floor(400 / st.size));
       st.bx = Math.round((W - st.cell * st.size) / 2); st.by = 160 + Math.round((440 - st.cell * st.size) / 2);
-      st.timeMax = Math.round((22 + st.blocks.length * 7) * Math.max(0.72, 1 - st.level * 0.012));
+      st.timeMax = Math.round((15 + st.blocks.length * 5.5) * Math.max(0.62, 1 - st.level * 0.015));
       st.time = st.timeMax; st.running = false; st.drag = null; st.freezes = 1; st.freezeT = 0;
     }
     const occupied = (self) => { const g = Array.from({length:st.size}, () => Array(st.size).fill(-1)); st.blocks.forEach(b => { if (!b.out && b.id !== self) b.cells.forEach(([dr,dc]) => g[b.r+dr][b.c+dc] = b.id); }); return g; };
@@ -91,14 +91,14 @@
       if (!outside) { b.r = nr; b.c = nc; return 'moved'; }
       const side = dr < 0 ? 'top' : dr > 0 ? 'bottom' : dc < 0 ? 'left' : 'right';
       const e = st.exits.find(x => x.side === side && x.color === b.color);
-      if (!e) { st.bump = { id: b.id, t: 0.2 }; return 'blocked'; }
+      if (!e) { if (PB.sfx && !(st.bump && st.bump.id === b.id && st.bump.t > 0)) PB.sfx('nope'); st.bump = { id: b.id, t: 0.2 }; return 'blocked'; }
       const along = side === 'top' || side === 'bottom';
       const lo = Math.min(...b.cells.map(p => along ? b.c + p[1] : b.r + p[0])), hi = Math.max(...b.cells.map(p => along ? b.c + p[1] : b.r + p[0]));
       if (lo >= e.start && hi < e.start + e.len) { exitBlock(b, side); return 'exit'; }
       st.bump = { id: b.id, t: 0.2 }; return 'blocked';
     }
     function exitBlock(b, side){
-      b.out = { side, t: 0 }; st.drag = null;
+      b.out = { side, t: 0 }; st.drag = null; if (PB.sfx) PB.sfx('exit');
       st.score += 50 * st.level;
       const [dr, dc] = DIRS[side];
       const cx = st.bx + (b.c + 0.5) * st.cell, cy = st.by + (b.r + 0.5) * st.cell;
@@ -138,7 +138,7 @@
       }
       for (const b of st.blocks) {
         if (b.out) { b.out.t += dt / 0.35; continue; }
-        b.vx += (b.c - b.vx) * Math.min(1, dt * 22); b.vy += (b.r - b.vy) * Math.min(1, dt * 22);
+        b.vx += (b.c + (b.nx || 0) - b.vx) * Math.min(1, dt * 28); b.vy += (b.r + (b.ny || 0) - b.vy) * Math.min(1, dt * 28);
       }
       if (st.bump) { st.bump.t -= dt; if (st.bump.t <= 0) st.bump = null; }
       for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vx *= 0.96; q.vy *= 0.96; q.life -= dt; }
@@ -294,9 +294,9 @@
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
       metrics(){ return { score: st.score, level: st.level }; },
       dailyGoals: [
-        { text:'Reach level {n}', m:'level', n:[4, 6, 8] },
-        { text:'Score {n} points', m:'score', n:[3000, 5000, 7000] },
-        { text:'Reach level {n} without losing a life', m:'level', n:[3, 4, 5], noHit:true },
+        { text:'Reach level {n}', m:'level', n:[3, 4, 5] },
+        { text:'Score {n} points', m:'score', n:[2000, 3000, 4500] },
+        { text:'Reach level {n} without losing a life', m:'level', n:[2, 3], noHit:true },
       ],
       pointerDown(x, y){
         if (st.phase !== 'play' || st.pending != null || st.retry != null) return;
@@ -308,7 +308,9 @@
       pointerMove(x, y){
         if (!st.drag) return;
         const b = st.blocks[st.drag.id]; if (!b || b.out) { st.drag = null; return; }
-        const tr = st.drag.r0 + Math.round((y - st.drag.y) / st.cell), tc = st.drag.c0 + Math.round((x - st.drag.x) / st.cell);
+        const step = v => Math.sign(v) * Math.floor(Math.abs(v) + 0.62);   // a block moves once you drag about a third of a cell
+        const fr = (y - st.drag.y) / st.cell, fc = (x - st.drag.x) / st.cell;
+        const tr = st.drag.r0 + step(fr), tc = st.drag.c0 + step(fc);
         const g = occupied(b.id);
         for (let guard = 0; guard < 24; guard++) {
           const dr = Math.sign(tr - b.r), dc = Math.sign(tc - b.c);
@@ -318,10 +320,18 @@
           if (preferX && dc) res = tryStep(b, 0, dc, g);
           if (res === 'blocked' && dr) res = tryStep(b, dr, 0, g);
           if (res === 'blocked' && !preferX && dc) res = tryStep(b, 0, dc, g);
-          if (res !== 'moved') break; if (PB.sfx) PB.sfx('tap');
+          if (res !== 'moved') break; if (PB.sfx) PB.sfx('slide');
         }
+        if (!st.drag) return;
+        // if a wall stops the block, re-anchor so sliding back the other way responds right away
+        const wantR = st.drag.r0 + fr, wantC = st.drag.c0 + fc;
+        if (Math.abs(wantC - b.c) > 0.9) { st.drag.x = x - (b.c - st.drag.c0) * st.cell - Math.sign(wantC - b.c) * 0.4 * st.cell; }
+        if (Math.abs(wantR - b.r) > 0.9) { st.drag.y = y - (b.r - st.drag.r0) * st.cell - Math.sign(wantR - b.r) * 0.4 * st.cell; }
+        // the block leans toward your finger a little, so it feels like it glides
+        b.nx = Math.max(-0.22, Math.min(0.22, (st.drag.c0 + (x - st.drag.x) / st.cell - b.c) * 0.5));
+        b.ny = Math.max(-0.22, Math.min(0.22, (st.drag.r0 + (y - st.drag.y) / st.cell - b.r) * 0.5));
       },
-      pointerUp(){ st.drag = null; },
+      pointerUp(){ if (st.drag && st.blocks[st.drag.id]) { st.blocks[st.drag.id].nx = 0; st.blocks[st.drag.id].ny = 0; } st.drag = null; },
       key(e){ if (e.key === ' ' && st.msg) { e.preventDefault(); st.msg = null; st.running = true; } },
     };
   }
