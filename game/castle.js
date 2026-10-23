@@ -497,6 +497,7 @@
         sunDir: [-0.4, -0.75, -0.5], sunColor: [3.0, 2.8, 2.4], ambSky: [0.55, 0.68, 0.9], ambGround: [0.4, 0.45, 0.3], toon: 0.8,
         fogColor: [0.72, 0.9, 1.0], fogDensity: 0.008, fogStart: 14,
         shadow: { center: W3(AIMD - 40, TABLE_Y, 0), radius: 3.4 },
+        post: { bloom: 0.28, threshold: 0.93, saturation: 1.04, contrast: 1.05, vignette: 0.3, tint: [1.0, 0.98, 0.95] },
         sky: { zenith: [0.12, 0.5, 1.0], horizon: [0.68, 0.92, 1.0], ground: [0.5, 0.6, 0.4], sunColor: [1, 0.95, 0.85], sunSize: 1 },
       });
       scenery(M);

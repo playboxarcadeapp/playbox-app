@@ -322,6 +322,7 @@
         sunDir: [-0.6, -0.4, -0.7], sunColor: gal.sun.map(v => v * 3.1), ambSky: [0.16, 0.17, 0.24], ambGround: [0.08, 0.07, 0.1],
         fogColor: [0.02, 0.02, 0.04], fogDensity: 0.0026, fogStart: 140,
         sky: { tex: SKY[gi], texBright: 2.4, sunColor: gal.sun.map(v => v * 1.6), sunSize: 3 },
+        post: { bloom: 0.95, threshold: 0.62, saturation: 1.25, contrast: 1.1, vignette: 0.35 },
       });
       const pp = [-300, 90, -1150], pr = 170;
       E.draw(A.sphere, M.trs(pp, [0.2, st.planetSpin + st.clock * 0.01, 0.15], pr), { tex: PLAN[gi], color: [0.85, 0.85, 0.88], spec: gal.planet === 'earth' ? 0.4 : 0.1, shine: 30, rim: 0.8, fogless: true, emissive: gal.planet === 'lava' ? [0.25, 0.08, 0.02] : [0, 0, 0] });

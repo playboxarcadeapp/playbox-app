@@ -190,15 +190,30 @@
       bam(BX - 12, BY - 12, COLS * CELL + 24, 10); bam(BX - 12, BY + ROWS * CELL + 2, COLS * CELL + 24, 10);
       bam(BX - 12, BY - 12, 10, ROWS * CELL + 24); bam(BX + COLS * CELL + 2, BY - 12, 10, ROWS * CELL + 24);
       // jungle floor tiles
+      // lush jungle floor: two-tone mowed squares, soft moss and dirt patches, thousands of grass blades, clover and tiny flowers
       for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++) {
-        g.fillStyle = (x + y) % 2 ? '#5f9a3b' : '#689f40';
-        g.fillRect(BX + x * CELL, BY + y * CELL, CELL, CELL);
-        if (R() < 0.35) { g.fillStyle = 'rgba(30,60,10,.25)'; g.beginPath(); g.ellipse(BX + x * CELL + R() * CELL, BY + y * CELL + R() * CELL, 3 + R() * 4, 1.5, R() * 3, 0, 7); g.fill(); }
-        if (R() < 0.08) { g.fillStyle = ['#ffe36e','#ff8fb1','#ffffff'][Math.floor(R() * 3)]; g.beginPath(); g.arc(BX + x * CELL + 6 + R() * 16, BY + y * CELL + 6 + R() * 16, 2, 0, 7); g.fill(); }
+        const tg = g.createLinearGradient(0, BY + y * CELL, 0, BY + (y + 1) * CELL);
+        if ((x + y) % 2) { tg.addColorStop(0, '#6aa844'); tg.addColorStop(1, '#5a963a'); } else { tg.addColorStop(0, '#77b44c'); tg.addColorStop(1, '#68a443'); }
+        g.fillStyle = tg; g.fillRect(BX + x * CELL, BY + y * CELL, CELL, CELL);
       }
+      g.save(); g.beginPath(); g.rect(BX, BY, COLS * CELL, ROWS * CELL); g.clip();
+      for (let i=0;i<26;i++) { const x = BX + R() * COLS * CELL, y = BY + R() * ROWS * CELL, r = 20 + R() * 40; const mg = g.createRadialGradient(x, y, 0, x, y, r); mg.addColorStop(0, R() < 0.25 ? 'rgba(150,110,60,.22)' : 'rgba(30,80,20,.22)'); mg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = mg; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
+      for (let i=0;i<5200;i++) { const x = BX + R() * COLS * CELL, y = BY + R() * ROWS * CELL; g.strokeStyle = ['#8ccf5e','#4f8a31','#9ad86a','#5d9c3a','#3f7a2a'][i % 5]; g.globalAlpha = 0.55; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - .5) * 3, y - 2.5 - R() * 3.5); g.stroke(); }
+      g.globalAlpha = 1;
+      for (let i=0;i<34;i++) { const x = BX + R() * COLS * CELL, y = BY + R() * ROWS * CELL; g.fillStyle = '#4f9a36'; for (let k=0;k<3;k++) { const a = k * 2.1 + R(); g.beginPath(); g.arc(x + Math.cos(a) * 2.6, y + Math.sin(a) * 2.6, 2.6, 0, 7); g.fill(); } }
+      for (let i=0;i<28;i++) { const x = BX + R() * COLS * CELL, y = BY + R() * ROWS * CELL, c = ['#ffe36e','#ff8fb1','#ffffff','#c7a6ff'][i % 4]; g.fillStyle = c; for (let k=0;k<5;k++) { const a = k * 1.256; g.beginPath(); g.arc(x + Math.cos(a) * 2.2, y + Math.sin(a) * 2.2, 1.7, 0, 7); g.fill(); } g.fillStyle = '#ffb000'; g.beginPath(); g.arc(x, y, 1.3, 0, 7); g.fill(); }
+      // soft shade where the bamboo frame meets the grass
+      const ed = 26; for (const [x0, y0, x1, y1] of [[BX, BY, BX, BY + ed], [BX, BY + ROWS * CELL, BX, BY + ROWS * CELL - ed], [BX, BY, BX + ed, BY], [BX + COLS * CELL, BY, BX + COLS * CELL - ed, BY]]) { const sg = g.createLinearGradient(x0, y0, x1, y1); sg.addColorStop(0, 'rgba(10,30,5,.4)'); sg.addColorStop(1, 'rgba(10,30,5,0)'); g.fillStyle = sg; g.fillRect(BX, BY, COLS * CELL, ROWS * CELL); }
+      g.restore();
       const vg = g.createRadialGradient(W/2, BY + ROWS*CELL/2, 120, W/2, BY + ROWS*CELL/2, 330); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,30,10,.35)');
       g.fillStyle = vg; g.fillRect(BX, BY, COLS * CELL, ROWS * CELL);
       bgC = c;
+      // overhanging leaves drawn on top of the board
+      const f = document.createElement('canvas'); f.width = W * 2; f.height = H * 2; const fg = f.getContext('2d'); fg.scale(2, 2);
+      const R2 = mulberry(77);
+      for (let i=0;i<9;i++) { const gc = greens[i % 4], top = i < 5; const x = top ? BX - 20 + R2() * (COLS * CELL + 40) : (i % 2 ? BX - 18 : BX + COLS * CELL + 18), y = top ? BY - 14 : BY + R2() * ROWS * CELL;
+        fg.save(); fg.shadowColor = 'rgba(0,0,0,.45)'; fg.shadowBlur = 10; fg.shadowOffsetY = 6; leaf(fg, x, y, 46 + R2() * 30, 15 + R2() * 8, top ? 1.2 + R2() * 0.8 : (i % 2 ? 0.2 : Math.PI - 0.2) + (R2() - .5) * 0.6, gc[0], gc[1]); fg.restore(); }
+      fgC = f;
     }
     function drawFruit(type, cx, cy, s){
       ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
@@ -328,6 +343,8 @@
       ctx.restore();
       ctx.restore();
     }
+    let fgC = null;
+    const FLIES = Array.from({ length: 12 }, () => ({ x: Math.random() * 480, y: 140 + Math.random() * 500, p: Math.random() * 6, s: 0.4 + Math.random() * 0.6 }));
     function draw(){
       if (!bgC) paintBg();
       ctx.save();
@@ -343,11 +360,22 @@
         else if (it.kind === 'egg') drawEgg(cx, cy + bob, st.time);
         else { const left = it.ttl - (st.time - it.born); if (left > 2 || Math.floor(left * 8) % 2) powOrb(ctx, it.type, cx, cy + bob, 12 * pop); }
       }
+      // sunlight dappling through the canopy, slowly drifting
+      if (!reduceMotion) { ctx.save(); ctx.beginPath(); ctx.rect(BX, BY, COLS * CELL, ROWS * CELL); ctx.clip(); ctx.globalCompositeOperation = 'soft-light';
+        for (let k=0;k<6;k++) { const x = BX + ((k * 97 + st.time * (6 + k)) % (COLS * CELL + 120)) - 60, y = BY + 40 + ((k * 151) % (ROWS * CELL - 60)) + Math.sin(st.time * 0.5 + k) * 20, r = 60 + (k % 3) * 25;
+          const dg = ctx.createRadialGradient(x, y, 0, x, y, r); dg.addColorStop(0, 'rgba(255,250,200,.55)'); dg.addColorStop(1, 'rgba(255,250,200,0)'); ctx.fillStyle = dg; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); }
+        ctx.restore(); }
       drawSnake();
       for (const r of st.rings || []) { ctx.strokeStyle = r.color; ctx.globalAlpha = r.life / 0.45; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(r.x, r.y, 10 + (0.45 - r.life) * 70, 0, 7); ctx.stroke(); }
       ctx.globalAlpha = 1;
       for (const q of st.parts) { ctx.globalAlpha = Math.max(0, q.life / 0.6); ctx.fillStyle = q.color; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill(); }
       ctx.globalAlpha = 1;
+      if (fgC) ctx.drawImage(fgC, Math.sin(st.time * 0.8) * 1.5, Math.cos(st.time * 0.6) * 1, W, H);
+      // fireflies
+      if (!reduceMotion) { ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (const f of FLIES) { const x = f.x + Math.sin(st.time * f.s + f.p) * 30, y = f.y + Math.cos(st.time * f.s * 0.7 + f.p) * 20, a = 0.4 + 0.6 * Math.max(0, Math.sin(st.time * 2 * f.s + f.p));
+          const fg2 = ctx.createRadialGradient(x, y, 0, x, y, 9); fg2.addColorStop(0, `rgba(230,255,140,${a})`); fg2.addColorStop(1, 'rgba(230,255,140,0)'); ctx.fillStyle = fg2; ctx.fillRect(x - 9, y - 9, 18, 18); }
+        ctx.restore(); }
       ctx.restore();
 
       // header

@@ -149,38 +149,78 @@
     }
 
     // ---------- Drawing ----------
+    // glossy jelly-glass blocks with a soft drop shadow, bevelled edges and a glowing core
     function drawBlock(b, alpha, ox, oy){
       const cs = st.cell, col = COLS[b.color];
-      const bx = st.bx + b.vx * cs + ox, by = st.by + b.vy * cs + oy;
+      const lifted = st.drag && st.drag.id === b.id, lift = lifted ? 4 : 0;
+      const bx = st.bx + b.vx * cs + ox, by = st.by + b.vy * cs + oy - lift;
       const set = new Set(b.cells.map(([r,c]) => r + ',' + c));
-      const lifted = st.drag && st.drag.id === b.id;
+      const pad = 3, rad = 10;
+      const shape = (dx, dy, inset) => {
+        ctx.beginPath();
+        for (const [r,c] of b.cells) {
+          ctx.roundRect(bx + c*cs + pad + inset + dx, by + r*cs + pad + inset + dy, cs - (pad + inset)*2, cs - (pad + inset)*2, rad);
+          if (set.has(r + ',' + (c+1))) ctx.rect(bx + c*cs + cs - pad - inset - 2 + dx, by + r*cs + pad + inset + dy, (pad + inset)*2 + 4, cs - (pad + inset)*2);
+          if (set.has((r+1) + ',' + c)) ctx.rect(bx + c*cs + pad + inset + dx, by + r*cs + cs - pad - inset - 2 + dy, cs - (pad + inset)*2, (pad + inset)*2 + 4);
+        }
+      };
       ctx.save(); ctx.globalAlpha = alpha;
-      ctx.shadowColor = col; ctx.shadowBlur = lifted ? 26 : 14;
-      ctx.fillStyle = col;
-      const pad = 4;
-      ctx.beginPath();
-      for (const [r,c] of b.cells) {
-        ctx.roundRect(bx + c*cs + pad, by + r*cs + pad, cs - pad*2, cs - pad*2, 8);
-        if (set.has(r + ',' + (c+1))) ctx.rect(bx + c*cs + cs - pad - 1, by + r*cs + pad + 6, pad*2 + 2, cs - pad*2 - 12);
-        if (set.has((r+1) + ',' + c)) ctx.rect(bx + c*cs + pad + 6, by + r*cs + cs - pad - 1, cs - pad*2 - 12, pad*2 + 2);
-      }
-      ctx.fill();
+      // shadow on the board
+      ctx.fillStyle = 'rgba(0,0,0,.45)'; shape(3 + lift, 6 + lift * 1.5, 0); ctx.fill();
+      // outer glow + body
+      ctx.shadowColor = col; ctx.shadowBlur = lifted ? 30 : 16;
+      const top = by + Math.min(...b.cells.map(p => p[0])) * cs, bot = by + (Math.max(...b.cells.map(p => p[0])) + 1) * cs;
+      const body = ctx.createLinearGradient(0, top, 0, bot); body.addColorStop(0, PB.shade(col, 0.35)); body.addColorStop(0.45, col); body.addColorStop(1, PB.shade(col, -0.45));
+      // filled in layers (dark rim, bright bevel, body) so joined cells stay one seamless piece
+      ctx.fillStyle = PB.shade(col, -0.6); shape(0, 0, -1.5); ctx.fill();
       ctx.shadowBlur = 0;
+      ctx.fillStyle = PB.shade(col, 0.6); shape(0, 0, 0); ctx.fill();
+      ctx.fillStyle = body; shape(0, 1, 2.5); ctx.fill();
+      // per-cell glass shine and glowing core
       for (const [r,c] of b.cells) {
-        const x = bx + c*cs + pad, y = by + r*cs + pad, s = cs - pad*2;
-        const g = ctx.createLinearGradient(0, y, 0, y + s); g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(.5, 'rgba(255,255,255,.05)'); g.addColorStop(1, 'rgba(0,0,0,.25)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x, y, s, s, 8); ctx.fill();
-        ctx.strokeStyle = 'rgba(5,10,20,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(x + s*0.3, y + s*0.3, s*0.4, s*0.4, 4); ctx.stroke();
+        const x = bx + c*cs + pad, y = by + r*cs + pad, sz = cs - pad*2;
+        const g = ctx.createLinearGradient(0, y, 0, y + sz * 0.55); g.addColorStop(0, 'rgba(255,255,255,.6)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x + 6, y + 5, sz - 12, sz * 0.4, [8, 8, 14, 14]); ctx.fill();
+        const cx = x + sz / 2, cy = y + sz * 0.58, core = ctx.createRadialGradient(cx, cy, 1, cx, cy, sz * 0.3);
+        core.addColorStop(0, 'rgba(255,255,255,.9)'); core.addColorStop(0.35, PB.shade(col, 0.5)); core.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = core; ctx.fillRect(cx - sz * 0.3, cy - sz * 0.3, sz * 0.6, sz * 0.6); ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.ellipse(x + 11, y + 10, 4, 2.2, -0.5, 0, 7); ctx.fill();
       }
       ctx.restore();
+    }
+    // a cyber "server room" backdrop with circuit traces; light pulses run along them
+    let bgL = null, TRACES = null;
+    function paintBg(){
+      bgL = PB.layer(W, H); const g = bgL[1];
+      const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#061428'); bg.addColorStop(0.6, '#040a18'); bg.addColorStop(1, '#02050c');
+      g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      const R = mulberry(5); TRACES = [];
+      g.lineCap = 'round';
+      for (let i=0;i<34;i++) {
+        let x = R() * W, y = R() * H; const pts = [[x, y]];
+        for (let k=0;k<4;k++) { if (R() < 0.5) x += (R() - .5) * 160; else y += (R() - .5) * 160; pts.push([x, y]); }
+        TRACES.push({ pts, col: COLS[Math.floor(R() * COLS.length)], ph: R(), sp: 0.08 + R() * 0.12 });
+        g.strokeStyle = 'rgba(80,140,200,.16)'; g.lineWidth = 2; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px, py) : g.moveTo(px, py)); g.stroke();
+        for (const [px, py] of [pts[0], pts[pts.length - 1]]) { g.fillStyle = 'rgba(120,190,255,.25)'; g.beginPath(); g.arc(px, py, 3, 0, 7); g.fill(); }
+      }
+      // soft hex glow behind the board
+      const glow = g.createRadialGradient(W/2, H * 0.55, 20, W/2, H * 0.55, 360); glow.addColorStop(0, 'rgba(61,255,181,.14)'); glow.addColorStop(1, 'rgba(61,255,181,0)');
+      g.fillStyle = glow; g.fillRect(0, 0, W, H);
     }
     function draw(){
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
-      const bg = ctx.createLinearGradient(0,0,0,H); bg.addColorStop(0, '#071224'); bg.addColorStop(1, '#03060d');
-      ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
-      const glow = ctx.createRadialGradient(W/2, st.by + 200, 20, W/2, st.by + 200, 340); glow.addColorStop(0, 'rgba(61,255,181,.13)'); glow.addColorStop(1, 'rgba(61,255,181,0)');
-      ctx.fillStyle = glow; ctx.fillRect(0,0,W,H);
+      if (!bgL) paintBg();
+      ctx.drawImage(bgL[0], 0, 0, W, H);
+      // light pulses racing along the circuit traces
+      if (!reduceMotion) { ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (const t of TRACES) {
+          const segs = t.pts.length - 1, u = ((st.clock * t.sp + t.ph) % 1) * segs, k = Math.floor(u), f = u - k;
+          const a = t.pts[k], b2 = t.pts[k + 1], px = a[0] + (b2[0] - a[0]) * f, py = a[1] + (b2[1] - a[1]) * f;
+          const pg = ctx.createRadialGradient(px, py, 0, px, py, 14); pg.addColorStop(0, t.col); pg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.globalAlpha = 0.55; ctx.fillStyle = pg; ctx.fillRect(px - 14, py - 14, 28, 28);
+        }
+        ctx.restore(); }
 
       // header: level, blocks left, timer
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
@@ -195,10 +235,18 @@
 
       // board
       const cs = st.cell, s = st.size, bw = cs * s;
-      ctx.fillStyle = '#0a1628'; ctx.beginPath(); ctx.roundRect(st.bx - 8, st.by - 8, bw + 16, bw + 16, 14); ctx.fill();
-      ctx.strokeStyle = 'rgba(61,255,181,.10)'; ctx.lineWidth = 1;
-      for (let i=1;i<s;i++) { ctx.beginPath(); ctx.moveTo(st.bx + i*cs, st.by); ctx.lineTo(st.bx + i*cs, st.by + bw); ctx.moveTo(st.bx, st.by + i*cs); ctx.lineTo(st.bx + bw, st.by + i*cs); ctx.stroke(); }
-      ctx.strokeStyle = '#1f3b5c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(st.bx - 8, st.by - 8, bw + 16, bw + 16, 14); ctx.stroke();
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 12;
+      const fr = ctx.createLinearGradient(0, st.by - 18, 0, st.by + bw + 18); fr.addColorStop(0, '#3a4f6e'); fr.addColorStop(0.5, '#1a2840'); fr.addColorStop(1, '#0c1424');
+      ctx.fillStyle = fr; ctx.beginPath(); ctx.roundRect(st.bx - 18, st.by - 18, bw + 36, bw + 36, 22); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = 'rgba(160,210,255,.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(st.bx - 17, st.by - 17, bw + 34, bw + 34, 21); ctx.stroke();
+      for (const [qx, qy] of [[st.bx - 9, st.by - 9], [st.bx + bw + 9, st.by - 9], [st.bx - 9, st.by + bw + 9], [st.bx + bw + 9, st.by + bw + 9]]) { ctx.fillStyle = '#7f95b8'; ctx.beginPath(); ctx.arc(qx, qy, 3.2, 0, 7); ctx.fill(); ctx.fillStyle = '#2a3a55'; ctx.fillRect(qx - 2.2, qy - 0.6, 4.4, 1.2); }
+      ctx.fillStyle = '#081222'; ctx.beginPath(); ctx.roundRect(st.bx - 6, st.by - 6, bw + 12, bw + 12, 12); ctx.fill();
+      for (let r=0;r<s;r++) for (let c=0;c<s;c++) {
+        const x = st.bx + c*cs + 2, y = st.by + r*cs + 2, z = cs - 4;
+        const tg = ctx.createLinearGradient(0, y, 0, y + z); tg.addColorStop(0, '#0f2038'); tg.addColorStop(1, '#0a172a');
+        ctx.fillStyle = tg; ctx.beginPath(); ctx.roundRect(x, y, z, z, 7); ctx.fill();
+        ctx.strokeStyle = 'rgba(61,255,181,.07)'; ctx.lineWidth = 1; ctx.stroke();
+      }
 
       // exit bars
       for (const e of st.exits) {
@@ -209,7 +257,13 @@
         else if (e.side === 'left') { x = st.bx - 14; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
         else { x = st.bx + bw + 6; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
         const pulse = reduceMotion ? 1 : 0.75 + Math.sin(st.clock * 4 + e.color) * 0.25;
-        ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 18 * pulse; ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 22 * pulse; ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.roundRect(x + (w > h ? 4 : 2), y + (w > h ? 2 : 4), w - (w > h ? 8 : 4), h - (w > h ? 4 : 8), 2); ctx.fill(); ctx.restore();
+        if (!reduceMotion) { const [er, ec] = DIRS[e.side]; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = col;
+          for (let q=0;q<6;q++) { const tt = (st.clock * 0.9 + q / 6 + e.color * 0.13) % 1, along = (q * 0.37 + e.color * 0.21) % 1;
+            const px = w > h ? x + along * w : x + w / 2 + ec * tt * 26, py = w > h ? y + h / 2 + er * tt * 26 : y + along * h;
+            ctx.globalAlpha = (1 - tt) * 0.8; ctx.beginPath(); ctx.arc(px, py, 2.2 * (1 - tt) + 0.6, 0, 7); ctx.fill(); }
+          ctx.restore(); }
         // chevrons pointing out
         const [dr, dc] = DIRS[e.side];
         ctx.fillStyle = col; ctx.globalAlpha = 0.55;
@@ -268,13 +322,13 @@
       return st.blocks.find(b => !b.out && b.cells.some(([dr,dc]) => b.r + dr === r && b.c + dc === c));
     }
     function artTile(g){
-      neonBg(g);
-      g.strokeStyle = '#1f3b5c'; g.lineWidth = 2; g.strokeRect(50, 22, 140, 140);
-      g.shadowBlur = 12;
-      rr(g, 46, 60, 6, 50, 3, N.pink); rr(g, 92, 158, 50, 6, 3, N.cyan); rr(g, 188, 30, 6, 40, 3, N.lime);
-      rr(g, 56, 64, 40, 40, 6, N.pink); rr(g, 100, 112, 40, 40, 6, N.cyan); rr(g, 100, 112-0, 40, 40, 6, N.cyan);
-      rr(g, 144, 28, 40, 40, 6, N.lime); rr(g, 144, 72, 40, 40, 6, N.yellow); rr(g, 56, 112, 40, 40, 6, N.yellow);
-      g.shadowBlur = 0; g.fillStyle = 'rgba(255,255,255,.8)'; g.font = '900 20px sans-serif'; g.fillText('\u2190', 20, 92);
+      if (!bgL) paintBg();
+      g.drawImage(bgL[0], 0, 120, 480, 360, 0, 0, 240, 180);
+      const fr = g.createLinearGradient(0, 14, 0, 170); fr.addColorStop(0, '#3a4f6e'); fr.addColorStop(1, '#0c1424');
+      g.fillStyle = fr; g.beginPath(); g.roundRect(44, 14, 152, 152, 14); g.fill(); g.fillStyle = '#081222'; g.beginPath(); g.roundRect(52, 22, 136, 136, 9); g.fill();
+      const blk = (x, y, w, h, col) => { g.save(); g.shadowColor = col; g.shadowBlur = 12; g.fillStyle = PB.shade(col, -0.6); g.beginPath(); g.roundRect(x - 1, y - 1, w + 2, h + 2, 8); g.fill(); g.shadowBlur = 0; g.fillStyle = PB.shade(col, 0.6); g.beginPath(); g.roundRect(x, y, w, h, 7); g.fill(); const b = g.createLinearGradient(0, y, 0, y + h); b.addColorStop(0, PB.shade(col, 0.35)); b.addColorStop(0.5, col); b.addColorStop(1, PB.shade(col, -0.45)); g.fillStyle = b; g.beginPath(); g.roundRect(x + 2, y + 3, w - 4, h - 5, 6); g.fill(); g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.roundRect(x + 5, y + 4, w - 10, 8, 4); g.fill(); g.restore(); };
+      g.save(); g.shadowColor = N.pink; g.shadowBlur = 14; rr(g, 42, 60, 6, 56, 3, N.pink); g.shadowColor = N.cyan; rr(g, 96, 162, 56, 6, 3, N.cyan); g.shadowColor = N.lime; rr(g, 192, 30, 6, 46, 3, N.lime); g.restore();
+      blk(56, 62, 64, 30, N.pink); blk(100, 112, 30, 42, N.cyan); blk(144, 28, 38, 38, N.lime); blk(144, 72, 38, 38, N.yellow); blk(58, 112, 36, 42, N.yellow);
     }
 
     return {

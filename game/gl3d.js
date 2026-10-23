@@ -234,6 +234,38 @@
   precision mediump float; in vec2 vUV; in vec4 vC; out vec4 o; uniform sampler2D uTex;
   void main(){ vec4 t = texture(uTex, vUV); o = vec4(vC.rgb * t.rgb, vC.a * t.a); }`;
 
+  // ---- post-processing: glow (bloom) + color grading + vignette ----
+  const PVS = `#version 300 es
+  layout(location=0) in vec2 aP; out vec2 vUV; void main(){ vUV = aP * 0.5 + 0.5; gl_Position = vec4(aP, 0.0, 1.0); }`;
+  const BRIGHT = `#version 300 es
+  precision mediump float; in vec2 vUV; out vec4 o; uniform sampler2D uTex; uniform vec2 uTexel; uniform float uThr;
+  void main(){
+    vec3 c = (texture(uTex, vUV + uTexel * vec2(-1.0, -1.0)).rgb + texture(uTex, vUV + uTexel * vec2(1.0, -1.0)).rgb + texture(uTex, vUV + uTexel * vec2(-1.0, 1.0)).rgb + texture(uTex, vUV + uTexel * vec2(1.0, 1.0)).rgb) * 0.25;
+    float l = max(c.r, max(c.g, c.b));
+    o = vec4(c * smoothstep(uThr, uThr + 0.22, l), 1.0);
+  }`;
+  const BLUR = `#version 300 es
+  precision mediump float; in vec2 vUV; out vec4 o; uniform sampler2D uTex; uniform vec2 uDir;
+  void main(){
+    vec3 c = texture(uTex, vUV).rgb * 0.227;
+    c += (texture(uTex, vUV + uDir * 1.385).rgb + texture(uTex, vUV - uDir * 1.385).rgb) * 0.316;
+    c += (texture(uTex, vUV + uDir * 3.231).rgb + texture(uTex, vUV - uDir * 3.231).rgb) * 0.070;
+    o = vec4(c, 1.0);
+  }`;
+  const COMP = `#version 300 es
+  precision mediump float; in vec2 vUV; out vec4 o; uniform sampler2D uScene, uBloom, uBloom2;
+  uniform float uBloomK, uSat, uCon, uVig; uniform vec3 uTint, uLift;
+  void main(){
+    vec3 c = texture(uScene, vUV).rgb;
+    vec3 b = texture(uBloom, vUV).rgb * 0.6 + texture(uBloom2, vUV).rgb * 0.8;
+    c += b * uBloomK;
+    float l = dot(c, vec3(0.299, 0.587, 0.114));
+    c = mix(vec3(l), c, uSat);
+    c = (c - 0.5) * uCon + 0.5;
+    c = c * uTint + uLift;
+    vec2 d = vUV - 0.5; c *= 1.0 - uVig * smoothstep(0.35, 0.95, length(d * vec2(1.0, 0.85)) * 1.25);
+    o = vec4(clamp(c, 0.0, 1.0), 1.0);
+  }`;
   function create(){
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl2', { antialias: true, preserveDrawingBuffer: false, alpha: false, powerPreference: 'high-performance' });
@@ -247,6 +279,48 @@
       return { p, u };
     };
     const prog = compile(VS, FS), sprog = compile(SVS, SFS), sky = compile(SKYVS, SKYFS), spr = compile(SPVS, SPFS);
+    const pBright = compile(PVS, BRIGHT), pBlur = compile(PVS, BLUR), pComp = compile(PVS, COMP);
+    // render targets for the glow pass (created / resized on demand)
+    let post = null;
+    const mkTex = (w, h) => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, w, h); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return { t, f, w, h }; };
+    function ensurePost(w, h){
+      if (post && post.w === w && post.h === h) return post;
+      if (post) { for (const k of ['scene', 'a', 'b', 'c', 'd']) { gl.deleteTexture(post[k].t); gl.deleteFramebuffer(post[k].f); } gl.deleteRenderbuffer(post.rbC); gl.deleteRenderbuffer(post.rbD); gl.deleteFramebuffer(post.msFB); }
+      const samples = Math.min(4, gl.getParameter(gl.MAX_SAMPLES) || 0);
+      const msFB = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, msFB);
+      const rbC = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rbC); gl.renderbufferStorageMultisample(gl.RENDERBUFFER, samples, gl.RGBA8, w, h); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rbC);
+      const rbD = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rbD); gl.renderbufferStorageMultisample(gl.RENDERBUFFER, samples, gl.DEPTH_COMPONENT24, w, h); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rbD);
+      const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      const q = (d) => [Math.max(1, Math.round(w / d)), Math.max(1, Math.round(h / d))];
+      post = { w, h, msFB, rbC, rbD, ok, scene: mkTex(w, h), a: mkTex(...q(4)), b: mkTex(...q(4)), c: mkTex(...q(10)), d: mkTex(...q(10)) };
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return post;
+    }
+    const quad = (p) => { gl.useProgram(p.p); gl.bindVertexArray(skyVao); gl.drawArrays(gl.TRIANGLES, 0, 6); };
+    function runPost(P, opt){
+      gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
+      // resolve the anti-aliased scene into a texture
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, P.msFB); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, P.scene.f);
+      gl.blitFramebuffer(0, 0, P.w, P.h, 0, 0, P.w, P.h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+      const pass = (prog, src, dst, set) => { gl.bindFramebuffer(gl.FRAMEBUFFER, dst.f); gl.viewport(0, 0, dst.w, dst.h); gl.useProgram(prog.p); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); gl.uniform1i(prog.u.uTex, 0); set && set(); quad(prog); };
+      pass(pBright, P.scene, P.a, () => { gl.uniform2f(pBright.u.uTexel, 1 / P.w, 1 / P.h); gl.uniform1f(pBright.u.uThr, opt.threshold ?? 0.72); });
+      pass(pBlur, P.a, P.b, () => gl.uniform2f(pBlur.u.uDir, 1 / P.a.w, 0));
+      pass(pBlur, P.b, P.a, () => gl.uniform2f(pBlur.u.uDir, 0, 1 / P.a.h));
+      pass(pBlur, P.a, P.c, () => gl.uniform2f(pBlur.u.uDir, 1.5 / P.a.w, 0));
+      pass(pBlur, P.c, P.d, () => gl.uniform2f(pBlur.u.uDir, 0, 1.5 / P.c.h));
+      pass(pBlur, P.d, P.c, () => gl.uniform2f(pBlur.u.uDir, 1 / P.c.w, 0));
+      pass(pBlur, P.c, P.d, () => gl.uniform2f(pBlur.u.uDir, 0, 1 / P.c.h));
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(pComp.p); const u = pComp.u;
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, P.scene.t); gl.uniform1i(u.uScene, 0);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, P.a.t); gl.uniform1i(u.uBloom, 1);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, P.d.t); gl.uniform1i(u.uBloom2, 2);
+      gl.uniform1f(u.uBloomK, opt.bloom ?? 0.6); gl.uniform1f(u.uSat, opt.saturation ?? 1.15); gl.uniform1f(u.uCon, opt.contrast ?? 1.06); gl.uniform1f(u.uVig, opt.vignette ?? 0.3);
+      gl.uniform3fv(u.uTint, opt.tint || [1, 1, 1]); gl.uniform3fv(u.uLift, opt.lift || [0, 0, 0]);
+      quad(pComp);
+      gl.activeTexture(gl.TEXTURE0);
+    }
     // shadow map
     const SM = 2048;
     const shadowTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shadowTex);
@@ -335,6 +409,10 @@
         gl.disable(gl.POLYGON_OFFSET_FILL); gl.cullFace(gl.BACK); gl.colorMask(true, true, true, true);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
+      // with post-processing on, the scene is drawn into an offscreen (anti-aliased) target first
+      let PP = null;
+      if (env.post && E.postOn !== false) { PP = ensurePost(canvas.width, canvas.height); if (!PP.ok) PP = null; }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, PP ? PP.msFB : null);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       // sky
@@ -405,6 +483,7 @@
         }
       }
       gl.depthMask(true); gl.disable(gl.BLEND);
+      if (PP) runPost(PP, env.post);
       gl.bindVertexArray(null);
     };
     function lin(c){ return [Math.pow(c[0], 2.2), Math.pow(c[1], 2.2), Math.pow(c[2], 2.2)]; }

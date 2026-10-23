@@ -572,6 +572,7 @@
         sunDir: [-0.62 * Math.cos(st.camTh) + 0.42 * Math.sin(st.camTh), -0.5, 0.62 * Math.sin(st.camTh) + 0.42 * Math.cos(st.camTh)], sunColor: [3.9, 3.0, 2.1], ambSky: [0.34, 0.44, 0.78], ambGround: [0.34, 0.36, 0.2], toon: 1.0,
         fogColor: [0.86, 0.88, 0.92], fogDensity: 0.007, fogStart: 40,
         shadow: { center: [0, 2, -16], radius: 30 },
+        post: { bloom: 0.32, threshold: 0.9, saturation: 1.16, contrast: 1.1, vignette: 0.24, tint: [1.0, 0.99, 0.97] },
         sky: { zenith: [0.12, 0.4, 0.95], horizon: [0.78, 0.88, 0.98], ground: [0.55, 0.55, 0.38], sunColor: [1.4, 1.0, 0.55], sunSize: 3 },
       });
       // painted sky and far hills stay with the camera
@@ -1225,7 +1226,7 @@
       E.resize(W, H, Math.min(dpr, 1.75));
       render(W, H);
       E.present(ctx, W, H);
-      if (!sunC) { sunC = layer(W, H); const g = sunC[1]; const sg = g.createRadialGradient(W * 0.85, -20, 10, W * 0.85, -20, H * 0.75); sg.addColorStop(0, 'rgba(255,236,170,.3)'); sg.addColorStop(0.4, 'rgba(255,220,150,.12)'); sg.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = sg; g.fillRect(0, 0, W, H); const vg = g.createRadialGradient(W / 2, H * 0.5, H * 0.35, W / 2, H * 0.55, H * 0.8); vg.addColorStop(0, 'rgba(40,20,60,0)'); vg.addColorStop(1, 'rgba(40,20,60,.28)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); }
+      if (!sunC) { sunC = layer(W, H); const g = sunC[1]; const sg = g.createRadialGradient(W * 0.85, -20, 10, W * 0.85, -20, H * 0.75); sg.addColorStop(0, 'rgba(255,236,170,.3)'); sg.addColorStop(0.4, 'rgba(255,220,150,.12)'); sg.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = sg; g.fillRect(0, 0, W, H); const vg = g.createRadialGradient(W / 2, H * 0.5, H * 0.35, W / 2, H * 0.55, H * 0.8); vg.addColorStop(0, 'rgba(40,20,60,0)'); vg.addColorStop(1, 'rgba(40,20,60,.08)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); }
       ctx.drawImage(sunC[0], 0, 0, W, H);
       drawHUD();
     }

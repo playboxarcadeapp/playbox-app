@@ -112,6 +112,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: .95rem; letter-sp
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+#play[data-game="bricks"] { background: radial-gradient(90% 45% at 50% 100%, rgba(255,61,220,.22), transparent 70%), radial-gradient(80% 40% at 50% 0%, rgba(34,228,255,.12), transparent 70%), linear-gradient(180deg, #07051c, #1a0838 60%, #07051a); }
 #play[data-game="cubes"] {
   --pbg: #050a14; --ppanel: #0c1828; --pline: #1f3b5c; --pacc: #3dffb5; --pacc-ink: #01281a; --pgold: #ff3ddc; --pgold-ink: #fff;
   background: radial-gradient(90% 50% at 50% 0%, rgba(61,255,181,.12), transparent 70%), var(--pbg);
@@ -374,9 +375,76 @@ svg.coin { width: 18px; height: 18px; flex: none; }
   background: rgba(10,14,40,.92); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.35); pointer-events: none; animation: toastIn .35s ease; }
 .toast.good { background: #2a1e00; color: #ffd23f; border: 2px solid #ffc21a; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -10px); } }
+/* ================= Premium game list ================= */
+body { background: #05061a; }
+#bgfx { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0;
+  background: radial-gradient(120% 70% at 50% -10%, #2a1a6e 0%, #120b3a 45%, #05061a 100%); }
+#bgfx i { position: absolute; display: block; border-radius: 50%; filter: blur(50px); opacity: .55; }
+#bgfx .b1 { width: 70vmax; height: 70vmax; left: -25vmax; top: -20vmax; background: radial-gradient(circle, #ff3ddc 0%, transparent 65%); animation: drift1 22s ease-in-out infinite alternate; }
+#bgfx .b2 { width: 60vmax; height: 60vmax; right: -25vmax; top: 10vmax; background: radial-gradient(circle, #22e4ff 0%, transparent 65%); animation: drift2 26s ease-in-out infinite alternate; opacity: .4; }
+#bgfx .b3 { width: 70vmax; height: 70vmax; left: 10vmax; bottom: -40vmax; background: radial-gradient(circle, #ffb02e 0%, transparent 65%); animation: drift1 30s ease-in-out infinite alternate-reverse; opacity: .3; }
+#bgfx .stars { inset: -50%; width: auto; height: auto; border-radius: 0; filter: none; opacity: .7;
+  background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff 50%, transparent 51%), radial-gradient(1px 1px at 90px 120px, #cfe3ff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 160px 60px, #fff 50%, transparent 51%), radial-gradient(1px 1px at 230px 190px, #ffe6f8 50%, transparent 51%);
+  background-size: 260px 220px; animation: starfall 90s linear infinite; }
+#bgfx .s2 { background-size: 380px 330px; opacity: .45; animation-duration: 140s; }
+@keyframes drift1 { to { transform: translate(18vmax, 14vmax) scale(1.15); } }
+@keyframes drift2 { to { transform: translate(-16vmax, 20vmax) scale(.9); } }
+@keyframes starfall { to { transform: translateY(220px); } }
+#hubScroll { z-index: 1; }
+.wrap { gap: 18px; }
+h1 { font-size: 2.2rem; background: linear-gradient(180deg, #ffffff 10%, #ffe27a 55%, #ff9f1c 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 #6a1b9a) drop-shadow(0 0 18px rgba(255,61,220,.45)); letter-spacing: 2px; }
+.logo-box { animation: bob 3.5s ease-in-out infinite; }
+@keyframes bob { 50% { transform: rotate(-2deg) translateY(-3px); } }
+.chip { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 4px 14px rgba(0,0,0,.25); }
+h2 { color: #c9c3ff; letter-spacing: .18em; }
+/* featured game */
+.hero { position: relative; border-radius: 26px; overflow: hidden; min-height: 210px; display: grid; align-content: end; cursor: pointer; isolation: isolate;
+  box-shadow: 0 0 0 2px var(--acc, #ff3ddc), 0 18px 50px rgba(0,0,0,.45), 0 0 50px color-mix(in srgb, var(--acc, #ff3ddc) 40%, transparent); transition: transform .2s; }
+.hero:active { transform: scale(.98); }
+.hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transform: scale(1.04); animation: kenburns 14s ease-in-out infinite alternate; }
+@keyframes kenburns { to { transform: scale(1.14) translate(-2%, -2%); } }
+.hero::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(5,6,26,0) 30%, rgba(5,6,26,.55) 60%, rgba(5,6,26,.92) 100%); }
+.hero::after, .tile::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.28) 48%, transparent 60%); transform: translateX(-120%); animation: shine 6.5s ease-in-out infinite; animation-delay: var(--sd, 0s); }
+@keyframes shine { 0%, 70% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }
+.hero .in { padding: 16px 18px 18px; display: grid; gap: 6px; }
+.hero .ft { font-family: var(--display); font-weight: 900; font-size: .7rem; letter-spacing: .22em; color: var(--acc, #ff3ddc); text-shadow: 0 0 10px currentColor; }
+.hero .hn { font-family: var(--display); font-weight: 900; font-size: 1.7rem; line-height: 1; text-shadow: 0 3px 0 rgba(0,0,0,.5); }
+.hero .hk { color: #d8d4ff; font-weight: 800; font-size: .92rem; }
+.hero .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.hero .goal { font-weight: 800; font-size: .85rem; color: #ffe27a; display: inline-flex; gap: 6px; align-items: center; }
+.playbtn { appearance: none; border: 0; font: inherit; font-family: var(--display); font-weight: 900; letter-spacing: .08em; font-size: 1rem; color: #2b1400; cursor: pointer;
+  padding: 11px 22px; border-radius: 999px; background: linear-gradient(180deg, #fff3a0, #ffc21a 55%, #ff9f1c); box-shadow: 0 4px 0 #b25e00, 0 8px 22px rgba(255,160,30,.45), inset 0 2px 0 rgba(255,255,255,.7); }
+.playbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b25e00, 0 4px 12px rgba(255,160,30,.4); }
+/* game tiles */
+.grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 14px; }
+.tile { padding: 0; overflow: hidden; border-radius: 22px; border: 0; background: #0e0b2e; gap: 0; isolation: isolate;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 70%, transparent), 0 10px 26px rgba(0,0,0,.4), 0 0 26px color-mix(in srgb, var(--acc) 25%, transparent);
+  transition: transform .18s cubic-bezier(.2,.9,.3,1.4), box-shadow .18s; animation: tileIn .55s cubic-bezier(.2,.9,.3,1.2) both; animation-delay: var(--d, 0s); }
+@keyframes tileIn { from { opacity: 0; transform: translateY(18px) scale(.94); } }
+.tile:hover { transform: translateY(-4px) scale(1.02); border: 0; box-shadow: 0 0 0 3px var(--acc), 0 16px 34px rgba(0,0,0,.45), 0 0 40px color-mix(in srgb, var(--acc) 45%, transparent); }
+.tile:active { transform: scale(.95); }
+.tile .art { border-radius: 0; aspect-ratio: 4 / 3; }
+.tile .meta { position: relative; display: grid; gap: 2px; padding: 9px 11px 11px; background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 22%, #120d3a), #0b0826); }
+.tile .meta::before { content: ''; position: absolute; left: 0; right: 0; top: -26px; height: 26px; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--acc) 22%, #120d3a)); }
+.tile .name { font-size: 1rem; text-shadow: 0 2px 0 rgba(0,0,0,.4); padding: 0; margin: 0; }
+.tile .kind { padding: 0; font-size: .8rem; color: #b9b2ea; }
+.tile .best { padding: 0; }
+.tile .badge { top: 10px; right: 10px; z-index: 2; animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.1); } }
+.chal { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* play screen polish */
+#play .panel { animation: panelIn .35s cubic-bezier(.2,.9,.3,1.25) both; }
+@keyframes panelIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+#play { animation: playIn .3s ease both; }
+@keyframes playIn { from { opacity: 0; transform: scale(1.03); } }
+.btn { transition: transform .1s, filter .15s; }
+.btn:active { transform: translateY(2px) scale(.98); }
+@media (prefers-reduced-motion: reduce) { #bgfx i, .hero canvas, .hero::after, .tile::after, .tile, .logo-box, .tile .badge, #play, #play .panel { animation: none !important; } }
 @media (prefers-reduced-motion: reduce) { .tile, .bigstars span { transition: none; } }
 </style>
 
+<div id="bgfx" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="stars"></i><i class="stars s2"></i></div>
 <div id="hubScroll">
 <div class="wrap" id="hub">
   <header>
@@ -394,7 +462,8 @@ svg.coin { width: 18px; height: 18px; flex: none; }
       <button class="chip" id="tglSfx" aria-pressed="true">Sounds</button>
     </div>
   </header>
-  <h2>Games</h2>
+  <section class="hero" id="hero"></section>
+  <h2>All games</h2>
   <div class="grid" id="grid"></div>
   <div class="chalhead"><h2>Today's challenges</h2><span id="chalCount"></span></div>
   <div class="challist" id="chalList"></div>

@@ -124,19 +124,33 @@
     }
   }
   const grid = $('grid');
-  ordered.forEach(g => {
+  const ACC = { bricks:'#ff3ddc', dash:'#ff9f1c', sweets:'#5ce1ff', potions:'#c77dff', cubes:'#3dffb5', racer:'#ff7a2f', castle:'#e0b43c', snake:'#7dd85a' };
+  ordered.forEach((g, gi) => {
     const b = document.createElement('button');
     b.className = 'tile'; b.id = 'tile-' + g.id;
+    b.style.setProperty('--acc', ACC[g.id] || '#22e4ff'); b.style.setProperty('--d', (gi * 0.06) + 's'); b.style.setProperty('--sd', (gi * 0.8) + 's');
     const c = document.createElement('canvas'); c.width = 480; c.height = 360; c.className = 'art';
     const x = c.getContext('2d'); x.scale(2,2); g.tile.art(x); x.shadowBlur = 0;
     b.appendChild(c);
     const tag = g.tile.isNew ? '<span class="badge new">New</span>' : '';
-    b.insertAdjacentHTML('beforeend', `${tag}<span class="name"></span><span class="kind"></span><span class="best" id="best-${g.id}"></span>`);
+    b.insertAdjacentHTML('beforeend', `${tag}<span class="meta"><span class="name"></span><span class="kind"></span><span class="best" id="best-${g.id}"></span></span>`);
     b.querySelector('.name').textContent = g.tile.name; b.querySelector('.kind').textContent = g.tile.kind;
     b.addEventListener('click', () => openGame(g.id));
     grid.appendChild(b);
   });
-  refreshHub();
+  // featured game of the day, big at the top
+  function buildHero(){
+    const hero = $('hero'), list = ordered, g = list[seedFrom('hero-' + today()) % list.length];
+    hero.innerHTML = ''; hero.style.setProperty('--acc', ACC[g.id] || '#ff3ddc');
+    const src = $('tile-' + g.id).querySelector('canvas'), c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0);
+    hero.appendChild(c);
+    const ch = challengeFor(g);
+    hero.insertAdjacentHTML('beforeend', `<div class="in"><span class="ft">\u2605 FEATURED TODAY</span><span class="hn"></span><span class="hk"></span><div class="row"><span class="goal"></span><button class="playbtn">PLAY</button></div></div>`);
+    hero.querySelector('.hn').textContent = g.tile.name; hero.querySelector('.hk').textContent = g.tile.kind;
+    hero.querySelector('.goal').textContent = ch ? (challengeDone(g) ? '\u2713 Daily goal done' : '\u2605 ' + ch.label) : '';
+    hero.onclick = () => openGame(g.id);
+  }
+  refreshHub(); buildHero();
 
   // ---------- Play screen ----------
   function fit(){

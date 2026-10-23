@@ -18,19 +18,40 @@
     };
     let bgC, bgG, brC, brG, st = null;
 
+    // synthwave night: striped sunset sun, neon mountains, glowing grid floor
     function paintBg(){
       [bgC, bgG] = layer(W, H); [brC, brG] = layer(W, H);
-      const g = bgG;
-      const grd = g.createLinearGradient(0,0,0,H); grd.addColorStop(0,'#0e1540'); grd.addColorStop(.55,'#080c26'); grd.addColorStop(1,'#120a2e');
-      g.fillStyle = grd; g.fillRect(0,0,W,H);
-      const glow = g.createRadialGradient(W/2, H*0.62, 10, W/2, H*0.62, W*0.8); glow.addColorStop(0,'rgba(139,107,255,.22)'); glow.addColorStop(1,'rgba(139,107,255,0)');
-      g.fillStyle = glow; g.fillRect(0,0,W,H);
-      g.strokeStyle = 'rgba(61,139,255,.22)'; g.lineWidth = 1;
-      const vy = H*0.52;
-      for (let i=-10;i<=10;i++){ g.beginPath(); g.moveTo(W/2 + i*12, vy); g.lineTo(W/2 + i*95, H); g.stroke(); }
-      g.strokeStyle = 'rgba(34,228,255,.35)'; g.beginPath(); g.moveTo(0,vy); g.lineTo(W,vy); g.stroke();
-      for (let i=0;i<60;i++){ g.fillStyle = `rgba(255,255,255,${0.15+Math.random()*0.5})`; g.fillRect(Math.random()*W, Math.random()*vy, 1.5, 1.5); }
+      const g = bgG, vy = H * 0.52;
+      const sky = g.createLinearGradient(0, 0, 0, vy); sky.addColorStop(0, '#07051c'); sky.addColorStop(0.45, '#1b0b48'); sky.addColorStop(0.8, '#4a0f6b'); sky.addColorStop(1, '#8a1c78');
+      g.fillStyle = sky; g.fillRect(0, 0, W, vy + 1);
+      // stars
+      for (let i=0;i<140;i++){ const y = Math.random() * vy * 0.85; g.fillStyle = `rgba(255,${200 + Math.random() * 55},255,${0.2 + Math.random() * 0.6 * (1 - y / vy)})`; const r = Math.random() < 0.1 ? 1.6 : 0.9; g.beginPath(); g.arc(Math.random() * W, y, r, 0, 7); g.fill(); }
+      // the sun
+      const sx = W / 2, sy = vy - 70, sr = 104;
+      const halo = g.createRadialGradient(sx, sy, sr * 0.6, sx, sy, sr * 2.4); halo.addColorStop(0, 'rgba(255,90,170,.45)'); halo.addColorStop(1, 'rgba(255,60,160,0)');
+      g.fillStyle = halo; g.fillRect(0, 0, W, vy);
+      g.save(); g.beginPath(); g.arc(sx, sy, sr, 0, 7); g.clip();
+      const sun = g.createLinearGradient(0, sy - sr, 0, sy + sr); sun.addColorStop(0, '#ffe66d'); sun.addColorStop(0.5, '#ff8a3d'); sun.addColorStop(1, '#ff2d95');
+      g.fillStyle = sun; g.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+      g.globalCompositeOperation = 'destination-out';
+      for (let k=0;k<7;k++){ const yy = sy + 10 + k * 12; g.fillRect(sx - sr, yy, sr * 2, 2 + k * 1.3); }
+      g.restore();
+      // neon mountains
+      const ridge = (base, amp, seed, fill, line) => { const R = PB.mulberry(seed); g.beginPath(); g.moveTo(0, vy); let x = 0; const pts = []; while (x <= W) { pts.push([x, base - R() * amp]); x += 30 + R() * 40; } pts.push([W, base - R() * amp * 0.5]); pts.forEach(([px, py]) => g.lineTo(px, py)); g.lineTo(W, vy); g.closePath(); g.fillStyle = fill; g.fill(); g.strokeStyle = line; g.lineWidth = 1.6; g.shadowColor = line; g.shadowBlur = 8; g.beginPath(); pts.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.stroke(); g.shadowBlur = 0; };
+      ridge(vy - 10, 70, 7, '#1a0838', 'rgba(255,61,220,.8)');
+      ridge(vy + 2, 40, 13, '#0c0424', 'rgba(34,228,255,.9)');
+      // grid floor
+      const fl = g.createLinearGradient(0, vy, 0, H); fl.addColorStop(0, '#2a0a4a'); fl.addColorStop(1, '#07051a');
+      g.fillStyle = fl; g.fillRect(0, vy, W, H - vy);
+      g.strokeStyle = 'rgba(255,61,220,.45)'; g.lineWidth = 1.2; g.shadowColor = '#ff3ddc'; g.shadowBlur = 6;
+      for (let i=-14;i<=14;i++){ g.beginPath(); g.moveTo(W/2 + i*10, vy); g.lineTo(W/2 + i*80, H); g.stroke(); }
+      for (let k=0;k<12;k++){ const t = k / 11, y = vy + (H - vy) * t * t; g.globalAlpha = 0.3 + t * 0.6; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+      g.globalAlpha = 1; g.shadowBlur = 0;
+      g.strokeStyle = 'rgba(255,200,240,.9)'; g.lineWidth = 2; g.shadowColor = '#ff3ddc'; g.shadowBlur = 14; g.beginPath(); g.moveTo(0, vy); g.lineTo(W, vy); g.stroke(); g.shadowBlur = 0;
+      // dim the playfield a touch so bricks pop
+      g.fillStyle = 'rgba(5,4,20,.16)'; g.fillRect(0, 0, W, H);
     }
+    const TW = Array.from({ length: 24 }, () => ({ x: Math.random() * 480, y: Math.random() * 300, p: Math.random() * 6 }));
 
     const LAYOUTS = [
       (r,c,rows) => true,
@@ -61,7 +82,7 @@
     }
     const baseSpeed = () => 300 + Math.min(st.level, 12)*25;
     function fresh(mode, rand, lives, phase){
-      st = { mode, phase, score:0, level:1, lives, nextLife: LIFE_EVERY, rand, parts:[], pops:[], shake:0, msg:null };
+      st = { mode, phase, score:0, level:1, lives, nextLife: LIFE_EVERY, rand, parts:[], pops:[], shards:[], rings:[], flash:0, shake:0, msg:null };
       st.bricks = newLevel(1); st.bdirty = true; st.dropsLeft = 2; st.time = 0;
       st.paddle = { x: W/2 - BASE_W/2, w: BASE_W, h: 14, y: PADDLE_Y };
       clearRound();
@@ -72,7 +93,7 @@
       st.balls = [{ x: W/2, y: st.paddle.y - 10, r: 9, vx: 0, vy: -baseSpeed(), held:true, off:0, trail:[] }];
     }
     function nextLevel(){
-      addPoints(100 * st.level); st.level++;
+      addPoints(100 * st.level); st.level++; st.flash = 1;
       st.bricks = newLevel(st.level); st.bdirty = true; st.dropsLeft = Math.min(MAX_DROPS, 2 + Math.floor(st.level / 3));
       clearRound(); updatePaddleW(); st.msg = 'Level ' + st.level + '! Tap to go';
     }
@@ -111,6 +132,10 @@
       st.combo++;
       const mult = Math.min(1 + Math.floor(st.combo/4), 5), pts = 10 * mult; addPoints(pts);
       burst(k.x+k.w/2, k.y+k.h/2, k.color, 12);
+      if (!reduceMotion) {
+        for (let i=0;i<7;i++) st.shards.push({ x: k.x + Math.random() * k.w, y: k.y + Math.random() * k.h, vx: (Math.random() - .5) * 260, vy: -80 - Math.random() * 160, r: Math.random() * 6, vr: (Math.random() - .5) * 14, w: 5 + Math.random() * 9, h: 3 + Math.random() * 5, color: k.color, life: 0.9 });
+        st.rings.push({ x: k.x + k.w/2, y: k.y + k.h/2, r: 6, life: 0.4, color: k.color });
+      }
       if (mult > 1) pop(k.x+k.w/2, k.y, '+' + pts, N.yellow);
       if (st.combo === 8 || st.combo === 16 || st.combo === 24) pop(W/2, H/2 - 40, st.combo + ' COMBO!', N.pink, 1.2);
       if (st.dropsLeft > 0 && st.time - st.lastDrop > 6 && st.rand() < 0.12) { st.dropsLeft--; st.lastDrop = st.time; st.drops.push({ type: pickPower(), x: k.x + k.w/2 - 23, y: k.y, w: 46, h: 22, vy: 130 }); }
@@ -191,6 +216,11 @@
       if (st.bricks.every(k => k.hp <= 0)) nextLevel();
     }
     function effects(dt){
+      for (const q of st.shards) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 620*dt; q.r += q.vr*dt; q.life -= dt; }
+      st.shards = st.shards.filter(q => q.life > 0 && q.y < H + 20);
+      for (const q of st.rings) { q.r += 220*dt; q.life -= dt; }
+      st.rings = st.rings.filter(q => q.life > 0);
+      st.flash = Math.max(0, st.flash - dt * 2.5);
       for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 420*dt; q.life -= dt; }
       st.parts = st.parts.filter(q => q.life > 0);
       for (const q of st.pops) { q.y -= 36*dt; q.life -= dt; }
@@ -241,9 +271,9 @@
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
       ctx.drawImage(bgC, 0, 0, W, H);
-      const vy = H*0.52, off = 0.5;
-      ctx.strokeStyle = fx.fire > 0 ? 'rgba(255,138,61,.28)' : 'rgba(61,139,255,.24)'; ctx.lineWidth = 1;
-      for (let i=0;i<10;i++){ const t = (i + off)/10; const y = vy + (H - vy) * t * t; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (const t of TW) { const a = 0.5 + 0.5 * Math.sin(clock * 3 + t.p); ctx.fillStyle = `rgba(255,220,255,${0.5 * a})`; ctx.fillRect(t.x - 0.5, t.y - 4 * a, 1, 8 * a); ctx.fillRect(t.x - 4 * a, t.y - 0.5, 8 * a, 1); }
+      ctx.restore();
       if (st.bdirty) drawBricks();
       ctx.drawImage(brC, 0, 0, W, H);
       ctx.globalCompositeOperation = 'lighter';
@@ -263,11 +293,17 @@
       ctx.globalCompositeOperation = 'lighter';
       for (const b of st.balls) b.trail.forEach((t,i) => { ctx.globalAlpha = (1 - i/9) * 0.35; ctx.fillStyle = ballCol; ctx.beginPath(); ctx.arc(t.x, t.y, b.r * (1 - i/12), 0, Math.PI*2); ctx.fill(); });
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = 'lighter';
+      for (const q of st.rings) { ctx.globalAlpha = q.life / 0.4; ctx.strokeStyle = q.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.stroke(); }
+      for (const b of st.balls) { const hg = ctx.createRadialGradient(b.x, b.y, 2, b.x, b.y, 46); hg.addColorStop(0, fx.fire > 0 ? 'rgba(255,150,60,.55)' : 'rgba(34,228,255,.45)'); hg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = 1; ctx.fillStyle = hg; ctx.fillRect(b.x - 46, b.y - 46, 92, 92); }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      for (const q of st.shards) { ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.translate(q.x, q.y); ctx.rotate(q.r); ctx.fillStyle = q.color; ctx.shadowColor = q.color; ctx.shadowBlur = 8; ctx.fillRect(-q.w/2, -q.h/2, q.w, q.h); ctx.restore(); }
       for (const b of st.balls) {
         ctx.save(); ctx.shadowColor = ballCol; ctx.shadowBlur = fx.fire > 0 ? 26 : 16;
         ctx.fillStyle = fx.fire > 0 ? '#ffe2c4' : '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.restore();
       }
       ctx.restore();
+      if (st.flash > 0) { ctx.fillStyle = `rgba(255,220,255,${st.flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
       // finger zone under the paddle
       const zy = PADDLE_Y + 34;
       ctx.fillStyle = 'rgba(34,228,255,.05)'; ctx.beginPath(); ctx.roundRect(14, zy, W - 28, H - zy - 12, 18); ctx.fill();
@@ -296,7 +332,7 @@
     }
     return {
       id:'bricks', music:'bricks', touchAnywhere: true, title:'BRICK BASH', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', scoreKey:'bb-scores',
-      tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker', art(g){ const { neonBg, rr, dot } = PB; neonBg(g); const cols=[N.pink,N.yellow,N.lime,N.cyan]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,18+r*20,32,14,4,cols[r]); rr(g,88,150,64,10,5,N.cyan); dot(g,140,118,7,'#fff'); rr(g,40,112,32,14,7,N.orange); } },
+      tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker', art(g){ const { rr, dot } = PB; if (!bgC) paintBg(); g.drawImage(bgC, 0, 150, 480, 360, 0, 0, 240, 180); g.shadowBlur = 10; const cols=[N.pink,'#ff9f1c',N.yellow,N.lime]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,14+r*17,32,12,4,cols[r]); rr(g,88,156,64,9,5,N.cyan); const hg = g.createRadialGradient(150,120,1,150,120,26); hg.addColorStop(0,'rgba(34,228,255,.7)'); hg.addColorStop(1,'rgba(34,228,255,0)'); g.fillStyle = hg; g.fillRect(120,90,60,60); dot(g,150,120,7,'#fff'); } },
       controls: ['Slide your finger anywhere (the strip at the bottom is easiest) and the paddle follows.', 'Tap to launch the ball.', 'Break bricks in a row without touching the paddle to multiply your points.', 'Every 3,000 points earns a bonus life.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: (g) => capsule(g, 0, 3, 46, 22, k, false) })),
       init(){ if (!bgC) paintBg(); },
