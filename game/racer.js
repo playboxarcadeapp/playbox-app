@@ -38,14 +38,14 @@
         const th = y / lh * Math.PI, ph = x / lw * Math.PI * 2;
         const dx = Math.sin(th) * Math.cos(ph), dy = Math.cos(th), dz = Math.sin(th) * Math.sin(ph);
         const n1 = N.fbm(dx * 1.6 + gi * 3, dy * 1.6, dz * 1.6, 5), n2 = N.fbm(dx * 3 + 10, dy * 3, dz * 3 + gi, 4);
-        const band = Math.exp(-Math.pow((dy * 0.9 + dx * 0.35) * 2.6, 2));
+        const band = Math.exp(-Math.pow((dy * 0.9 + dx * 0.35) * 1.8, 2));
         const dens = Math.max(0, n1 * 1.7 + 0.15) * (0.35 + band);
         const dust = Math.max(0, n2 * 1.4) * band;
         const c = gal.neb[0], c2 = gal.neb[1], c3 = gal.neb[2];
         const mix = Math.max(0, Math.min(1, n2 + 0.5));
-        const r = (c[0] * (1 - mix) + c2[0] * mix) * dens * 0.55 + c3[0] * Math.pow(dens, 3) * 0.6;
-        const g = (c[1] * (1 - mix) + c2[1] * mix) * dens * 0.55 + c3[1] * Math.pow(dens, 3) * 0.6;
-        const b = (c[2] * (1 - mix) + c2[2] * mix) * dens * 0.55 + c3[2] * Math.pow(dens, 3) * 0.6;
+        const r = (c[0] * (1 - mix) + c2[0] * mix) * dens * 0.85 + c3[0] * Math.pow(dens, 3) * 0.9;
+        const g = (c[1] * (1 - mix) + c2[1] * mix) * dens * 0.85 + c3[1] * Math.pow(dens, 3) * 0.9;
+        const b = (c[2] * (1 - mix) + c2[2] * mix) * dens * 0.85 + c3[2] * Math.pow(dens, 3) * 0.9;
         const dk = 1 - Math.min(0.85, dust * 0.9);
         const i = (y * lw + x) * 4; id.data[i] = Math.min(255, (r * dk + 0.012) * 255); id.data[i+1] = Math.min(255, (g * dk + 0.012) * 255); id.data[i+2] = Math.min(255, (b * dk + 0.025) * 255); id.data[i+3] = 255;
       }
@@ -55,7 +55,7 @@
       const R = PB.mulberry(500 + gi);
       for (let i=0;i<2600;i++) { const y = R() * h, x = R() * w, b = R(); const t = R(); const col = t < 0.15 ? '255,210,170' : t < 0.3 ? '170,200,255' : '255,255,255';
         g.fillStyle = `rgba(${col},${0.1 + b * 0.3})`; const s = 0.8; g.fillRect(x, y, s, s); }
-      for (let i=0;i<0;i++) { const x = R() * w, y = 60 + R() * (h - 120), r = 6 + R() * 10; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.2, 'rgba(220,230,255,.4)'); gr.addColorStop(1, 'rgba(200,220,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x - r * 1.6, y - 0.4, r * 3.2, 0.8); g.fillRect(x - 0.4, y - r * 1.6, 0.8, r * 3.2); }
+      for (let i=0;i<36;i++) { const x = R() * w, y = 60 + R() * (h - 120), r = 6 + R() * 10; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.2, 'rgba(220,230,255,.4)'); gr.addColorStop(1, 'rgba(200,220,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x - r * 1.6, y - 0.4, r * 3.2, 0.8); g.fillRect(x - 0.4, y - r * 1.6, 0.8, r * 3.2); }
       return c;
     }
     function planetTexture(gi){
@@ -321,8 +321,8 @@
       E.begin({ pos: camP, target: [p.x * 0.85, p.y * 0.8 + 0.7, -20], fov: 1.0 + fovBoost, near: 0.2, far: 2400 }, {
         sunDir: [-0.6, -0.4, -0.7], sunColor: gal.sun.map(v => v * 3.1), ambSky: [0.16, 0.17, 0.24], ambGround: [0.08, 0.07, 0.1],
         fogColor: [0.02, 0.02, 0.04], fogDensity: 0.0026, fogStart: 140,
-        sky: { tex: SKY[gi], texBright: 2.4, sunColor: gal.sun.map(v => v * 1.6), sunSize: 3 },
-        post: { bloom: 0.95, threshold: 0.62, saturation: 1.25, contrast: 1.1, vignette: 0.35 },
+        sky: { tex: SKY[gi], texBright: 3.0, sunColor: gal.sun.map(v => v * 1.6), sunSize: 3 },
+        post: { bloom: 0.75, threshold: 0.78, saturation: 1.22, contrast: 1.08, vignette: 0.35 },
       });
       const pp = [-300, 90, -1150], pr = 170;
       E.draw(A.sphere, M.trs(pp, [0.2, st.planetSpin + st.clock * 0.01, 0.15], pr), { tex: PLAN[gi], color: [0.85, 0.85, 0.88], spec: gal.planet === 'earth' ? 0.4 : 0.1, shine: 30, rim: 0.8, fogless: true, emissive: gal.planet === 'lava' ? [0.25, 0.08, 0.02] : [0, 0, 0] });

@@ -568,7 +568,7 @@
       const camX = Rg.camX + shake[0], cbob = st.phase === 'play' && !p.air ? Math.abs(Math.sin(p.run * 2.2)) * 0.03 : 0;
       // late-afternoon "golden hour": low warm sun from the right, long shadows across the street, cool sky fill
       const aspK = (h / w) / 1.5, fovBase = 2 * Math.atan(Math.tan(0.5) * Math.max(1, aspK));
-      E.begin({ pos: [camX, 4.3 + Rg.camY + cbob + shake[1] + ((st.giantK || 1) - 1) * 2, 7.6 + ((st.giantK || 1) - 1) * 3.5], target: [Rg.camX * 0.64, 0.75 + Rg.camY, -12], up: [Math.sin(-Rg.bank * 0.06), 1, 0], fov: fovBase * Rg.fov, near: 0.2, far: 400 }, {
+      E.begin({ pos: [camX, 3.6 + Rg.camY + cbob + shake[1] + ((st.giantK || 1) - 1) * 2, 6.3 + ((st.giantK || 1) - 1) * 3.5], target: [Rg.camX * 0.64, 0.95 + Rg.camY, -12], up: [Math.sin(-Rg.bank * 0.06), 1, 0], fov: fovBase * Rg.fov, near: 0.2, far: 400 }, {
         sunDir: [-0.62 * Math.cos(st.camTh) + 0.42 * Math.sin(st.camTh), -0.5, 0.62 * Math.sin(st.camTh) + 0.42 * Math.cos(st.camTh)], sunColor: [3.9, 3.0, 2.1], ambSky: [0.34, 0.44, 0.78], ambGround: [0.34, 0.36, 0.2], toon: 1.0,
         fogColor: [0.86, 0.88, 0.92], fogDensity: 0.007, fogStart: 40,
         shadow: { center: [0, 2, -16], radius: 30 },
@@ -710,7 +710,7 @@
     // the grumpy bulldog that chases you after a stumble
     function drawDog(){
       const dg = st.dog, p = st.player; if (!dg || dg.d > 8) return;
-      const M = E.M, t = st.time * 18, z = 0.9 + dg.d * 0.55, x = p.x * 0.85 - 0.75 + Math.sin(st.time * 3) * 0.15, k = 0.78;
+      const M = E.M, t = st.time * 18, z = 0.7 + dg.d * 0.38, x = p.x * 0.85 - 0.85 + Math.sin(st.time * 3) * 0.15, k = 0.62;
       const brown = { color: C('#b8733a'), spec: 0.35, shine: 20, rim: 0.5, ol: 0.035 }, cream = { color: C('#f6e6cc'), spec: 0.2, ol: 0.025 }, dark = { color: [0.15, 0.1, 0.08], spec: 0.6, shine: 50 };
       const bob = Math.abs(Math.sin(t)) * 0.08;
       const Bm = M.trs([x, (0.42 + bob) * k, z], [0.08 * Math.sin(t), 0.55, 0], [k, k, k]);

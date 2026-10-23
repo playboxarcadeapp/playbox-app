@@ -441,6 +441,7 @@
       if (!caveC) paintCave();
       ctx.drawImage(caveC, 0, 0, W, H);
       lantern(40, 22); lantern(W - 40, 22);
+      { ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (const lx of [40, W - 40]) { const fl = 0.85 + Math.sin(st.time * 9 + lx) * 0.08 + Math.sin(st.time * 23 + lx) * 0.05; const lg = ctx.createRadialGradient(lx, 30, 4, lx, 30, 150 * fl); lg.addColorStop(0, 'rgba(255,190,90,.35)'); lg.addColorStop(1, 'rgba(255,160,60,0)'); ctx.fillStyle = lg; ctx.fillRect(lx - 150, 0, 300, 200); } ctx.restore(); }
 
       // Goal card
       ol(ctx, 3); { const sg = ctx.createLinearGradient(0, 40, 0, 152); sg.addColorStop(0, '#f6e2b8'); sg.addColorStop(1, '#e2c48c'); ctx.fillStyle = sg; }
@@ -503,9 +504,21 @@
         if (st.wiggle && ((st.wiggle.a[0] === r && st.wiggle.a[1] === c) || (st.wiggle.b[0] === r && st.wiggle.b[1] === c))) x += Math.sin(st.time * 60) * 4;
         if (sc > 0.02) drawTile(t, x, y, sc * 1.14);
       }
+      if (!reduceMotion) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        // a sweep of light across the gems every few seconds
+        const ph = (st.time % 5.5) / 1.4;
+        if (ph < 1) { const sx = BX - 120 + ph * (N * CELL + 240); const lg = ctx.createLinearGradient(sx - 60, BY, sx + 60, BY + N * CELL); lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,250,220,.22)'); lg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = lg; ctx.fillRect(BX, BY, N * CELL, N * CELL); }
+        // twinkling glints on a few gems
+        const slot = Math.floor(st.time * 1.6);
+        for (let k=0;k<4;k++) { const h = (slot * 73 + k * 151) % (N * N), r = Math.floor(h / N), c = h % N, t = st.grid[r] && st.grid[r][c]; if (!t || t.dying) continue;
+          const f = (st.time * 1.6) % 1, a = Math.sin(f * Math.PI), gx = BX + t.x * CELL + CELL * 0.32, gy = BY + t.y * CELL + CELL * 0.3, L = 13 * a;
+          ctx.fillStyle = `rgba(255,255,255,${0.9 * a})`; ctx.beginPath(); ctx.moveTo(gx - L, gy); ctx.lineTo(gx, gy - 1.6); ctx.lineTo(gx + L, gy); ctx.lineTo(gx, gy + 1.6); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(gx, gy - L); ctx.lineTo(gx + 1.6, gy); ctx.lineTo(gx, gy + L); ctx.lineTo(gx - 1.6, gy); ctx.closePath(); ctx.fill(); }
+        ctx.restore();
+      }
       ctx.restore();
       for (const b of st.beams) {
-        ctx.save(); ctx.globalAlpha = b.life / 0.3; ctx.fillStyle = '#fff';
+        ctx.save(); ctx.globalAlpha = b.life / 0.3; ctx.fillStyle = '#fff'; ctx.shadowColor = '#5ce1ff'; ctx.shadowBlur = 24;
         if (b.dir === 'h') ctx.fillRect(BX, BY + b.r*CELL + CELL/2 - 6, N*CELL, 12); else ctx.fillRect(BX + b.c*CELL + CELL/2 - 6, BY, 12, N*CELL);
         ctx.restore();
       }
