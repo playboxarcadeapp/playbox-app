@@ -433,7 +433,129 @@
       ctx.fillStyle = `rgba(255,${200 + 30 * fl},120,.95)`; ctx.beginPath(); ctx.roundRect(x - 6, y - 10, 12, 20, 4); ctx.fill();
       ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 2; ctx.strokeRect(x - 6, y - 10, 12, 20);
     }
+    // ---------- 3D look: real cut gems on the board, lit by the two mine lanterns ----------
+    let E3 = null, A3 = null, boardC = null;
+    function gemGeo(t){
+      const G = E3.G, pts = GEM_SHAPES[t].map(([x, y]) => [x, -y]);
+      const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+      const ring = (k, z) => pts.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k, z]);
+      const girdle = ring(1, 0), band = ring(1, -2.5), bezel = ring(0.8, 6), table = ring(0.5, 10), apex = [cx, cy, -13], top = [cx, cy, 10];
+      const tris = [], n = pts.length, C = [cx, cy, -1];
+      const tri = (a, b, c) => { const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2], vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2]; const nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx; const mx = (a[0]+b[0]+c[0])/3 - C[0], my = (a[1]+b[1]+c[1])/3 - C[1], mz = (a[2]+b[2]+c[2])/3 - C[2]; if (nx*mx + ny*my + nz*mz < 0) tris.push(a, c, b); else tris.push(a, b, c); };
+      const quad = (a, b, c, d) => { tri(a, b, c); tri(a, c, d); };
+      for (let i=0;i<n;i++) { const j = (i + 1) % n;
+        quad(girdle[i], girdle[j], bezel[j], bezel[i]); quad(bezel[i], bezel[j], table[j], table[i]); tri(table[i], table[j], top);
+        quad(band[i], band[j], girdle[j], girdle[i]); tri(band[i], band[j], apex); }
+      const P = [], N = [], U = [], I = [];
+      for (let k=0;k<tris.length;k+=3) { const [a, b, c] = [tris[k], tris[k+1], tris[k+2]]; const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2], vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2]; let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx; const l = Math.hypot(nx, ny, nz) || 1;
+        for (const v of [a, b, c]) { P.push(v[0] - cx, v[1] - cy, v[2]); N.push(nx / l, ny / l, nz / l); U.push(0, 0); I.push(P.length / 3 - 1); } }
+      const g = { p: P, n: N, uv: U, idx: I };
+      if (t === 6) { g.col = []; for (let k=0;k<P.length/9;k++) { const c = COLS[k % 6], v = [parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255].map(x => Math.pow(x * 0.9 + 0.05, 2.2)); for (let q=0;q<3;q++) g.col.push(v[0], v[1], v[2], 1); } }
+      return g;
+    }
+    function assets3D(){
+      if (A3) return A3; if (A3 === false) return null;
+      E3 = PB.gl3d && PB.gl3d.get(); if (!E3) { A3 = false; return null; }
+      const G = E3.G, M = E3.M;
+      const rockG = G.faceted(G.displace(G.sphere(1, 9, 7), (x, y, z) => PB.gl3d.fbm(x * 1.7 + 3, y * 1.7, z * 1.7, 3) * 0.35));
+      const ring = G.torus(1, 0.09, 48, 8); ring.col = []; for (let i=0;i<ring.p.length/3;i++) { const c = COLS[Math.floor(i / 9 / 8 * 6) % 6]; ring.col.push(...[c.slice(1,3), c.slice(3,5), c.slice(5,7)].map(h => Math.pow(parseInt(h, 16) / 255, 2.2)), 1); }
+      A3 = { gems: GEM_SHAPES.map((_, t) => E3.mesh(gemGeo(t))), rock: E3.mesh(rockG), stick: E3.mesh(G.cylinder(1, 1, 1, 18)), bar: E3.mesh(G.merge([G.transform(G.cylinder(1, 1, 1, 20, false), M.trs([0,0,0], [0,0,Math.PI/2])), G.transform(G.sphere(1, 16, 12), M.trs([0.5,0,0])), G.transform(G.sphere(1, 16, 12), M.trs([-0.5,0,0]))])),
+        cone: E3.mesh(G.cylinder(0, 1, 1, 16, true)), ring: E3.mesh(ring), tBoard: null };
+      return A3;
+    }
+    const hex3 = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
+    function paintBoard(){
+      const [c, g] = PB.layer(W, H);
+      if (!caveC) paintCave();
+      g.drawImage(caveC, 0, 0, W, H);
+      { const fg = g.createLinearGradient(BX - 12, 0, BX + N*CELL + 12, 0); fg.addColorStop(0, '#8a5a32'); fg.addColorStop(0.5, '#a8723f'); fg.addColorStop(1, '#6b4223'); g.fillStyle = fg; }
+      g.strokeStyle = CHOC; g.lineWidth = 4; g.beginPath(); g.roundRect(BX - 12, BY - 12, N*CELL + 24, N*CELL + 24, 14); g.fill(); g.stroke();
+      // wood grain and iron corner plates on the frame
+      g.strokeStyle = 'rgba(40,20,5,.3)'; g.lineWidth = 1.2; for (let k=0;k<10;k++) { const y = BY - 10 + k * (N * CELL + 20) / 10; g.beginPath(); g.moveTo(BX - 11, y); g.lineTo(BX - 3, y + 4); g.moveTo(BX + N * CELL + 3, y); g.lineTo(BX + N * CELL + 11, y + 3); g.stroke(); }
+      for (const [x, y] of [[BX - 12, BY - 12], [BX + N * CELL - 12, BY - 12], [BX - 12, BY + N * CELL - 12], [BX + N * CELL - 12, BY + N * CELL - 12]]) { g.fillStyle = '#4a4e56'; g.beginPath(); g.roundRect(x, y, 24, 24, 5); g.fill(); g.fillStyle = '#9aa0a8'; for (const [dx, dy] of [[6, 6], [18, 6], [6, 18], [18, 18]]) { g.beginPath(); g.arc(x + dx, y + dy, 2, 0, 7); g.fill(); } }
+      g.fillStyle = '#1f1611'; g.beginPath(); g.roundRect(BX - 3, BY - 3, N*CELL + 6, N*CELL + 6, 8); g.fill();
+      for (let r=0;r<N;r++) for (let cc=0;cc<N;cc++) {
+        const x0 = BX + cc*CELL + 2, y0 = BY + r*CELL + 2;
+        const cg = g.createLinearGradient(x0, y0, x0, y0 + CELL); cg.addColorStop(0, (r + cc) % 2 ? '#3e322b' : '#463830'); cg.addColorStop(1, (r + cc) % 2 ? '#2e241f' : '#352a24');
+        g.fillStyle = cg; g.beginPath(); g.roundRect(x0, y0, CELL - 4, CELL - 4, 8); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(x0 + 4, y0 + 2, CELL - 12, 2);
+        g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x0 + 4, y0 + CELL - 7, CELL - 12, 2);
+      }
+      boardC = c;
+    }
+    function draw3D(tile){
+      const E = E3, M = E.M, P3 = E.px;
+      if (!boardC) paintBoard();
+      if (!A3.tBoard) A3.tBoard = E.texture(boardC, { repeat: false });
+      E.resize(W, H, tile ? 1 : E.quality(1.5));
+      const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
+      E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {
+        noSky: true, sunDir: [0.62, -0.68, -0.4], sunColor: [1.45, 1.32, 1.12], ambSky: [0.2, 0.18, 0.2], ambGround: [0.1, 0.07, 0.06], toon: 0,
+        shadow: { center: [W / 2, -(BY + N * CELL / 2), 0], radius: 300 },
+        post: { bloom: 0.55, threshold: 0.84, saturation: 1.12, contrast: 1.12, vignette: 0.35, tint: [1.04, 1, 0.94] },
+      });
+      E.backdrop(A3.tBoard, W, H, { shadow: 0.38 });
+      for (const lx of [40, W - 40]) { const fl = 0.85 + Math.sin(st.time * 9 + lx) * 0.08 + Math.sin(st.time * 23 + lx) * 0.05; E.light(P3(lx, 60, 120), [2.4 * fl, 1.5 * fl, 0.6 * fl], 520); }
+      const time = st.time || 0;
+      for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
+        const f = st.frost ? st.frost[r][c] : 0;
+        if (f > 0) { const x = BX + c * CELL + CELL / 2, y = BY + r * CELL + CELL / 2; E.draw(A3.rock, M.trs(P3(x, y, 4), [r * 1.3, c * 2.1, r + c], [CELL * 0.47, CELL * 0.47, f > 1 ? 15 : 11]), { color: f > 1 ? [0.55, 0.5, 0.46] : [0.74, 0.67, 0.6], spec: 0.2, shine: 12 }); }
+      }
+      for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
+        const t = st.grid[r][c]; if (!t) continue;
+        let x = BX + t.x*CELL + CELL/2, y = BY + t.y*CELL + CELL/2, sc = t.sc, lift = 0, spin = 0;
+        if (t.dying) { sc *= Math.max(0, t.clearT / 0.25) * 1.2; spin = (1 - Math.max(0, t.clearT / 0.25)) * 6; }
+        const sel = st.sel && st.sel[0] === r && st.sel[1] === c;
+        if (sel) { sc *= 1.12 + Math.sin(time * 10) * 0.04; lift = 14; E.sprite(P3(x, y, 2), CELL * 1.5, [1, 0.85, 0.45], 0.55, true); }
+        if (st.hint && st.hint.some(([hr,hc]) => hr === r && hc === c)) { sc *= 1 + Math.abs(Math.sin(time * 6)) * 0.12; lift = 8; }
+        if (st.wiggle && ((st.wiggle.a[0] === r && st.wiggle.a[1] === c) || (st.wiggle.b[0] === r && st.wiggle.b[1] === c))) x += Math.sin(time * 60) * 4;
+        if (sc <= 0.02) continue;
+        const frozen = st.frost && st.frost[r][c] > 0 && !t.dying;
+        const k = sc * 1.14 * (t.sp === 'b' ? 0.85 : 1), sway = Math.sin(time * 1.7 + t.id * 1.3) * 0.22, tilt = Math.cos(time * 1.3 + t.id) * 0.12;
+        const z = 14 + lift + (frozen ? 6 : 0), type = t.sp === 'c' ? 6 : t.t, col = type === 6 ? [1, 1, 1] : hex3(COLS[type]);
+        E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * (type === 6 ? 0.12 : 0.05)), spec: 2.6, shine: 180, rim: 0.5 });
+        if (t.sp === 'h' || t.sp === 'v') {
+          const rot = t.sp === 'v' ? Math.PI / 2 : 0, off = 3 * Math.sin(time * 8), bm = M.trs(P3(x, y, z + 10), [0, 0, rot], [1, 1, 1]);
+          E.draw(A3.bar, M.mul(bm, M.trs([0, 0, 0], [0, 0, 0], [34 * sc, 4 * sc, 4 * sc])), { color: [0.85, 0.98, 1], emissive: [0.5, 0.9, 1.2], spec: 1.5, shine: 80, noShadow: true });
+          for (const d of [-1, 1]) E.draw(A3.cone, M.mul(bm, M.trs([d * (25 + off) * sc, 0, 0], [0, 0, -d * Math.PI / 2], [7 * sc, 10 * sc, 7 * sc])), { color: [0.36, 0.88, 1], emissive: [0.2, 0.6, 0.9], spec: 1.2 });
+          E.sprite(P3(x, y, z + 14), 70 * sc, [0.4, 0.9, 1], 0.4, true);
+        } else if (t.sp === 'b') {
+          for (const dx of [-11, 0, 11]) E.draw(A3.stick, M.trs(P3(x + dx * sc, y, z - 6), [0, 0, 0], [5 * sc, 36 * sc, 5 * sc]), { color: [0.9, 0.2, 0.18], spec: 0.8, shine: 40 });
+          E.sprite(P3(x + 2 * sc, y - 31 * sc, z + 6), (14 + Math.random() * 6) * sc, [1, 0.75, 0.3], 1, true);
+          E.sprite(P3(x, y, z), 80 * sc, [1, 0.55, 0.15], 0.3, true);
+        } else if (t.sp === 'c') {
+          E.draw(A3.ring, M.trs(P3(x, y, z), [Math.PI / 2 + 0.4, time * 2, 0], [25 * sc, 25 * sc, 25 * sc]), { color: [1, 1, 1], emissive: [0.4, 0.4, 0.4], spec: 1.2, noShadow: true });
+          E.sprite(P3(x, y, z), 90 * sc, [0.86, 0.66, 1], 0.4, true);
+          for (let q=0;q<3;q++) { const a = time * 2 + q * 2.1; E.sprite(P3(x + Math.cos(a) * 24 * sc, y + Math.sin(a) * 24 * sc, z + 12), 9 * sc, [1, 1, 1], 0.9, true); }
+        }
+      }
+      E.end(); if (!tile) E.present(ctx, W, H);
+    }
     function draw(){
+      if (assets3D()) return drawWith3D();
+      drawFlat();
+    }
+    // 3D board with the goal card, lanterns and effects drawn over it in 2D
+    function drawWith3D(){
+      const s = st.spec;
+      draw3D();
+      ctx.save();
+      if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
+      lantern(40, 22); lantern(W - 40, 22);
+      drawCard(s);
+      if (!reduceMotion) {
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        const ph = (st.time % 5.5) / 1.4;
+        if (ph < 1) { const sx = BX - 120 + ph * (N * CELL + 240); const lg = ctx.createLinearGradient(sx - 60, BY, sx + 60, BY + N * CELL); lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,250,220,.16)'); lg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = lg; ctx.fillRect(BX, BY, N * CELL, N * CELL); }
+        const slot = Math.floor(st.time * 1.6);
+        for (let k=0;k<5;k++) { const h = (slot * 73 + k * 151) % (N * N), r = Math.floor(h / N), c = h % N, t = st.grid[r] && st.grid[r][c]; if (!t || t.dying) continue;
+          const f = (st.time * 1.6) % 1, a = Math.sin(f * Math.PI), gx = BX + t.x * CELL + CELL * 0.4, gy = BY + t.y * CELL + CELL * 0.34, L = 14 * a;
+          ctx.fillStyle = `rgba(255,255,255,${0.95 * a})`; ctx.beginPath(); ctx.moveTo(gx - L, gy); ctx.lineTo(gx, gy - 1.6); ctx.lineTo(gx + L, gy); ctx.lineTo(gx, gy + 1.6); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(gx, gy - L); ctx.lineTo(gx + 1.6, gy); ctx.lineTo(gx, gy + L); ctx.lineTo(gx - 1.6, gy); ctx.closePath(); ctx.fill(); }
+        ctx.restore();
+      }
+      drawFx();
+    }
+    function drawFlat(){
       const s = st.spec;
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
@@ -443,6 +565,10 @@
       lantern(40, 22); lantern(W - 40, 22);
       { ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (const lx of [40, W - 40]) { const fl = 0.85 + Math.sin(st.time * 9 + lx) * 0.08 + Math.sin(st.time * 23 + lx) * 0.05; const lg = ctx.createRadialGradient(lx, 30, 4, lx, 30, 150 * fl); lg.addColorStop(0, 'rgba(255,190,90,.35)'); lg.addColorStop(1, 'rgba(255,160,60,0)'); ctx.fillStyle = lg; ctx.fillRect(lx - 150, 0, 300, 200); } ctx.restore(); }
 
+      drawCard(s);
+      drawBoardFlat(s);
+    }
+    function drawCard(s){
       // Goal card
       ol(ctx, 3); { const sg = ctx.createLinearGradient(0, 40, 0, 152); sg.addColorStop(0, '#f6e2b8'); sg.addColorStop(1, '#e2c48c'); ctx.fillStyle = sg; }
       ctx.beginPath(); ctx.roundRect(16, 40, W - 32, 112, 14); ctx.fill(); ctx.stroke();
@@ -479,6 +605,8 @@
         const marks = [s.type === 'score' ? s.target : s.star2 * 0.55, s.star2, s.star3];
         marks.forEach((m) => { const x = bx + bw * Math.min(1, m / maxS); ctx.fillStyle = st.score >= m ? '#ffc21a' : '#fff'; star(ctx, x, by + 6, 9, 4); ctx.fill(); ol(ctx, 1.8); ctx.stroke(); });
       }
+    }
+    function drawBoardFlat(s){
 
       // Board
       { const fg = ctx.createLinearGradient(BX - 12, 0, BX + N*CELL + 12, 0); fg.addColorStop(0, '#8a5a32'); fg.addColorStop(0.5, '#a8723f'); fg.addColorStop(1, '#6b4223'); ctx.fillStyle = fg; }
@@ -517,6 +645,9 @@
         ctx.restore();
       }
       ctx.restore();
+      drawFx();
+    }
+    function drawFx(){
       for (const b of st.beams) {
         ctx.save(); ctx.globalAlpha = b.life / 0.3; ctx.fillStyle = '#fff'; ctx.shadowColor = '#5ce1ff'; ctx.shadowBlur = 24;
         if (b.dir === 'h') ctx.fillRect(BX, BY + b.r*CELL + CELL/2 - 6, N*CELL, 12); else ctx.fillRect(BX + b.c*CELL + CELL/2 - 6, BY, 12, N*CELL);
@@ -535,6 +666,7 @@
 
     function cellAt(x, y){ const c = Math.floor((x - BX) / CELL), r = Math.floor((y - BY) / CELL); return (r >= 0 && r < N && c >= 0 && c < N) ? [r, c] : null; }
     function artTile(g){
+      if (assets3D()) { const keep = st; fresh('classic', Math.random, 1); st.phase = 'menu'; st.time = 1; for (let r=0;r<N;r++) for (let c=0;c<N;c++) { const t = st.grid[r][c]; if (t) { t.x = c; t.y = r; t.sc = 1; t.dying = false; } } st.grid[3][3].sp = 'c'; st.grid[4][5].sp = 'h'; draw3D(true); draw3D(true); const k = E3.canvas.height / H; g.drawImage(E3.canvas, 30 * k, 205 * k, 420 * k, 315 * k, 0, 0, 240, 180); st = keep; return; }
       if (!caveC) paintCave();
       g.drawImage(caveC, 0, 0, W, H * 0.7, 0, 0, 240, 180);
       g.fillStyle = '#a8723f'; g.strokeStyle = CHOC; g.lineWidth = 3; g.beginPath(); g.roundRect(22, 18, 196, 146, 12); g.fill(); g.stroke();
@@ -556,7 +688,7 @@
         { name:'Prism diamond', desc:'Match 5 in a row. Swap it to clear every gem of one kind', icon: g => { const sv = st; st = st || {time:0}; pastry(g, 6, 23, 14, 0.6); st = sv; } },
         { name:'Combos', desc:'Swap two special gems together for a giant blast', icon: g => { const sv = st; st = st || {time:0}; pastry(g, 6, 15, 14, 0.45); pastry(g, 5, 32, 14, 0.45); st = sv; } },
       ],
-      init(){},
+      init(){ assets3D(); },
       preview(){ fresh('classic', Math.random, 1); st.busy = false; st.phase = 'menu'; },
       start(mode, rand, lives, msg, level){ fresh(mode, rand, level === 'daily' ? 1 : level); },
       frame(dt){ update(dt); draw(); },

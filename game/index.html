@@ -374,6 +374,14 @@ svg.coin { width: 18px; height: 18px; flex: none; }
   display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; font-weight: 900; font-size: .92rem; text-align: center;
   background: rgba(10,14,40,.92); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.35); pointer-events: none; animation: toastIn .35s ease; }
 .toast.good { background: #2a1e00; color: #ffd23f; border: 2px solid #ffc21a; }
+/* first-time "how to play" card */
+.coach { position: absolute; z-index: 3; left: 50%; bottom: 14%; transform: translateX(-50%); width: min(340px, calc(100% - 28px));
+  display: grid; gap: 6px; text-align: center; padding: 14px 16px; border-radius: 18px; background: rgba(10,14,40,.9); color: #fff;
+  border: 2px solid #ffd23f; box-shadow: 0 10px 30px rgba(0,0,0,.45); font-weight: 800; animation: toastIn .4s ease; cursor: pointer; }
+.coach b { font-family: var(--pfont); font-weight: var(--pweight); color: #ffd23f; letter-spacing: .06em; text-transform: uppercase; font-size: .85rem; }
+.coach span { line-height: 1.35; font-size: .95rem; white-space: pre-line; }
+.coach small { color: #b9c2ea; font-size: .78rem; }
+#pauseBtn[disabled] { opacity: .35; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -10px); } }
 /* ================= Premium game list ================= */
 body { background: #05061a; }
@@ -476,13 +484,14 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
     <div class="barL">
       <button class="back" id="backBtn">&#x2039; Games</button>
       <button class="mute" id="muteBtn" aria-label="Turn sound off"></button>
+      <button class="mute" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.5" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.5" fill="currentColor"/></svg></button>
     </div>
     <div class="hud">
       <span class="mode" id="hMode" hidden>DAILY</span>
       <span class="hearts" id="hLives" aria-label="Lives">&#x2665;&#x2665;&#x2665;</span>
       <div class="stat"><small id="hStatLabel">Level</small><span id="hStat">1</span></div>
       <div class="stat"><small>Best</small><span id="hBest">0</span></div>
-      <div class="stat"><small>Score</small><span id="hScore">0</span></div>
+      <div class="stat"><small id="hScoreLabel">Score</small><span id="hScore">0</span></div>
     </div>
   </div>
   <div class="stage">
@@ -490,6 +499,18 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
       <canvas id="cv" aria-label="Game"></canvas>
 
       <div class="toast" id="toast" hidden></div>
+      <div class="coach" id="coach" hidden><b>How to play</b><span id="coachText"></span><small>Tap to start playing</small></div>
+      <div class="view" id="vPause" hidden>
+        <div class="panel">
+          <h3>Paused</h3>
+          <p>Take a break! Your game is waiting.</p>
+          <button class="btn primary" id="btnResume">Keep playing</button>
+          <div class="btnrow">
+            <button class="btn ghost" id="btnRestart">Start over</button>
+            <button class="btn ghost" id="btnQuit">Menu</button>
+          </div>
+        </div>
+      </div>
       <div class="view" id="vMenu">
         <div class="panel">
           <h3 id="mTitle">PLAYBOX</h3>
@@ -538,8 +559,9 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           <div class="flag" id="oFlag" hidden></div>
           <form class="name" id="nameForm" hidden>
             <input id="nameIn" maxlength="10" autocomplete="off" aria-label="Your name for the high score list" placeholder="Your name">
-            <button class="btn primary" type="submit">Save</button>
+            <button class="btn primary" type="submit">Save name</button>
           </form>
+          <div class="tabs" role="tablist" id="oTabs" hidden></div>
           <ol class="scores" id="oList"></ol>
           <div class="btnrow">
             <button class="btn primary" id="btnAgain">Play again</button>
@@ -569,6 +591,8 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           <h3>High scores</h3>
           <div class="tabs" role="tablist">
             <button role="tab" id="tabClassic" aria-selected="true">All time</button>
+            <button role="tab" id="tabWeekly" aria-selected="false" hidden>This week</button>
+            <button role="tab" id="tabToday" aria-selected="false">Today</button>
             <button role="tab" id="tabDaily" aria-selected="false">Today's challenge</button>
           </div>
           <ol class="scores" id="sList"></ol>

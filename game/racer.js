@@ -7,8 +7,8 @@
     const FONT = '"Russo One", "Arial Black", sans-serif';
     const GALAXIES = [
       { name:'Candy Nebula',    neb:[[1.0,0.35,0.7],[0.55,0.25,1.0],[1.0,0.6,0.8]], planet:'gas',  pc:[[0.95,0.55,0.75],[0.7,0.35,0.6],[1,0.85,0.9]], ring:true,  sun:[1, 0.85, 0.95] },
-      { name:'Frost Rings',     neb:[[0.3,0.75,1.0],[0.25,0.4,1.0],[0.8,0.95,1.0]], planet:'ice',  pc:[[0.75,0.9,1.0],[0.45,0.65,0.85],[1,1,1]],     ring:true,  sun:[0.85, 0.95, 1] },
-      { name:'Lava Belt',       neb:[[1.0,0.45,0.15],[0.9,0.15,0.2],[1.0,0.8,0.35]], planet:'lava', pc:[[0.35,0.2,0.15],[0.15,0.08,0.06],[1,0.5,0.1]], ring:false, sun:[1, 0.75, 0.5] },
+      { name:'Frost Rings',     neb:[[0.06,0.26,0.58],[0.14,0.12,0.48],[0.24,0.46,0.78]], planet:'ice',  pc:[[0.42,0.62,0.85],[0.18,0.3,0.55],[0.7,0.82,0.95]], ring:true,  sun:[0.6, 0.72, 0.9], skyBright:0.5, sunGlow:0.5, bloom:0.35, ringA:0.3, planetDim:0.7 },
+      { name:'Lava Belt',       neb:[[0.7,0.26,0.08],[0.55,0.08,0.12],[0.8,0.45,0.15]], planet:'lava', pc:[[0.35,0.2,0.15],[0.15,0.08,0.06],[1,0.5,0.1]], ring:false, sun:[1, 0.75, 0.5], skyBright:0.85, sunGlow:0.55, bloom:0.35, planetDim:0.75 },
       { name:'Emerald Cluster', neb:[[0.25,0.95,0.6],[0.15,0.6,1.0],[0.8,1.0,0.5]], planet:'earth',pc:[[0.15,0.35,0.75],[0.2,0.55,0.25],[0.95,0.95,0.95]], ring:false, sun:[1, 0.95, 0.85] },
       { name:'Solar Storm',     neb:[[1.0,0.85,0.25],[1.0,0.5,0.2],[1.0,0.95,0.7]], planet:'gas',  pc:[[0.9,0.7,0.4],[0.7,0.45,0.25],[1,0.9,0.7]],    ring:true,  sun:[1, 0.9, 0.6] },
       { name:'Black Hole Run',  neb:[[0.55,0.35,1.0],[1.0,0.25,0.85],[0.3,0.2,0.6]], planet:'rock', pc:[[0.45,0.4,0.5],[0.25,0.22,0.3],[0.7,0.65,0.75]], ring:false, sun:[0.85, 0.75, 1] },
@@ -152,20 +152,25 @@
     }
 
     // ---------- game state ----------
-    function fresh(mode, rand, lives, phase){
-      st = { mode, phase, rand, lives, score:0, level:1, stars:0, parts:[], pops:[], dust:[], trail:[], shake:0, msg:null, clock:0, t:0 };
+    const RACE_HEARTS = 3;
+    function fresh(mode, rand, lives, phase, level){
+      const lv = typeof level === 'number' ? level : 1;
+      st = { mode, phase, rand, lives, lives0: lives, score:0, level: lv, stars:0, parts:[], pops:[], dust:[], trail:[], shake:0, msg:null, clock:0, t:0 };
       startRace();
     }
+    // Course length grows every level: about 30 seconds at level 1, over 3 minutes by level 40.
+    const courseLength = L => Math.round(2000 + Math.min(L, 60) * 460 + Math.max(0, L - 60) * 150);
     function startRace(){
       const g = GALAXIES[(st.level - 1) % GALAXIES.length];
       const R = st.mode === 'daily' ? mulberry(seedFrom('racer-daily-' + PB.today() + '-' + st.level)) : st.rand;
       st.R = R; st.gal = g; st.gi = (st.level - 1) % GALAXIES.length;
-      st.length = 1650 + st.level * 190;
+      st.length = courseLength(st.level);
+      st.lives = Math.max(st.lives, st.lives0); // a full set of hearts for every race
       st.d = 0; st.speed = 0; st.base = 70 + Math.min(st.level, 12) * 2.4;
       st.objs = []; st.bolts = []; st.nextSpawn = 70; st.powIn = 5;
       st.fx = { turbo:0, shield:0, magnet:0, blaster:0, mini:0 }; st.boost = 0; st.hitSlow = 0; st.inv = 0; st.fireCD = 0;
       st.p = { x: 0, y: 0, tx: 0, ty: 0, bank: 0 };
-      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min(1.04, [0.9, 0.95, 0.99][i] + st.level * 0.005), ph: R() * 6 }));
+      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([0.94, 0.965, 0.985][i], [0.88, 0.92, 0.95][i] + (st.level - 1) * 0.004), ph: R() * 6 }));
       st.count = 2.6; st.finished = false; st.place = 4; st.raceStars = 0; st.planetSpin = R() * 6;
       st.drag = null;
       st.dust = Array.from({ length: 90 }, () => ({ x: (Math.random() - .5) * 40, y: (Math.random() - .5) * 26, z: -Math.random() * 160 }));
@@ -183,7 +188,7 @@
       if (r < 0.34) {
         const n = 3 + Math.floor(R() * Math.min(4, 1 + L / 2));
         for (let i=0;i<n;i++) st.objs.push(rock(rnd(-XR, XR), rnd(-YR, YR), d + R() * 30, rnd(0.9, 1.6 + L * 0.08)));
-      } else if (r < 0.5 && L >= 2) {
+      } else if (r < 0.5 && L >= 5) {
         const gx = rnd(-XR + 2, XR - 2), gy = rnd(-YR + 1.5, YR - 1.5), gap = Math.max(2.4, 3.4 - L * 0.06);
         for (let x = -XR - 1; x <= XR + 1; x += 2.4) for (let y = -YR - 0.5; y <= YR + 0.5; y += 2.4) if (Math.hypot(x - gx, y - gy) > gap) st.objs.push(rock(x + rnd(-0.4, 0.4), y + rnd(-0.4, 0.4), d + rnd(-1, 1), rnd(1.0, 1.4)));
         for (let i=0;i<3;i++) st.objs.push({ kind:'star', x: gx, y: gy, d: d + 10 + i * 8 });
@@ -211,7 +216,11 @@
       if (st.fx.shield > 0) { st.fx.shield = 0; st.inv = 0.8; pop(shipPos(), 'Shield saved you!', '#5ee0ff'); return; }
       st.lives--; st.inv = 1.6; st.hitSlow = 1; st.shake = 14;
       pop(shipPos(), 'Ouch!', '#ff5d7a');
-      if (st.lives <= 0) { st.phase = 'over'; shell.gameOver(st.score, st.level > 1 ? `You finished ${st.level - 1} race${st.level > 2 ? 's' : ''} and reached ${st.gal.name}` : `You crashed out of race 1. Try again!`); }
+      if (st.lives <= 0) {
+        st.phase = 'over';
+        if (st.mode === 'daily') shell.gameOver(st.level - 1, st.level > 1 ? `You finished ${st.level - 1} race${st.level > 2 ? 's' : ''} and reached ${st.gal.name}` : `You crashed out of race 1. Try again!`);
+        else { st.failTitle = 'Crashed out!'; shell.levelDone({ win: false, stars: 0, score: st.level, summary: `Your ship ran out of hearts in ${st.gal.name}. Dodge the rocks and try again!` }); }
+      }
     }
     function collect(o){ if (PB.sfx) PB.sfx('coin');
       o.dead = true;
@@ -227,7 +236,6 @@
       const bonus = [600, 400, 250, 120][place - 1] * st.level;
       st.score += bonus;
       pop([st.p.x, st.p.y + 2, -3], PLACE[place - 1] + ' PLACE!', place === 1 ? '#ffd23f' : '#fff', 2.2);
-      pop([st.p.x, st.p.y + 1, -3], '+' + fmt(bonus), '#ff9a3d', 2.2);
       st.between = 1.8;
     }
     function update(dt){
@@ -238,7 +246,15 @@
       if (st.count > 0) { st.count -= dt; if (st.count <= 0) pop([0, 2, -6], 'GO!', '#7dff6a', 0.8); return effects(dt); }
       if (st.between != null) {
         st.speed *= 0.97; st.d += st.speed * dt; st.between -= dt;
-        if (st.between <= 0) { st.between = null; st.level++; startRace(); st.msg = `Next: ${st.gal.name} \u00b7 Tap to race`; }
+        if (st.between <= 0) {
+          st.between = null;
+          if (st.mode !== 'daily') {
+            st.phase = 'over';
+            const won = st.place === 1, lost = st.lives0 - st.lives;
+            if (won) shell.levelDone({ win: true, stars: lost === 0 ? 3 : lost === 1 ? 2 : 1, score: st.level, summary: `1st place in ${st.gal.name}! ${st.raceStars} stars collected.` });
+            else { st.failTitle = `${PLACE[st.place - 1]} place`; shell.levelDone({ win: false, stars: 0, score: st.level, summary: `You came ${PLACE[st.place - 1]}. You need 1st place to unlock the next level. Fly through the blue rings for speed boosts!` }); }
+          } else { st.level++; startRace(); st.msg = `Next: ${st.gal.name} \u00b7 Tap to race`; }
+        }
         return effects(dt);
       }
       st.t += dt;
@@ -297,7 +313,8 @@
     // ---------- rendering ----------
     function drawShip(M, pos, rot, scale, paint, engine, hot){
       const m = M.trs(pos, rot, [scale, scale, scale]);
-      const part = (mesh, mat) => E.draw(mesh, m, mat);
+      const INK = { color: [0.06, 0.04, 0.14], unlit: true, outline: 0.045, noShadow: true };
+      const part = (mesh, mat) => { E.draw(mesh, m, mat); if (mesh !== A.nozzles && mesh !== A.stripe && mesh !== A.canopy) E.draw(mesh, m, INK); };
       part(A.hull, { tex: A.tHull, color: [0.78, 0.8, 0.85], spec: 0.9, shine: 70 });
       part(A.wings, { color: paint, spec: 0.8, shine: 60 });
       part(A.fins, { color: paint, spec: 0.7, shine: 50 });
@@ -319,15 +336,15 @@
       const fovBoost = Math.min(0.25, Math.max(0, (st.speed - st.base * 0.9) / st.base) * 0.4);
       const camP = [p.x * 0.6 + shake[0], p.y * 0.6 + 2.7 + shake[1], 10.5];
       E.begin({ pos: camP, target: [p.x * 0.85, p.y * 0.8 + 0.7, -20], fov: 1.0 + fovBoost, near: 0.2, far: 2400 }, {
-        sunDir: [-0.6, -0.4, -0.7], sunColor: gal.sun.map(v => v * 3.1), ambSky: [0.16, 0.17, 0.24], ambGround: [0.08, 0.07, 0.1],
+        sunDir: [-0.6, -0.4, -0.7], toon: 0.55, sunColor: gal.sun.map(v => v * 3.1 * (gal.sunGlow || 1)), ambSky: [0.16, 0.17, 0.24], ambGround: [0.08, 0.07, 0.1],
         fogColor: [0.02, 0.02, 0.04], fogDensity: 0.0026, fogStart: 140,
-        sky: { tex: SKY[gi], texBright: 3.0, sunColor: gal.sun.map(v => v * 1.6), sunSize: 3 },
-        post: { bloom: 0.75, threshold: 0.78, saturation: 1.22, contrast: 1.08, vignette: 0.35 },
+        sky: { tex: SKY[gi], texBright: gal.skyBright || 3.0, sunColor: gal.sun.map(v => v * 1.6 * (gal.sunGlow || 1)), sunSize: 3 },
+        post: { bloom: gal.bloom || 0.75, threshold: gal.bloom ? 0.86 : 0.78, saturation: 1.22, contrast: 1.08, vignette: 0.35 },
       });
       const pp = [-300, 90, -1150], pr = 170;
-      E.draw(A.sphere, M.trs(pp, [0.2, st.planetSpin + st.clock * 0.01, 0.15], pr), { tex: PLAN[gi], color: [0.85, 0.85, 0.88], spec: gal.planet === 'earth' ? 0.4 : 0.1, shine: 30, rim: 0.8, fogless: true, emissive: gal.planet === 'lava' ? [0.25, 0.08, 0.02] : [0, 0, 0] });
+      E.draw(A.sphere, M.trs(pp, [0.2, st.planetSpin + st.clock * 0.01, 0.15], pr), { tex: PLAN[gi], color: [0.6, 0.6, 0.64].map(v => v * (gal.planetDim || 1)), spec: gal.planet === 'earth' ? 0.4 : 0.1, shine: 30, rim: 0.8, fogless: true, emissive: gal.planet === 'lava' ? [0.25, 0.08, 0.02] : [0, 0, 0] });
       E.draw(A.sphere, M.trs(pp, [0, 0, 0], pr * 1.035), { color: gal.pc[0].map(v => v * 0.9 + 0.1), alpha: 0.2, additive: true, rim: 3, spec: 0, fogless: true, noShadow: true });
-      if (gal.ring) E.draw(A.planetRing, M.trs(pp, [0.35, 0.3, -0.25], pr), { color: gal.pc[2], alpha: 0.55, spec: 0.1, fogless: true, doubleSided: true, noShadow: true });
+      if (gal.ring) E.draw(A.planetRing, M.trs(pp, [0.35, 0.3, -0.25], pr), { color: gal.pc[2], alpha: gal.ringA || 0.55, spec: 0.1, fogless: true, doubleSided: true, noShadow: true });
       for (const s of STARS) E.sprite([camP[0] + s.d[0] * 900, camP[1] + s.d[1] * 900, camP[2] + s.d[2] * 900], s.size, s.c, s.a, true);
       for (const s of STARS) if (s.flare) E.sprite([camP[0] + s.d[0] * 900, camP[1] + s.d[1] * 900, camP[2] + s.d[2] * 900], s.size * 7, s.c, 0.25, true);
       for (const q of st.dust) { const len = Math.min(6, st.speed * 0.05); E.sprite([q.x, q.y, q.z], 0.05 + len * 0.01, [0.8, 0.85, 1], 0.4, true, 0, null, [0, 0, len * 0.5 + 0.04]); }
@@ -382,10 +399,10 @@
       if (st.phase !== 'menu') {
         const place = 1 + st.rivals.filter(r => r.d > st.d).length;
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = `13px ${FONT}`; ctx.fillText(`RACE ${st.level} \u00b7 ${g.name.toUpperCase()}`, 18, 30);
+        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = `13px ${FONT}`; ctx.fillText(`${st.mode === 'daily' ? 'RACE' : 'LEVEL'} ${st.level} \u00b7 ${g.name.toUpperCase()}`, 18, 30);
         ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 8;
         ctx.fillStyle = place === 1 ? '#ffd23f' : '#fff'; ctx.font = `italic 40px ${FONT}`; ctx.fillText(st.finished ? PLACE[st.place - 1] : PLACE[place - 1], 18, 72); ctx.restore();
-        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = `13px ${FONT}`; ctx.fillText(`\u2605 ${st.raceStars}   ${Math.round(st.speed * 9)} km/h`, 20, 94);
+        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = `13px ${FONT}`; ctx.fillText(`\u2605 ${st.raceStars}   ${Math.round(st.speed * 9)} km/h   ${Math.max(0, Math.ceil((st.length - st.d) / 10))}m to go`, 20, 94);
         const rx = W - 20, top = 40, bot = H - 60;
         ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(rx, top); ctx.lineTo(rx, bot); ctx.stroke();
         ctx.fillStyle = '#fff'; ctx.fillRect(rx - 8, top - 2, 16, 4);
@@ -422,7 +439,7 @@
     }
     function draw(){
       if (!loadAssets()) { ctx.fillStyle = '#05030f'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.font = '700 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('This game needs a device with 3D graphics.', W/2, H/2); return; }
-      E.resize(W, H, Math.min(dpr, 1.75)); render(W, H);
+      E.resize(W, H, E.quality(1.5)); render(W, H);
       E.present(ctx, W, H);
       drawHUD();
     }
@@ -438,15 +455,16 @@
     }
 
     return {
-      id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Race', maxLives: MAX_LIVES, type:'endless',
-      tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing', art: artTile },
-      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Finish each race to fly to a new galaxy. Better places earn more points.', 'Crashing costs a heart. Lose them all and the game ends.'],
+      id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Place', maxLives: MAX_LIVES, type:'levels', levels:100, scoreLabel:'Races won', boardScore: (s, lvl) => lvl, boardFmt: n => `${fmt(n)} race${n === 1 ? '' : 's'} won`, levelScoreText: (s, win) => win ? `Race ${s} won!` : `Race ${s}`,
+      get failTitle(){ return (st && st.failTitle) || 'Race lost'; }, dailyText:'Race as far as you can, one try a day',
+      tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing \u00b7 100 levels', art: artTile },
+      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race. Finish without crashing for 3 stars.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => drawOrb2D(g, k, 23, 14, 12) })),
       init(){ loadAssets(); },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
-      start(mode, rand, lives, msg){ fresh(mode, rand, lives, 'play'); st.msg = msg ? msg + ' Tap to race' : `${st.gal.name} \u00b7 Tap to race`; },
+      start(mode, rand, lives, msg, level){ const daily = mode === 'daily'; fresh(mode, rand, daily ? 3 : RACE_HEARTS, 'play', daily ? 1 : level); st.msg = daily ? `${st.gal.name} \u00b7 Tap to race` : `Level ${st.level} \u00b7 ${st.gal.name} \u00b7 Win 1st!`; },
       frame(dt){ update(dt); draw(); },
-      hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      hud(){ const pl = st.finished ? st.place : 1 + st.rivals.filter(r => r.d > st.d).length, won = st.level - 1 + (st.finished && st.place === 1 ? 1 : 0), best = Math.max(won, (PB.bestOf && PB.bestOf('racer')) || 0); return st.mode === 'daily' ? { lives: st.lives, stat: st.level, statLabel: 'Race', score: won } : { lives: st.lives, stat: PLACE[pl - 1], score: won, best }; },
       metrics(){ return { score: st.score, level: st.level, stars: st.stars }; },
       dailyGoals: [
         { text:'Collect {n} stars', m:'stars', n:[40, 60, 80] },

@@ -4,22 +4,40 @@
 
   // ---------- Scores, streaks, level progress ----------
   const keyFor = g => g.scoreKey || (g.id + '-scores');
+  // the Monday that starts this week, as a key (for weekly boards)
+  const weekKey = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
   function loadScores(g){
     const s = store.get(keyFor(g)) || {};
     s.classic = Array.isArray(s.classic) ? s.classic : [];
     if (!s.daily || s.daily.date !== today()) s.daily = { date: today(), list: [] };
+    if (!s.weekly || s.weekly.week !== weekKey()) s.weekly = { week: weekKey(), list: [] };
+    if (!s.today || s.today.date !== today()) s.today = { date: today(), list: [] };
     if (g.id === 'bricks') { const old = store.get('bb-best'); if (!s.classic.length && old > 0) s.classic.push({ name:'Player', score: old }); }
     return s;
   }
-  const listFor = (g, m) => { const s = loadScores(g); return m === 'daily' ? s.daily.list : s.classic; };
+  const listFor = (g, m) => { const s = loadScores(g); return m === 'daily' ? s.daily.list : m === 'weekly' ? s.weekly.list : m === 'today' ? s.today.list : s.classic; };
+  // every game keeps three boards for normal play: today, this week and all time (the daily challenge has its own)
+  const boardsOf = g => g.boards || ['today', 'weekly', 'classic'];
   const bestFor = (g, m) => { const l = listFor(g, m); return l.length ? l[0].score : 0; };
   const qualifies = (g, m, score) => { const l = listFor(g, m); return score > 0 && (l.length < 10 || score > l[l.length-1].score); };
   function addScore(g, m, name, score){
-    const s = loadScores(g); const l = m === 'daily' ? s.daily.list : s.classic;
-    const entry = { name, score: Math.floor(score), id: Date.now() };
-    l.push(entry); l.sort((a,b) => b.score - a.score); l.length = Math.min(l.length, 10);
-    store.set(keyFor(g), s); return entry.id;
+    const s = loadScores(g), id = Date.now();
+    // games with several boards (today / this week / all time) record each run on all of them
+    const boards = m === 'classic' ? boardsOf(g) : [m];
+    for (const b of boards) {
+      const l = b === 'daily' ? s.daily.list : b === 'weekly' ? s.weekly.list : b === 'today' ? s.today.list : s.classic;
+      l.push({ name, score: Math.floor(score), id }); l.sort((a,b) => b.score - a.score); l.length = Math.min(l.length, 10);
+    }
+    store.set(keyFor(g), s); return id;
   }
+  function renameEntry(g, id, name){
+    const s = loadScores(g);
+    for (const l of [s.classic, s.daily.list, s.weekly.list, s.today.list]) for (const e of l) if (e.id === id) e.name = name;
+    store.set(keyFor(g), s);
+  }
+  const BOARD_NAME = { daily: 'Daily challenge', today: 'Today', weekly: 'This week', classic: 'All time' };
+  const fmtScore = (g, n) => fmt(n) + (g.scoreUnit || '');
+  PB.bestOf = id => { const g = PB.games && PB.games[id]; return g ? bestFor(g, 'classic') : 0; };
   function streakInfo(){
     const s = store.get('pb-streak') || store.get('bb-streak') || { last:null, count:0, best:0 };
     const alive = s.last === today() || s.last === yesterday();
@@ -95,7 +113,7 @@
   let G = null, mode = 'classic', phase = 'menu', level = 1, raf = null, last = 0, clock = 0;
   let cachedBest = 0, lastEntryId = null, lastScore = 0, overTimer = null;
   const play = $('play'), screen = $('screen');
-  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel') };
+  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel'), pause: $('vPause') };
   function showView(name){ for (const k in views) views[k].hidden = k !== name; }
 
   // ---------- Hub ----------
@@ -120,7 +138,7 @@
     for (const g of ordered) {
       const el = $('best-' + g.id); if (!el) continue;
       if (g.type === 'levels') { const p = progress(g); el.textContent = `Level ${Math.min(p.unlocked, g.levels)} \u00b7 \u2605 ${totalStars(p)}`; }
-      else { const b = bestFor(g, 'classic'); el.textContent = b ? 'Best ' + fmt(b) : ''; }
+      else { const b = bestFor(g, 'classic'); el.textContent = b ? 'Best ' + fmtScore(g, b) : ''; }
     }
   }
   const grid = $('grid');
@@ -170,36 +188,41 @@
     if (G.sfxScore !== false && d >= 5) PB.sfx('point', Math.log10(d) / 3);
     if (G.type !== 'levels' && G.statLabel === 'Level' && typeof h.stat === 'number' && h.stat > p.stat) PB.sfx('level');
   }
+  // Only touch the page when a value actually changes (rewriting text every frame makes phones stutter)
+  const hudCache = {};
+  const setText = (id, v) => { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
+  const setHidden = (id, v) => { const k = id + '#h'; if (hudCache[k] !== v) { hudCache[k] = v; $(id).hidden = v; } };
   function updateHud(){
     if (mode === 'daily' && phase === 'play') checkChallenge();
     const h = G.hud(); soundCues(h);
-    $('hLives').hidden = h.lives == null;
-    if (h.lives != null) $('hLives').textContent = '\u2665'.repeat(Math.max(h.lives, 0)) || '\u2013';
-    $('hStatLabel').textContent = h.statLabel || G.statLabel;
-    $('hStat').textContent = typeof h.stat === 'number' ? fmt(h.stat) : h.stat;
-    $('hScore').textContent = fmt(h.score);
-    $('hBest').textContent = fmt(Math.max(cachedBest, h.score));
+    setHidden('hLives', h.lives == null);
+    if (h.lives != null) setText('hLives', '\u2665'.repeat(Math.max(h.lives, 0)) || '\u2013');
+    setText('hStatLabel', h.statLabel || G.statLabel);
+    setText('hStat', typeof h.stat === 'number' ? fmt(h.stat) : h.stat);
+    setText('hScoreLabel', G.scoreLabel || 'Score');
+    setText('hScore', fmtScore(G, h.score));
+    setText('hBest', fmtScore(G, h.best != null ? h.best : Math.max(cachedBest, h.score)));
     const tag = $('hMode');
     if (mode === 'daily' && phase !== 'menu') {
-      tag.hidden = false;
-      tag.textContent = !chal ? 'DAILY' : chal.done ? '\u2605 GOAL DONE' : chal.failed ? 'GOAL MISSED' : chal.m === 'won' || chal.m === 'timeLeft' || chal.m === 'left' ? '\u2605 GOAL' : `\u2605 ${fmt(Math.min(chal.value || 0, chal.goal))}/${fmt(chal.goal)}`;
+      setHidden('hMode', false);
+      setText('hMode', !chal ? 'DAILY' : chal.done ? '\u2605 GOAL DONE' : chal.failed ? 'GOAL MISSED' : chal.m === 'won' || chal.m === 'timeLeft' || chal.m === 'left' ? '\u2605 GOAL' : `\u2605 ${fmt(Math.min(chal.value || 0, chal.goal))}/${fmt(chal.goal)}`);
     }
-    else if (G.type === 'levels' && phase !== 'menu') { tag.hidden = false; tag.textContent = 'LEVEL ' + level; }
-    else tag.hidden = true;
+    else if (G.type === 'levels' && phase !== 'menu') { setHidden('hMode', false); setText('hMode', 'LEVEL ' + level); }
+    else setHidden('hMode', true);
   }
   function renderList(el, m, highlightId){
     const l = listFor(G, m);
     el.innerHTML = l.length
-      ? l.map((e,i) => `<li class="${e.id && e.id === highlightId ? 'me' : ''}"><span class="r">#${i+1}</span><span class="n"></span><span class="s">${fmt(e.score)}</span></li>`).join('')
-      : `<li class="empty">${m === 'daily' ? 'No scores yet today. Be the first!' : 'No scores yet. Play a game!'}</li>`;
+      ? l.map((e,i) => `<li class="${e.id && e.id === highlightId ? 'me' : ''}"><span class="r">#${i+1}</span><span class="n"></span><span class="s">${G.boardFmt ? G.boardFmt(e.score) : fmtScore(G, e.score)}</span></li>`).join('')
+      : `<li class="empty">${m === 'daily' ? 'Nobody has tried today\'s challenge yet!' : m === 'today' ? 'No scores yet today. Be the first!' : m === 'weekly' ? 'No runs yet this week. Be the first!' : 'No scores yet. Play a game!'}</li>`;
     if (l.length) [...el.querySelectorAll('.n')].forEach((n,i) => n.textContent = l[i].name);
   }
 
   function openMenu(){
-    clearTimeout(overTimer);
+    clearTimeout(overTimer); paused = false; hideCoach();
     phase = 'menu'; mode = 'classic'; G.preview(); cachedBest = 0;
     const s = streakInfo(), shown = s.playedToday ? s.count : s.count + 1, b = streakBonus(shown);
-    const lives = G.type !== 'levels';
+    const lives = G.type !== 'levels' && !G.fixedLives;
     $('mTitle').textContent = G.title;
     $('mStreak').textContent = s.count ? `Day ${s.count} streak` : 'Start your streak';
     $('mBonus').textContent = s.playedToday
@@ -209,13 +232,14 @@
     if (G.type === 'levels') {
       const p = progress(G), next = Math.min(p.unlocked, G.levels);
       $('btnClassicLabel').textContent = `Play level ${next}`;
-      $('mClassicBest').textContent = `\u2605 ${totalStars(p)} of ${G.levels * 3} stars`;
+      $('mClassicBest').textContent = `\u2605 ${totalStars(p)} of ${G.levels * 3} stars` + (bestFor(G, 'classic') ? ` \u00b7 Best: ${G.boardFmt ? G.boardFmt(bestFor(G, 'classic')) : fmtScore(G, bestFor(G, 'classic'))}` : '');
       $('btnLevels').hidden = false;
     } else {
       $('btnClassicLabel').textContent = 'Play';
-      $('mClassicBest').textContent = 'Best: ' + fmt(bestFor(G, 'classic'));
+      $('mClassicBest').textContent = `Best: ${fmtScore(G, bestFor(G, 'classic'))} \u00b7 Today: ${fmtScore(G, bestFor(G, 'today'))}`;
       $('btnLevels').hidden = true;
     }
+    $('btnDaily').hidden = !!G.noDaily;
     if (PB.music) PB.music.duck(true);
     const c = challengeFor(G);
     $('mDailyBest').textContent = c ? (challengeDone(G) ? '\u2713 ' + c.label : c.label + ` \u00b7 +${CHALLENGE_COINS} coins`) : (G.dailyText || 'A new challenge every day');
@@ -275,8 +299,28 @@
     chal = m === 'daily' ? challengeFor(G) : null;
     if (chal) { chal.lives0 = G.hud().lives; chal.value = 0; setTimeout(() => { if (chal && phase === 'play') toast('Goal: ' + chal.label, false); }, 900); }
     if (PB.sfx) PB.sfx('start'); if (PB.music) PB.music.duck(false);
-    showView(null);
+    paused = false; showView(null);
+    // the first time a game is played, show its key controls
+    hideCoach();
+    if (!store.get('pb-coach-' + G.id)) { store.set('pb-coach-' + G.id, 1); $('coachText').textContent = (G.coach || G.controls.slice(0, 2)).join('\n'); $('coach').hidden = false; coachT = setTimeout(hideCoach, 7000); }
   }
+  let coachT = null;
+  function hideCoach(){ clearTimeout(coachT); $('coach').hidden = true; }
+  $('coach').addEventListener('pointerdown', e => { e.stopPropagation(); hideCoach(); });
+  // ---------- Pause ----------
+  let paused = false;
+  function pauseGame(){
+    if (!G || phase !== 'play' || paused || play.hidden) return;
+    if (!Object.values(views).every(v => v.hidden)) return;   // a menu is already showing
+    paused = true; hideCoach(); showView('pause'); if (PB.music) PB.music.duck(true);
+  }
+  function resumeGame(){ if (!paused) return; paused = false; showView(null); last = performance.now(); if (PB.music) PB.music.duck(false); }
+  $('pauseBtn').addEventListener('click', () => paused ? resumeGame() : pauseGame());
+  $('btnResume').addEventListener('click', resumeGame);
+  $('btnRestart').addEventListener('click', () => { paused = false; startGame(mode, G.type === 'levels' && mode !== 'daily' ? level : undefined); });
+  $('btnQuit').addEventListener('click', openMenu);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+  window.addEventListener('blur', () => pauseGame());
 
   // Endless games (and daily challenges) end here
   shell.gameOver = function(score, summary){
@@ -285,21 +329,35 @@
     const earned = coinsForScore(lastScore); wallet.add(earned);
     $('oCoins').innerHTML = coinSvg + `<span>+${fmt(earned)} coins</span>`;
     $('oChal').hidden = !chal; if (chal) { $('oChal').textContent = chal.done ? '\u2605 Daily goal complete!' : 'Daily goal: ' + chal.label + (chal.failed ? ' (missed)' : ''); $('oChal').className = 'chalres' + (chal.done ? ' ok' : ''); }
-    const prevBest = bestFor(G, mode), q = qualifies(G, mode, lastScore);
+    const boards = mode === 'classic' ? boardsOf(G) : [mode];
+    const prevBest = bestFor(G, mode), q = boards.some(b => qualifies(G, b, lastScore));
     if (PB.sfx) PB.sfx(lastScore > prevBest && lastScore > 0 ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
-    $('oTitle').textContent = mode === 'daily' ? 'Challenge over' : 'Game over';
-    $('oScore').textContent = fmt(lastScore);
+    $('oTitle').textContent = mode === 'daily' ? 'Challenge over' : (G.overTitle || 'Game over');
+    $('oScore').textContent = fmtScore(G, lastScore);
     $('oSummary').textContent = summary;
     const flag = $('oFlag');
-    if (lastScore > prevBest && lastScore > 0) { flag.hidden = false; flag.textContent = 'New high score!'; }
+    const beat = boards.filter(b => lastScore > bestFor(G, b) && lastScore > 0);
+    if (mode === 'classic' && beat.length) { flag.hidden = false; flag.textContent = beat.includes('classic') ? 'New all-time best!' : beat.includes('weekly') ? 'Best run this week!' : 'Best run today!'; }
+    else if (lastScore > prevBest && lastScore > 0) { flag.hidden = false; flag.textContent = 'New high score!'; }
     else if (q) { flag.hidden = false; flag.textContent = 'You made the top 10!'; }
     else flag.hidden = true;
+    // every run that makes a board is saved straight away under the last name used; the form just renames it
+    const name = store.get('pb-name') || store.get('bb-name') || 'Player';
+    lastEntryId = q ? addScore(G, mode, name, lastScore) : null;
+    if (q) { cachedBest = bestFor(G, mode); refreshHub(); }
     $('nameForm').hidden = !q;
-    $('nameIn').value = store.get('pb-name') || store.get('bb-name') || '';
-    renderList($('oList'), mode, null);
-    if (q && !listFor(G, mode).length) $('oList').innerHTML = '<li class="empty">Add your name to be first on the board!</li>';
-    overTimer = setTimeout(() => { showView('over'); if (q) $('nameIn').focus(); }, 700);
+    $('nameIn').value = name === 'Player' ? '' : name;
+    overBoards(boards, boards.find(b => lastEntryId && listFor(G, b).some(e => e.id === lastEntryId)) || boards[boards.length - 1], lastEntryId);
+    overTimer = setTimeout(() => { showView('over'); }, 700);
   };
+  // tabs above the game-over list when a game keeps several boards
+  let overTab = null;
+  function overBoards(boards, pick, highlight){
+    const tabs = $('oTabs'); overTab = pick;
+    tabs.hidden = boards.length < 2; tabs.innerHTML = '';
+    if (boards.length > 1) for (const b of boards) { const t = document.createElement('button'); t.setAttribute('role', 'tab'); t.textContent = BOARD_NAME[b]; t.setAttribute('aria-selected', String(b === pick)); t.addEventListener('click', () => overBoards(boards, b, lastEntryId)); tabs.appendChild(t); }
+    renderList($('oList'), pick, highlight);
+  }
   // Level games end here
   shell.levelDone = function({ win, stars, score, summary }){
     if (mode === 'daily') { shell.gameOver(score, summary); return; }
@@ -309,19 +367,25 @@
     $('lCoins').innerHTML = coinSvg + `<span>+${earned} coin${earned === 1 ? '' : 's'}${firstClear ? ' (first clear bonus!)' : ''}</span>`;
     if (PB.sfx) PB.sfx(win ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
     const p = progress(G);
-    let newBest = false;
+    let newBest = false, lBestText = 'New best for this level!';
     if (win) {
       p.stars[level] = Math.max(p.stars[level] || 0, stars);
       if (lastScore > (p.best[level] || 0)) { newBest = !!p.best[level]; p.best[level] = lastScore; }
       if (level >= p.unlocked) p.unlocked = Math.min(level + 1, G.levels + 1);
-      saveProgress(G, p); refreshHub();
+      saveProgress(G, p);
+      // a won level also counts on today / this week / all time
+      const bs = boardsOf(G), sc = G.boardScore ? G.boardScore(lastScore, level) : lastScore;
+      const beatB = bs.filter(b => sc > bestFor(G, b));
+      if (sc > 0 && bs.some(b => qualifies(G, b, sc))) addScore(G, 'classic', store.get('pb-name') || store.get('bb-name') || 'Player', sc);
+      if (!newBest && beatB.length) { newBest = true; lBestText = beatB.includes('classic') ? 'New all-time best!' : beatB.includes('weekly') ? 'Best this week!' : 'Best today!'; }
+      refreshHub();
     }
     $('lTitle').textContent = win ? `Level ${level} complete!` : (G.failTitle || 'Out of moves');
     $('lStars').innerHTML = [1,2,3].map(i => `<span class="${win && i <= stars ? 'on' : ''}">\u2605</span>`).join('');
     $('lStars').setAttribute('aria-label', win ? `${stars} of 3 stars` : 'No stars');
-    $('lScore').textContent = fmt(lastScore);
+    $('lScore').textContent = G.levelScoreText ? G.levelScoreText(lastScore, win) : fmt(lastScore);
     $('lSummary').textContent = summary;
-    $('lFlag').hidden = !newBest; $('lFlag').textContent = 'New best for this level!';
+    $('lFlag').hidden = !newBest; $('lFlag').textContent = lBestText;
     const next = $('btnNext');
     if (win && level < G.levels) { next.textContent = 'Next level'; next.onclick = () => startGame('classic', level + 1); }
     else if (win) { next.textContent = 'You beat every level!'; next.onclick = openLevels; }
@@ -335,13 +399,15 @@
     e.preventDefault();
     const name = ($('nameIn').value.trim() || 'Player').slice(0, 10);
     store.set('pb-name', name);
-    lastEntryId = addScore(G, mode, name, lastScore);
+    if (lastEntryId) renameEntry(G, lastEntryId, name); else lastEntryId = addScore(G, mode, name, lastScore);
     $('nameForm').hidden = true;
-    renderList($('oList'), mode, lastEntryId);
+    if (mode === 'classic') overBoards(boardsOf(G), overTab || 'classic', lastEntryId); else renderList($('oList'), mode, lastEntryId);
     cachedBest = bestFor(G, mode); refreshHub();
   });
   function setTab(t){
     $('tabClassic').setAttribute('aria-selected', String(t === 'classic'));
+    $('tabWeekly').setAttribute('aria-selected', String(t === 'weekly'));
+    $('tabToday').setAttribute('aria-selected', String(t === 'today'));
     $('tabDaily').setAttribute('aria-selected', String(t === 'daily'));
     renderList($('sList'), t, lastEntryId);
   }
@@ -351,9 +417,9 @@
   $('btnHelp').addEventListener('click', openHelp);
   $('btnHelpBack').addEventListener('click', () => showView('menu'));
   $('btnScores').addEventListener('click', () => {
-    const lv = G.type === 'levels';
-    $('tabClassic').hidden = lv;
-    setTab(lv ? 'daily' : 'classic'); showView('scores');
+    $('tabClassic').hidden = false; $('tabWeekly').hidden = false; $('tabToday').hidden = false;
+    $('tabDaily').hidden = !!G.noDaily; $('tabDaily').textContent = 'Challenge';
+    setTab('classic'); showView('scores');
   });
   $('btnScoresBack').addEventListener('click', () => showView('menu'));
   $('btnLevelsBack').addEventListener('click', openMenu);
@@ -363,16 +429,18 @@
   $('btnToLevels').addEventListener('click', openLevels);
   $('tabClassic').addEventListener('click', () => setTab('classic'));
   $('tabDaily').addEventListener('click', () => setTab('daily'));
+  $('tabWeekly').addEventListener('click', () => setTab('weekly'));
+  $('tabToday').addEventListener('click', () => setTab('today'));
 
   function toGame(e){ const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * (G.W / r.width), (e.clientY - r.top) * (G.H / r.height)]; }
-  cv.addEventListener('pointerdown', e => { if (!G || phase !== 'play') return; try { cv.setPointerCapture(e.pointerId); } catch(_){} G.pointerDown(...toGame(e)); });
-  cv.addEventListener('pointermove', e => { if (!G || phase !== 'play') return; G.pointerMove(...toGame(e)); });
-  cv.addEventListener('pointerup', e => { if (!G || phase !== 'play') return; G.pointerUp(...toGame(e)); });
-  cv.addEventListener('pointercancel', e => { if (!G || phase !== 'play') return; G.pointerUp(...toGame(e)); });
-  window.addEventListener('keydown', e => { if (play.hidden || !G || phase !== 'play') return; G.key(e); });
+  cv.addEventListener('pointerdown', e => { if (!G || phase !== 'play' || paused) return; try { cv.setPointerCapture(e.pointerId); } catch(_){} G.pointerDown(...toGame(e)); });
+  cv.addEventListener('pointermove', e => { if (!G || phase !== 'play' || paused) return; G.pointerMove(...toGame(e)); });
+  cv.addEventListener('pointerup', e => { if (!G || phase !== 'play' || paused) return; G.pointerUp(...toGame(e)); });
+  cv.addEventListener('pointercancel', e => { if (!G || phase !== 'play' || paused) return; G.pointerUp(...toGame(e)); });
+  window.addEventListener('keydown', e => { if (play.hidden || !G || phase !== 'play' || paused) return; G.key(e); });
   // Games like Brick Bash also follow a finger placed below or beside the game box
   const stageEl = screen.parentElement; stageEl.style.touchAction = 'none';
-  const outside = e => e.target === stageEl && G && G.touchAnywhere && phase === 'play';
+  const outside = e => e.target === stageEl && G && G.touchAnywhere && phase === 'play' && !paused;
   stageEl.addEventListener('pointerdown', e => { if (!outside(e)) return; try { stageEl.setPointerCapture(e.pointerId); } catch(_){} G.pointerDown(...toGame(e)); });
   stageEl.addEventListener('pointermove', e => { if (G && G.touchAnywhere && phase === 'play' && stageEl.hasPointerCapture && stageEl.hasPointerCapture(e.pointerId)) G.pointerMove(...toGame(e)); });
   stageEl.addEventListener('pointerup', e => { if (G && G.touchAnywhere && phase === 'play' && stageEl.hasPointerCapture && stageEl.hasPointerCapture(e.pointerId)) G.pointerUp(...toGame(e)); });
@@ -381,9 +449,12 @@
   let smooth = 1 / 60;
   function loop(t){
     const raw = Math.min(window.__pbMaxDt || 0.05, (t - last)/1000 || 0); last = t;
-    smooth += (raw - smooth) * (Math.abs(raw - smooth) > 0.02 ? 1 : 0.2);
+    // follow real frame times (so motion keeps pace with the screen), only evening out tiny timing noise
+    smooth = Math.abs(raw - smooth) < 0.004 ? smooth + (raw - smooth) * 0.25 : raw;
     const dt = window.__pbMaxDt ? raw : smooth; clock += dt;
-    G.frame(dt, clock); updateHud();
+    if (!paused) G.frame(dt, clock);
+    updateHud();
+    const pb = $('pauseBtn'), can = phase === 'play' && !paused && views.menu.hidden; if (pb.disabled === can) pb.disabled = !can && !paused;
     raf = requestAnimationFrame(loop);
   }
   function openGame(id){
@@ -398,7 +469,7 @@
   }
   function closeGame(){
     clearTimeout(overTimer);
-    cancelAnimationFrame(raf); raf = null; play.hidden = true; $('hub').hidden = false;
+    cancelAnimationFrame(raf); raf = null; play.hidden = true; $('hub').hidden = false; paused = false; hideCoach();
     if (PB.music) PB.music.play('hub');
     refreshHub(); $('tile-' + G.id).focus();
   }
@@ -428,7 +499,8 @@
   // In the installed phone app, the Android back button returns to the game list (or closes the app from there)
   try {
     const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
-    if (App) App.addListener('backButton', () => { if (!play.hidden) { if (phase === 'menu' && !views.menu.hidden) closeGame(); else openMenu(); } else App.exitApp(); });
+    if (App) App.addListener('backButton', () => { if (!play.hidden) { if (phase === 'play' && !paused && views.menu.hidden) pauseGame(); else if (paused) resumeGame(); else if (phase === 'menu' && !views.menu.hidden) closeGame(); else openMenu(); } else App.exitApp(); });
+    if (App) App.addListener('pause', () => pauseGame());
   } catch (_) {}
   PB.shell = shell;
 })();

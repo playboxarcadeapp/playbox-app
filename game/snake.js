@@ -13,16 +13,38 @@
       double: { name:'Double points', color:'#ffc93c', time:12, weight:14, desc:'Fruit is worth 2\u00d7' },
       portal: { name:'Jungle portals',color:'#3fd0c9', time:12, weight:12, desc:'Go off one edge and come out the other' },
       shrink: { name:'Shed skin',     color:'#ff9f5a', time:0,  weight:10, desc:'Lose 4 tail pieces to make room' },
-      life:   { name:'Extra life',    color:'#ff5d7a', time:0,  weight:6,  desc:'Adds one heart (up to 5)' },
+      life:   { name:'Extra life',    color:'#ff5d7a', time:0,  weight:13, desc:'Adds one heart (up to 5). You start with just one!' },
     };
     const DIRS = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
     let st = null, bgC = null;
 
     function fresh(mode, rand, lives, phase){
       st = { mode, phase, rand, lives, score: 0, level: 1, eaten: 0, perLevel: 8, rocks: [], fx: { slow:0, ghost:0, double:0, portal:0 },
-        parts: [], pops: [], time: 0, shake: 0, msg: null, items: [], powIn: 9, inv: 0 };
+        parts: [], pops: [], time: 0, shake: 0, msg: null, items: [], powIn: 9, inv: 0, heartIn: 18 };
       resetSnake();
       placeFood();
+    }
+    // After a crash the anaconda comes back at the same length: coiled along the bottom of the board, head pointing up into open jungle.
+    function respawnSnake(){
+      const len = Math.max(7, st.snake.length + st.grow);
+      if (len <= 10) { resetSnake(); st.grow = Math.max(0, len - 4); return; }
+      const x0 = 1, x1 = COLS - 2, rowW = x1 - x0 + 1, bodyN = len - 1;
+      const rowsUsed = Math.min(ROWS - 5, Math.ceil(bodyN / rowW));
+      const path = [];
+      for (let r = 0; r < rowsUsed && path.length < bodyN; r++) {
+        const y = ROWS - 1 - r;
+        for (let i = 0; i < rowW && path.length < bodyN; i++) path.push({ x: r % 2 === 0 ? x0 + i : x1 - i, y });
+      }
+      const last = path[path.length - 1], head = { x: last.x, y: last.y - 1 };
+      const cells = [head, ...path.reverse()];
+      st.snake = cells.map(c => ({ x: c.x, y: c.y, px: c.x, py: c.y }));
+      st.dir = 'up'; st.queue = []; st.acc = 0; st.t = 1; st.grow = Math.max(0, len - st.snake.length); st.dead = false; st.bulges = [];
+      const topY = head.y - 4;
+      st.rocks = st.rocks.filter(r => !(r.y >= topY && (r.y > head.y || r.x === head.x || Math.abs(r.x - head.x) <= 1)));
+      st.rocks = st.rocks.filter(r => !st.snake.some(s => s.x === r.x && s.y === r.y));
+      const under = st.items.filter(i => st.snake.some(s => s.x === i.x && s.y === i.y));
+      st.items = st.items.filter(i => !under.includes(i));
+      if (under.some(i => i.kind !== 'pow')) placeFood();
     }
     function resetSnake(){
       const cx = Math.floor(COLS / 2) - 2, cy = Math.floor(ROWS / 2) + 3;
@@ -36,6 +58,8 @@
         const x = Math.floor(st.rand() * COLS), y = Math.floor(st.rand() * ROWS);
         if (occupied(x, y)) continue;
         const h = st.snake[0]; if (Math.abs(h.x - x) + Math.abs(h.y - y) < 3) continue;
+        // nothing hides in the corners until the snake is very long (they're too hard to reach)
+        if (st.snake.length < 40 && (x <= 1 || x >= COLS - 2) && (y <= 1 || y >= ROWS - 2)) continue;
         return { x, y };
       }
       return null;
@@ -45,8 +69,9 @@
       const golden = st.eaten > 2 && st.rand() < 0.1;
       st.items.push({ kind: golden ? 'egg' : 'fruit', type: FRUITS[Math.floor(st.rand() * FRUITS.length)], x: c.x, y: c.y, born: st.time });
     }
-    function placePower(){
+    function placePower(force){
       const c = freeCell(); if (!c) return;
+      if (force) { st.items.push({ kind:'pow', type: force, x: c.x, y: c.y, born: st.time, ttl: 14 }); return; }
       const e = Object.entries(POWERS).filter(([k]) => !(k === 'life' && st.lives >= MAX_LIVES) && !(k === 'shrink' && st.snake.length < 9));
       let roll = st.rand() * e.reduce((s,[,p]) => s + p.weight, 0), type = 'slow';
       for (const [k, p] of e) { roll -= p.weight; if (roll <= 0) { type = k; break; } }
@@ -139,11 +164,13 @@
       if (st.phase === 'play') {
         if (st.respawn != null) {
           st.respawn -= dt;
-          if (st.respawn <= 0) { st.respawn = null; resetSnake(); st.inv = 1.5; st.phase = 'ready'; st.msg = 'Swipe to slither again'; }
+          if (st.respawn <= 0) { st.respawn = null; respawnSnake(); st.inv = 1.5; st.phase = 'ready'; st.msg = 'Swipe to slither again'; }
         } else if (!st.dead) {
           for (const k in st.fx) if (st.fx[k] > 0) st.fx[k] = Math.max(0, st.fx[k] - dt);
           st.inv = Math.max(0, st.inv - dt);
           st.powIn -= dt; if (st.powIn <= 0) { placePower(); st.powIn = 10 + st.rand() * 8; }
+          // you start with one heart, so a spare heart always shows up early on
+          if (st.heartIn != null) { st.heartIn -= dt; if (st.heartIn <= 0) { st.heartIn = null; if (st.lives < MAX_LIVES) { placePower('life'); pop(W / 2, BY + 60, 'A heart appeared!', '#ff5d7a', 1.4); } } }
           st.items = st.items.filter(i => !(i.kind === 'pow' && st.time - i.born > i.ttl));
           st.acc += dt;
           const T = stepTime();
@@ -343,16 +370,147 @@
       ctx.restore();
       ctx.restore();
     }
+    // ---------- 3D look: a smooth, scaly anaconda body, 3D fruit, mossy rocks and logs ----------
+    let E3 = null, A3 = null;
+    const SUB = 4, SIDES = 14, CAP = COLS * ROWS * SUB + 8;
+    function skinTex(){
+      const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'), R = mulberry(9);
+      // around the body: v 0..1 = side, top (0.25), other side (0.5), belly (0.75)
+      const base = g.createLinearGradient(0, 0, 0, 256);
+      base.addColorStop(0, '#6f8f26'); base.addColorStop(0.18, '#7f9f2c'); base.addColorStop(0.25, '#86a832'); base.addColorStop(0.32, '#7f9f2c'); base.addColorStop(0.5, '#6f8f26');
+      base.addColorStop(0.6, '#a69a4a'); base.addColorStop(0.68, '#e6d58a'); base.addColorStop(0.75, '#f0e2a0'); base.addColorStop(0.82, '#e6d58a'); base.addColorStop(0.92, '#a69a4a'); base.addColorStop(1, '#6f8f26');
+      g.fillStyle = base; g.fillRect(0, 0, 512, 256);
+      // big blotches on the back, golden-rimmed spots on the sides
+      for (let i=0;i<8;i++) { const x = i * 64 + 32 + (R() - .5) * 14;
+        for (const [y, s] of [[64, 1], [64 + 256, 1], [-192, 1]]) { g.fillStyle = '#1a2208'; g.beginPath(); g.ellipse(x, y + (i % 2 ? 14 : -14), 22, 15, 0, 0, 7); g.fill(); }
+        for (const vy of [10, 118]) { const y = vy + (i % 2 ? 6 : -6), xx = x + 32; g.fillStyle = '#d6a632'; g.beginPath(); g.ellipse(xx, y, 15, 11, 0, 0, 7); g.fill(); g.fillStyle = '#141b06'; g.beginPath(); g.ellipse(xx, y, 11, 7.5, 0, 0, 7); g.fill(); }
+      }
+      // belly plates
+      g.strokeStyle = 'rgba(120,100,40,.35)'; g.lineWidth = 2; for (let x=0;x<512;x+=16) { g.beginPath(); g.moveTo(x, 160); g.lineTo(x, 224); g.stroke(); }
+      // fine scales all over
+      g.strokeStyle = 'rgba(20,28,6,.28)'; g.lineWidth = 1;
+      for (let y=0;y<256;y+=8) for (let x=(y / 8 % 2) * 5;x<512;x+=10) { g.beginPath(); g.arc(x, y, 5, 0.2, Math.PI - 0.2); g.stroke(); }
+      g.fillStyle = 'rgba(255,255,220,.06)'; for (let i=0;i<600;i++) g.fillRect(R() * 512, R() * 120, 2, 1);
+      return c;
+    }
+    function assets3D(){
+      if (A3) return A3; if (A3 === false) return null;
+      E3 = PB.gl3d && PB.gl3d.get(); if (!E3) { A3 = false; return null; }
+      const G = E3.G, M = E3.M;
+      // the body: a fixed-size tube; each frame moves its vertices and draws as many rings as the snake is long
+      const nv = CAP * (SIDES + 1), P = new Array(nv * 3).fill(0), Nn = new Array(nv * 3).fill(0), U = [], I = [];
+      for (let k=0;k<CAP;k++) for (let j=0;j<=SIDES;j++) U.push(k / SUB * 0.5, j / SIDES);
+      for (let k=0;k<CAP-1;k++) for (let j=0;j<SIDES;j++) { const a = k * (SIDES + 1) + j, b = a + SIDES + 1; I.push(a, a + 1, b, a + 1, b + 1, b); }
+      const body = E3.mesh({ p: P, n: Nn, uv: U, idx: I, dynamic: true });
+      const rockG = G.faceted(G.displace(G.sphere(1, 10, 8), (x, y, z) => PB.gl3d.fbm(x * 1.8 + 7, y * 1.8, z * 1.8, 3) * 0.32));
+      A3 = { body, TP: new Float32Array(nv * 3), TN: new Float32Array(nv * 3), tSkin: E3.texture(skinTex()), sphere: E3.mesh(G.sphere(1, 24, 16)), sphereLo: E3.mesh(G.sphere(1, 14, 10)),
+        rock: E3.mesh(rockG), log: E3.mesh(G.cylinder(1, 1, 1, 18)), ring: E3.mesh(G.torus(1, 0.12, 20, 6)), cone: E3.mesh(G.cylinder(0, 1, 1, 12, true)), box: E3.mesh(G.box(1, 1, 1)),
+        tBg: null };
+      return A3;
+    }
+    const hex3 = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
+    // smooth path through the cell centres (rounded corners), with a radius for every point
+    function bodyPath(pts, rad){
+      const out = [], n = pts.length;
+      if (n < 2) return out;
+      const cr = (a, b, c, d, t) => { const t2 = t * t, t3 = t2 * t; return 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); };
+      for (let i=0;i<n-1;i++) {
+        const a = pts[Math.max(0, i - 1)], b = pts[i], c = pts[i + 1], d = pts[Math.min(n - 1, i + 2)];
+        const far = Math.hypot(c.x - b.x, c.y - b.y) > CELL * 1.5; // wrapped through a portal: don't draw across the board
+        for (let k=0;k<SUB;k++) { const t = k / SUB; out.push({ x: far ? b.x : cr(a.x, b.x, c.x, d.x, t), y: far ? b.y : cr(a.y, b.y, c.y, d.y, t), r: rad(i) * (1 - t) + rad(i + 1) * t, gap: far && k === SUB - 1 }); }
+      }
+      const L = pts[n - 1], P2 = pts[n - 2], dx = L.x - P2.x, dy = L.y - P2.y, dl = Math.hypot(dx, dy) || 1;
+      out.push({ x: L.x, y: L.y, r: rad(n - 1) }); out.push({ x: L.x + dx / dl * CELL * 0.35, y: L.y + dy / dl * CELL * 0.35, r: 0.5 });
+      return out;
+    }
+    function buildBody(path){
+      const TP = A3.TP, TN = A3.TN, m = Math.min(path.length, CAP);
+      let o = 0;
+      for (let k=0;k<m;k++) {
+        const p = path[k], a = path[Math.max(0, k - 1)], b = path[Math.min(m - 1, k + 1)];
+        let tx = b.x - a.x, ty = -(b.y - a.y); const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+        const sx = -ty, sy = tx, rw = p.r, rz = p.r * 0.78, cz = rz * 0.92;
+        for (let j=0;j<=SIDES;j++) { const ang = j / SIDES * Math.PI * 2, c = Math.cos(ang), s = Math.sin(ang);
+          TP[o] = p.x + sx * c * rw; TP[o + 1] = -p.y + sy * c * rw; TP[o + 2] = cz + s * rz;
+          let nx = sx * c / rw, ny = sy * c / rw, nz = s / rz; const nl = Math.hypot(nx, ny, nz) || 1; TN[o] = nx / nl; TN[o + 1] = ny / nl; TN[o + 2] = nz / nl; o += 3; }
+      }
+      E3.updateMesh(A3.body, TP.subarray(0, o), TN.subarray(0, o));
+      A3.body.count = Math.max(0, m - 1) * SIDES * 6;
+    }
+    function drawItem3D(it, cx, cy, s, M, P3){
+      const D = (mesh, pos, rot, sc, mat) => E3.draw(mesh, M.trs(P3(...pos), rot, sc), mat);
+      const t = st.time;
+      if (it.kind === 'egg') { D(A3.sphere, [cx, cy, 12], [0, 0, Math.sin(t * 2) * 0.1], [8.5 * s, 11 * s, 8.5 * s], { color: [1, 0.82, 0.25], emissive: [0.35, 0.25, 0.02], spec: 2, shine: 120 }); E3.sprite(P3(cx, cy, 20), 40 * s, [1, 0.85, 0.3], 0.35 + 0.15 * Math.sin(t * 6), true); return; }
+      if (it.kind === 'pow') { const c = hex3(POWERS[it.type].color); D(A3.sphere, [cx, cy, 14], [t, t * 0.7, 0], 12 * s, { color: c, emissive: c.map(v => v * 0.45), spec: 1.8, shine: 100 }); E3.sprite(P3(cx, cy, 22), 46 * s, c, 0.45, true); return; }
+      const spin = Math.sin(t * 1.5 + it.x) * 0.25;
+      if (it.type === 'mango') { D(A3.sphere, [cx, cy, 10], [0, spin, 0.5], [9 * s, 11 * s, 8 * s], { color: [1, 0.55, 0.12], emissive: [0.1, 0.04, 0], spec: 0.9, shine: 50, rim: 0.3 }); D(A3.sphere, [cx - 3 * s, cy - 4 * s, 15], [0, 0, 0.5], [4 * s, 4 * s, 3 * s], { color: [1, 0.3, 0.15], spec: 0.6, noShadow: true }); D(A3.sphereLo, [cx + 5 * s, cy - 10 * s, 14], [0, 0, -0.5], [6 * s, 2.4 * s, 1.2 * s], { color: [0.24, 0.62, 0.22], spec: 0.3 }); }
+      else if (it.type === 'banana') { for (let k=0;k<5;k++) { const a = -0.9 + k * 0.45, r = 10 * s; D(A3.sphere, [cx + Math.sin(a) * r, cy - Math.cos(a) * r * 0.6 + 4 * s, 9], [0, 0, a], [4.6 * s * (k === 0 || k === 4 ? 0.7 : 1), 5.5 * s, 4.2 * s], { color: [1, 0.86, 0.22], spec: 0.8, shine: 40 }); } D(A3.box, [cx - 9 * s, cy - 4 * s, 10], [0, 0, 0.6], [2.5 * s, 4 * s, 2.5 * s], { color: [0.35, 0.22, 0.1] }); }
+      else { for (const [x, y] of [[-5, 2], [4, 3], [0, -4], [-1, 7], [6, -3]]) D(A3.sphereLo, [cx + x * s, cy + y * s, 8 + (y < 0 ? 2 : 0)], [0, 0, 0], 4.8 * s, { color: [0.42, 0.18, 0.7], emissive: [0.05, 0.02, 0.1], spec: 1.4, shine: 70 }); D(A3.sphereLo, [cx + 1 * s, cy - 9 * s, 13], [0, 0, 0.2], [6 * s, 2.4 * s, 1.2 * s], { color: [0.24, 0.62, 0.22], spec: 0.3 }); }
+    }
+    function draw3D(tile){
+      const E = E3, M = E.M, P3 = E.px;
+      if (!A3.tBg) A3.tBg = E.texture(bgC, { repeat: false });
+      E.resize(W, H, tile ? 1 : E.quality(1.5));
+      const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
+      E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {
+        noSky: true, sunDir: [0.45, -0.6, -0.66], sunColor: [1.3, 1.22, 0.95], ambSky: [0.26, 0.32, 0.26], ambGround: [0.1, 0.12, 0.07], toon: 0.4,
+        shadow: { center: [W / 2, -(BY + ROWS * CELL / 2), 0], radius: 330 },
+        post: { bloom: 0.45, threshold: 0.85, saturation: 1.12, contrast: 1.06, vignette: 0.3, tint: [1.02, 1.02, 0.95] },
+      });
+      E.backdrop(A3.tBg, W, H, { shadow: 0.42 });
+      for (const r of st.rocks) {
+        const x = BX + (r.x + 0.5) * CELL, y = BY + (r.y + 0.5) * CELL;
+        if (r.log) { E.draw(A3.log, M.trs(P3(x, y, 8), [0, 0, Math.PI / 2 + (r.v - 0.5) * 0.4], [8, CELL * 1.05, 8]), { color: [0.55, 0.36, 0.2], spec: 0.15, shine: 10 }); E.draw(A3.sphereLo, M.trs(P3(x - 6, y - 5, 15), [0, 0, 0], [6, 3, 2.5]), { color: [0.3, 0.62, 0.25], spec: 0.1 }); }
+        else { E.draw(A3.rock, M.trs(P3(x, y, 8), [r.v * 6, r.v * 3, r.v * 4], [CELL * 0.46, CELL * 0.4, 11]), { color: [0.62, 0.6, 0.56], spec: 0.25, shine: 14 }); E.draw(A3.sphereLo, M.trs(P3(x - 2, y - 6, 16), [0, 0, -0.2], [8, 4, 2.6]), { color: [0.33, 0.58, 0.22], spec: 0.05 }); }
+      }
+      for (const it of st.items) {
+        const cx = BX + (it.x + 0.5) * CELL, cy = BY + (it.y + 0.5) * CELL, pop = Math.min(1, (st.time - it.born) * 4), bob = Math.sin(st.time * 4 + it.x) * 1.5;
+        if (it.kind === 'pow') { const left = it.ttl - (st.time - it.born); if (!(left > 2 || Math.floor(left * 8) % 2)) continue; }
+        drawItem3D(it, cx, cy + bob, pop, M, P3);
+      }
+      // the anaconda
+      const pts = snakePoints(), n = pts.length;
+      const flick = st.inv > 0 && Math.floor(st.inv * 10) % 2;
+      if (n && !flick) {
+        const bulge = i => { let m = 1; for (const b of st.bulges || []) m += 0.42 * Math.exp(-((i - b.pos) ** 2) / 1.6); return m; };
+        const rad = i => { const f = i / Math.max(1, n - 1); return CELL * (0.46 - 0.24 * Math.pow(f, 1.5)) * bulge(i); };
+        const ghost = st.fx.ghost > 0;
+        buildBody(bodyPath(pts, rad));
+        E.draw(A3.body, M.ident(), { tex: A3.tSkin, color: ghost ? [0.85, 0.85, 1.1] : [1, 1, 1], spec: 0.9, shine: 40, rim: 0.35, alpha: ghost ? 0.6 : undefined, emissive: ghost ? [0.12, 0.1, 0.25] : undefined });
+        // head
+        const h = pts[0], nb = pts[1] || { x: h.x - 1, y: h.y }, ang = Math.atan2(-(h.y - nb.y), h.x - nb.x), hr = CELL * 0.56;
+        const Hm = M.trs(P3(h.x, h.y, hr * 0.8), [0, 0, ang], [1, 1, 1]), part = (mesh, l, r, sc, mat) => E.draw(mesh, M.mul(Hm, M.trs(l, r, sc)), mat);
+        const skin = { color: [0.47, 0.62, 0.17], spec: 1, shine: 50, rim: 0.3, alpha: ghost ? 0.6 : undefined };
+        part(A3.sphere, [hr * 0.25, 0, 0], [0, 0, 0], [hr * 1.15, hr * 0.92, hr * 0.62], skin);
+        part(A3.sphere, [hr * 0.85, 0, -hr * 0.05], [0, 0, 0], [hr * 0.65, hr * 0.62, hr * 0.42], skin);
+        part(A3.sphere, [hr * 0.2, 0, hr * 0.38], [0, 0, 0], [hr * 0.7, hr * 0.42, hr * 0.12], { color: [0.12, 0.16, 0.05], spec: 0.5, noShadow: true });
+        for (const sd of [-1, 1]) {
+          part(A3.sphere, [hr * 0.55, sd * hr * 0.48, hr * 0.32], [0, 0, 0], [hr * 0.3, hr * 0.27, hr * 0.27], { color: [1, 0.78, 0.15], emissive: [0.6, 0.38, 0.02], spec: 2, shine: 120 });
+          part(A3.sphere, [hr * 0.62, sd * hr * 0.5, hr * 0.5], [0, 0, 0], [hr * 0.07, hr * 0.2, hr * 0.12], { color: [0.03, 0.03, 0.03], spec: 2, shine: 140, noShadow: true });
+          part(A3.sphereLo, [hr * 0.5, sd * hr * 0.55, hr * 0.58], [0, 0, 0], [hr * 0.36, hr * 0.12, hr * 0.06], { color: [0.2, 0.28, 0.07], spec: 0.3, noShadow: true });
+          part(A3.sphereLo, [hr * 1.38, sd * hr * 0.16, hr * 0.12], [0, 0, 0], [hr * 0.05, hr * 0.05, hr * 0.03], { color: [0.05, 0.05, 0.02], noShadow: true });
+        }
+        if (!reduceMotion && Math.sin(st.time * 7) > 0.35) { const ext = (Math.sin(st.time * 30) * 0.15 + 0.85) * hr;
+          part(A3.box, [hr * 1.45 + ext * 0.4, 0, -hr * 0.05], [0, 0, 0], [ext * 0.8, 2, 1.5], { color: [0.88, 0.14, 0.3], spec: 0.8, noShadow: true });
+          for (const sd of [-1, 1]) part(A3.box, [hr * 1.45 + ext * 0.85, sd * 2.5, -hr * 0.05], [0, 0, sd * 0.6], [ext * 0.3, 1.6, 1.4], { color: [0.88, 0.14, 0.3], spec: 0.8, noShadow: true }); }
+        if (ghost) E.sprite(P3(h.x, h.y, 20), CELL * 3, [0.72, 0.65, 1], 0.35, true);
+      }
+      E.end(); if (!tile) E.present(ctx, W, H);
+    }
     let fgC = null;
     const FLIES = Array.from({ length: 12 }, () => ({ x: Math.random() * 480, y: 140 + Math.random() * 500, p: Math.random() * 6, s: 0.4 + Math.random() * 0.6 }));
     function draw(){
       if (!bgC) paintBg();
+      const in3D = !!assets3D();
+      if (in3D) draw3D();
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
-      ctx.drawImage(bgC, 0, 0, W, H);
+      if (!in3D) ctx.drawImage(bgC, 0, 0, W, H);
       if (st.fx.portal > 0) { ctx.save(); ctx.strokeStyle = 'rgba(63,208,201,.85)'; ctx.shadowColor = '#3fd0c9'; ctx.shadowBlur = 16; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -st.time * 30; ctx.strokeRect(BX - 2, BY - 2, COLS * CELL + 4, ROWS * CELL + 4); ctx.restore(); }
-      for (const r of st.rocks) drawRock(r);
-      for (const it of st.items) {
+      if (!in3D) for (const r of st.rocks) drawRock(r);
+      if (in3D) { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.font = `14px ${FONT}`;
+        for (const it of st.items) if (it.kind === 'pow') { const left = it.ttl - (st.time - it.born); if (left > 2 || Math.floor(left * 8) % 2) ctx.fillText({ slow:'z', ghost:'\u2601', double:'2\u00d7', portal:'\u21c4', shrink:'\u2702', life:'\u2665' }[it.type], BX + (it.x + 0.5) * CELL, BY + (it.y + 0.5) * CELL + Math.sin(st.time * 4 + it.x) * 1.5 - 1); } }
+      else for (const it of st.items) {
         const cx = BX + (it.x + 0.5) * CELL, cy = BY + (it.y + 0.5) * CELL;
         const pop = Math.min(1, (st.time - it.born) * 4), bob = Math.sin(st.time * 4 + it.x) * 1.5;
         ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(cx + 2, cy + 10, 8, 3, 0, 0, 7); ctx.fill();
@@ -363,9 +521,9 @@
       // sunlight dappling through the canopy, slowly drifting
       if (!reduceMotion) { ctx.save(); ctx.beginPath(); ctx.rect(BX, BY, COLS * CELL, ROWS * CELL); ctx.clip(); ctx.globalCompositeOperation = 'soft-light';
         for (let k=0;k<6;k++) { const x = BX + ((k * 97 + st.time * (6 + k)) % (COLS * CELL + 120)) - 60, y = BY + 40 + ((k * 151) % (ROWS * CELL - 60)) + Math.sin(st.time * 0.5 + k) * 20, r = 60 + (k % 3) * 25;
-          const dg = ctx.createRadialGradient(x, y, 0, x, y, r); dg.addColorStop(0, 'rgba(255,250,200,.55)'); dg.addColorStop(1, 'rgba(255,250,200,0)'); ctx.fillStyle = dg; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); }
+          const dg = ctx.createRadialGradient(x, y, 0, x, y, r); dg.addColorStop(0, `rgba(255,250,200,${in3D ? 0.3 : 0.55})`); dg.addColorStop(1, 'rgba(255,250,200,0)'); ctx.fillStyle = dg; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); }
         ctx.restore(); }
-      drawSnake();
+      if (!in3D) drawSnake();
       for (const r of st.rings || []) { ctx.strokeStyle = r.color; ctx.globalAlpha = r.life / 0.45; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(r.x, r.y, 10 + (0.45 - r.life) * 70, 0, 7); ctx.stroke(); }
       ctx.globalAlpha = 1;
       for (const q of st.parts) { ctx.globalAlpha = Math.max(0, q.life / 0.6); ctx.fillStyle = q.color; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill(); }
@@ -408,6 +566,8 @@
       }
     }
     function artTile(g){
+      if (!bgC) paintBg();
+      if (assets3D()) { const keep = st; fresh('classic', Math.random, 3, 'menu'); st.t = 1; const path = [[4,12],[5,12],[6,12],[7,12],[7,11],[7,10],[7,9],[8,9],[9,9],[10,9],[10,8],[10,7]].reverse(); st.snake = path.map(([x, y]) => ({ x, y, px: x, py: y })); st.items = [{ kind:'fruit', type:'mango', x: 10, y: 5, born: -9 }, { kind:'egg', x: 4, y: 8, born: -9 }]; st.rocks = [{ x: 12, y: 11, log: false, v: 0.3 }, { x: 3, y: 5, log: true, v: 0.5 }]; st.bulges = [{ pos: 4 }]; draw3D(true); const k = E3.canvas.height / H; g.drawImage(E3.canvas, BX * k, (BY + 70) * k, COLS * CELL * k, COLS * CELL * 0.75 * k, 0, 0, 240, 180); st = keep; return; }
       g.fillStyle = '#0f3b25'; g.fillRect(0, 0, 240, 180);
       for (let y=0;y<7;y++) for (let x=0;x<10;x++) { g.fillStyle = (x + y) % 2 ? '#5f9a3b' : '#689f40'; g.fillRect(20 + x * 20, 20 + y * 20, 20, 20); }
       g.strokeStyle = '#b49a4e'; g.lineWidth = 5; g.strokeRect(18, 18, 204, 144);
@@ -426,15 +586,16 @@
     let down = null;
     function swipe(dx, dy){ turn(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down')); }
     return {
-      id:'snake', sfxScore:false, music:'snake', title:'ANACONDA', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
+      id:'snake', sfxScore:false, music:'snake', title:'ANACONDA', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', fixedLives: true,
       tile:{ order:8, name:'Anaconda', kind:'Jungle snake', art: artTile, isNew: true },
-      controls: ['Keep your finger on the screen and slide it the way you want to go. No need to lift it!', 'Or tap on the side of the board you want to turn toward.', 'Eat fruit to grow. Golden eggs are worth extra and grow you by 3.', 'Every 8 fruit is a new level: faster, with more rocks and logs.', "Don't hit the edge, a rock, or your own tail.", 'On a keyboard, use the arrow keys.'],
+      controls: ['Keep your finger on the screen and slide it the way you want to go. No need to lift it!', 'Or tap on the side of the board you want to turn toward.', 'Eat fruit to grow. Golden eggs are worth extra and grow you by 3.', 'Every 8 fruit is a new level: faster, with more rocks and logs.', "Don't hit the edge, a rock, or your own tail.", 'You start with one heart. Grab heart power-ups for more. If you crash, you come back at the same length.', 'On a keyboard, use the arrow keys.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => powOrb(g, k, 23, 14, 12) })),
-      init(){},
+      init(){ assets3D(); },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
-      start(mode, rand, lives, msg){ const R = mode === 'daily' ? mulberry(seedFrom('snake-daily-' + PB.today())) : rand; fresh(mode, R, lives, 'ready'); st.msg = msg ? msg + ' Swipe to go' : 'Swipe to start slithering'; },
+      start(mode, rand, lives, msg){ const R = mode === 'daily' ? mulberry(seedFrom('snake-daily-' + PB.today())) : rand; fresh(mode, R, 1, 'ready'); st.msg = 'Swipe to start slithering'; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      debug(){ return st; },
       metrics(){ return { score: st.score, eaten: st.eaten, level: st.level, length: st.snake.length }; },
       dailyGoals: [
         { text:'Eat {n} fruit', m:'eaten', n:[20, 30, 40] },

@@ -71,12 +71,12 @@
     }
     function loadLevel(){
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.rand;
-      const lv = genLevel(st.level + 3, R);
+      const lv = genLevel(st.level + 5, R);
       st.size = lv.size; st.exits = lv.exits;
       st.blocks = lv.blocks.map((b, i) => ({ ...b, id: i, vx: b.c, vy: b.r, out: null }));
       st.cell = Math.min(54, Math.floor(400 / st.size));
       st.bx = Math.round((W - st.cell * st.size) / 2); st.by = 160 + Math.round((440 - st.cell * st.size) / 2);
-      st.timeMax = Math.round((15 + st.blocks.length * 5.5) * Math.max(0.62, 1 - st.level * 0.015));
+      st.timeMax = Math.round((12 + st.blocks.length * 4.4) * Math.max(0.72, 1 - st.level * 0.012));
       st.time = st.timeMax; st.running = false; st.drag = null; st.freezes = 1; st.freezeT = 0;
     }
     const occupied = (self) => { const g = Array.from({length:st.size}, () => Array(st.size).fill(-1)); st.blocks.forEach(b => { if (!b.out && b.id !== self) b.cells.forEach(([dr,dc]) => g[b.r+dr][b.c+dc] = b.id); }); return g; };
@@ -138,7 +138,9 @@
       }
       for (const b of st.blocks) {
         if (b.out) { b.out.t += dt / 0.35; continue; }
-        b.vx += (b.c + (b.nx || 0) - b.vx) * Math.min(1, dt * 28); b.vy += (b.r + (b.ny || 0) - b.vy) * Math.min(1, dt * 28);
+        // while dragged the block glides right under your finger; let go and it settles into its square
+        const tx = b.fc != null ? b.fc : b.c, ty = b.fr != null ? b.fr : b.r, k = Math.min(1, dt * (b.fc != null || b.fr != null ? 36 : 22));
+        b.vx += (tx - b.vx) * k; b.vy += (ty - b.vy) * k;
       }
       if (st.bump) { st.bump.t -= dt; if (st.bump.t <= 0) st.bump = null; }
       for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vx *= 0.96; q.vy *= 0.96; q.life -= dt; }
@@ -207,7 +209,147 @@
       const glow = g.createRadialGradient(W/2, H * 0.55, 20, W/2, H * 0.55, 360); glow.addColorStop(0, 'rgba(61,255,181,.14)'); glow.addColorStop(1, 'rgba(61,255,181,0)');
       g.fillStyle = glow; g.fillRect(0, 0, W, H);
     }
+    // ---------- 3D look: jelly-glass blocks that lift when you drag them ----------
+    let E3 = null, A3 = null, boardKey = '', boardL = null;
+    function assets3D(){
+      if (A3) return A3; if (A3 === false) return null;
+      E3 = PB.gl3d && PB.gl3d.get(); if (!E3) { A3 = false; return null; }
+      A3 = { shapes: new Map(), pill: E3.mesh(E3.G.roundBox(1, 1, 1, 0.45, 4)), tBoard: null };
+      return A3;
+    }
+    const hex3 = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
+    function shapeMesh(b){
+      const cs = st.cell, key = cs + ':' + b.cells.map(p => p.join(',')).sort().join(';');
+      if (A3.shapes.has(key)) return A3.shapes.get(key);
+      const G = E3.G, M = E3.M, set = new Set(b.cells.map(([r, c]) => r + ',' + c)), parts = [], d = cs * 0.62, sz = cs - 6;
+      for (const [r, c] of b.cells) {
+        parts.push(G.transform(G.roundBox(sz, sz, d, Math.min(11, sz * 0.24), 5), M.trs([c * cs + cs / 2, -(r * cs + cs / 2), 0])));
+        if (set.has(r + ',' + (c + 1))) parts.push(G.transform(G.box(14, sz - 8, d - 4), M.trs([c * cs + cs, -(r * cs + cs / 2), 0])));
+        if (set.has((r + 1) + ',' + c)) parts.push(G.transform(G.box(sz - 8, 14, d - 4), M.trs([c * cs + cs / 2, -(r * cs + cs), 0])));
+      }
+      const m = E3.mesh(G.merge(parts)); A3.shapes.set(key, m); if (A3.shapes.size > 80) A3.shapes.delete(A3.shapes.keys().next().value);
+      return m;
+    }
+    // the backdrop with the board for this level painted in (repainted when the board size changes)
+    function paintBoardBackdrop(){
+      if (!bgL) paintBg();
+      if (!boardL) boardL = PB.layer(W, H);
+      const g = boardL[1], cs = st.cell, s = st.size, bw = cs * s;
+      g.clearRect(0, 0, W, H); g.drawImage(bgL[0], 0, 0, W, H);
+      g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 30; g.shadowOffsetY = 12;
+      const fr = g.createLinearGradient(0, st.by - 18, 0, st.by + bw + 18); fr.addColorStop(0, '#3a4f6e'); fr.addColorStop(0.5, '#1a2840'); fr.addColorStop(1, '#0c1424');
+      g.fillStyle = fr; g.beginPath(); g.roundRect(st.bx - 18, st.by - 18, bw + 36, bw + 36, 22); g.fill(); g.restore();
+      g.strokeStyle = 'rgba(160,210,255,.35)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(st.bx - 17, st.by - 17, bw + 34, bw + 34, 21); g.stroke();
+      for (const [qx, qy] of [[st.bx - 9, st.by - 9], [st.bx + bw + 9, st.by - 9], [st.bx - 9, st.by + bw + 9], [st.bx + bw + 9, st.by + bw + 9]]) { g.fillStyle = '#7f95b8'; g.beginPath(); g.arc(qx, qy, 3.2, 0, 7); g.fill(); g.fillStyle = '#2a3a55'; g.fillRect(qx - 2.2, qy - 0.6, 4.4, 1.2); }
+      g.fillStyle = '#081222'; g.beginPath(); g.roundRect(st.bx - 6, st.by - 6, bw + 12, bw + 12, 12); g.fill();
+      for (let r=0;r<s;r++) for (let c=0;c<s;c++) {
+        const x = st.bx + c*cs + 2, y = st.by + r*cs + 2, z = cs - 4;
+        const tg = g.createLinearGradient(0, y, 0, y + z); tg.addColorStop(0, '#132744'); tg.addColorStop(1, '#0a172a');
+        g.fillStyle = tg; g.beginPath(); g.roundRect(x, y, z, z, 7); g.fill();
+        g.strokeStyle = 'rgba(61,255,181,.1)'; g.lineWidth = 1; g.stroke();
+        g.fillStyle = 'rgba(160,210,255,.06)'; g.fillRect(x + 5, y + 3, z - 10, 2);
+      }
+      if (!A3.tBoard) A3.tBoard = E3.texture(boardL[0], { repeat: false }); else E3.updateTexture(A3.tBoard, boardL[0]);
+    }
+    function draw3D(tile){
+      const E = E3, M = E.M, P3 = E.px, cs = st.cell, bw = cs * st.size;
+      const key = st.size + '|' + cs + '|' + st.bx + '|' + st.by; if (key !== boardKey) { boardKey = key; paintBoardBackdrop(); }
+      E.resize(W, H, tile ? 1 : E.quality(1.5));
+      const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
+      E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {
+        noSky: true, sunDir: [0.55, -0.65, -0.5], sunColor: [1.05, 1.1, 1.2], ambSky: [0.16, 0.22, 0.32], ambGround: [0.04, 0.07, 0.1], toon: 0.2,
+        shadow: { center: [W / 2, -(st.by + bw / 2), 0], radius: 320 },
+        post: { bloom: 0.7, threshold: 0.82, saturation: 1.18, contrast: 1.08, vignette: 0.35 },
+      });
+      E.backdrop(A3.tBoard, W, H, { shadow: 0.55 });
+      // exits glow like neon doors
+      for (const e of st.exits) {
+        const c = hex3(COLS[e.color]), pulse = reduceMotion ? 1 : 0.75 + Math.sin(st.clock * 4 + e.color) * 0.25;
+        let x, y, w, h;
+        if (e.side === 'top') { x = st.bx + e.start*cs + 3; y = st.by - 14; w = e.len*cs - 6; h = 8; }
+        else if (e.side === 'bottom') { x = st.bx + e.start*cs + 3; y = st.by + bw + 6; w = e.len*cs - 6; h = 8; }
+        else if (e.side === 'left') { x = st.bx - 14; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
+        else { x = st.bx + bw + 6; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
+        E.draw(A3.pill, M.trs(P3(x + w / 2, y + h / 2, 6), [0, 0, 0], [w, h, 8]), { color: c, emissive: c.map(v => v * (0.6 + 0.5 * pulse)), spec: 1.2, shine: 60, noShadow: true });
+        E.light(P3(x + w / 2, y + h / 2, 30), c.map(v => v * 1.2 * pulse), 90);
+      }
+      // blocks
+      for (const b of st.blocks) {
+        let ox = 0, oy = 0, alpha = 1;
+        if (b.out) { if (b.out.t >= 1) continue; const [dr, dc] = DIRS[b.out.side], d = b.out.t * cs * 3; ox = dc * d; oy = dr * d; alpha = 1 - b.out.t; }
+        else if (st.bump && st.bump.id === b.id) ox = Math.sin(st.clock * 70) * 3;
+        const lifted = st.drag && st.drag.id === b.id, c = hex3(COLS[b.color]);
+        const x0 = st.bx + b.vx * cs + ox, y0 = st.by + b.vy * cs + oy, z = (lifted ? 26 : 12) + cs * 0.31;
+        const wob = lifted ? Math.sin(st.clock * 9) * 0.03 : 0;
+        E.draw(shapeMesh(b), M.trs(P3(x0, y0, z), [wob, -wob, 0], [1, 1, 1]), { color: c, emissive: c.map(v => v * (lifted ? 0.16 : 0.07)), spec: 1.8, shine: 120, rim: 0.4, alpha: alpha < 1 ? alpha : undefined });
+        // a glowing core inside every cell
+        for (const [r, cc] of b.cells) E.sprite(P3(x0 + cc * cs + cs / 2, y0 + r * cs + cs / 2, z + cs * 0.35), cs * 0.62, c.map(v => v * 0.7 + 0.3), 0.22 * alpha, true);
+      }
+      E.end(); if (!tile) E.present(ctx, W, H);
+    }
     function draw(){
+      if (assets3D()) return drawWith3D();
+      drawFlat();
+    }
+    function drawWith3D(){
+      draw3D();
+      ctx.save();
+      if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
+      const cs = st.cell, bw = cs * st.size;
+      if (!reduceMotion) { ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (const t of TRACES) {
+          const segs = t.pts.length - 1, u = ((st.clock * t.sp + t.ph) % 1) * segs, k = Math.floor(u), f = u - k;
+          const a = t.pts[k], b2 = t.pts[k + 1], px = a[0] + (b2[0] - a[0]) * f, py = a[1] + (b2[1] - a[1]) * f;
+          if (px > st.bx - 24 && px < st.bx + bw + 24 && py > st.by - 24 && py < st.by + bw + 24) continue;
+          const pg = ctx.createRadialGradient(px, py, 0, px, py, 14); pg.addColorStop(0, t.col); pg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.globalAlpha = 0.55; ctx.fillStyle = pg; ctx.fillRect(px - 14, py - 14, 28, 28);
+        }
+        ctx.restore(); }
+      drawHeader();
+      for (const e of st.exits) { const col = COLS[e.color], [dr, dc] = DIRS[e.side]; ctx.fillStyle = col; ctx.globalAlpha = 0.6;
+        let x, y, w, h;
+        if (e.side === 'top') { x = st.bx + e.start*cs + 3; y = st.by - 14; w = e.len*cs - 6; h = 8; } else if (e.side === 'bottom') { x = st.bx + e.start*cs + 3; y = st.by + bw + 6; w = e.len*cs - 6; h = 8; } else if (e.side === 'left') { x = st.bx - 14; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; } else { x = st.bx + bw + 6; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
+        for (let k=0;k<e.len;k++) { const cx = e.side === 'top' || e.side === 'bottom' ? st.bx + (e.start + k + 0.5)*cs : x + w/2 + dc * 14, cy = e.side === 'left' || e.side === 'right' ? st.by + (e.start + k + 0.5)*cs : y + h/2 + dr * 14;
+          ctx.beginPath(); if (dr) { ctx.moveTo(cx - 6, cy - dr*3); ctx.lineTo(cx + 6, cy - dr*3); ctx.lineTo(cx, cy + dr*5); } else { ctx.moveTo(cx - dc*3, cy - 6); ctx.lineTo(cx - dc*3, cy + 6); ctx.lineTo(cx + dc*5, cy); } ctx.closePath(); ctx.fill(); }
+        ctx.globalAlpha = 1; }
+      drawFooter();
+    }
+    function drawHeader(){
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = '#e9fff6'; ctx.font = `900 22px ${DISPLAY}`; ctx.fillText(st.mode === 'daily' ? `DAILY \u00b7 ${st.level}` : `LEVEL ${st.level}`, 22, 44);
+      const left = st.blocks.filter(b => !b.out).length;
+      ctx.fillStyle = '#8fb3cf'; ctx.font = `700 13px "Nunito", sans-serif`; ctx.fillText(`${left} block${left === 1 ? '' : 's'} to free`, 22, 66);
+      const frac = st.time / st.timeMax, tw = W - 44, ty = 84;
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.roundRect(22, ty, tw, 10, 5); ctx.fill();
+      const tc = st.freezeT > 0 ? '#9fe8ff' : frac > 0.5 ? '#3dffb5' : frac > 0.25 ? N.yellow : N.red;
+      ctx.save(); ctx.shadowColor = tc; ctx.shadowBlur = 10; ctx.fillStyle = tc; ctx.beginPath(); ctx.roundRect(22, ty, Math.max(10, tw * frac), 10, 5); ctx.fill(); ctx.restore();
+      ctx.textAlign = 'right'; ctx.fillStyle = '#e9fff6'; ctx.font = `700 16px ${DISPLAY}`; ctx.fillText(Math.ceil(st.time) + 's', W - 22, 66);
+    }
+    function drawFooter(){
+      const fy = H - 46;
+      ctx.globalAlpha = st.freezes > 0 && st.running ? 1 : 0.4;
+      ctx.save(); ctx.shadowColor = '#9fe8ff'; ctx.shadowBlur = st.freezeT > 0 ? 20 : 8;
+      ctx.strokeStyle = '#9fe8ff'; ctx.lineWidth = 2; ctx.fillStyle = '#0c1828';
+      ctx.beginPath(); ctx.roundRect(W/2 - 80, fy - 22, 160, 44, 22); ctx.fill(); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = '#dff8ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 14px ${DISPLAY}`;
+      ctx.fillText(st.freezeT > 0 ? `FROZEN ${Math.ceil(st.freezeT)}s` : `FREEZE TIME (${st.freezes})`, W/2, fy + 1);
+      ctx.globalAlpha = 1;
+      if (st.freezeT > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(120,200,255,.08)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+      ctx.globalCompositeOperation = 'lighter';
+      for (const q of st.parts) { ctx.globalAlpha = Math.max(0, q.life / 0.6); ctx.fillStyle = q.color; ctx.fillRect(q.x, q.y, q.size, q.size); }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      ctx.restore();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const q of st.pops) { ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.fillStyle = q.color; ctx.shadowColor = q.color; ctx.shadowBlur = 12; ctx.font = `900 22px ${DISPLAY}`; ctx.fillText(q.text, q.x, q.y); ctx.restore(); }
+      if (st.msg && st.phase === 'play') {
+        ctx.font = `900 16px ${DISPLAY}`;
+        const tw2 = Math.min(ctx.measureText(st.msg).width + 40, W - 30), y = st.by + st.cell * st.size / 2;
+        ctx.fillStyle = 'rgba(5,10,20,.88)'; ctx.beginPath(); ctx.roundRect(W/2 - tw2/2, y - 24, tw2, 48, 24); ctx.fill();
+        ctx.strokeStyle = '#3dffb5'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.fillText(st.msg, W/2, y + 1, W - 50);
+      }
+    }
+    function drawFlat(){
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
       if (!bgL) paintBg();
@@ -322,6 +464,7 @@
       return st.blocks.find(b => !b.out && b.cells.some(([dr,dc]) => b.r + dr === r && b.c + dc === c));
     }
     function artTile(g){
+      if (assets3D()) { const keep = st; fresh('classic', Math.random, 3, 'menu'); for (let i=0;i<st.blocks.length;i++) { st.blocks[i].vx = st.blocks[i].c; st.blocks[i].vy = st.blocks[i].r; } draw3D(true); const k = E3.canvas.height / H, bw = st.cell * st.size + 40, bh = bw * 0.75; g.drawImage(E3.canvas, (W / 2 - bw / 2) * k, (st.by + st.cell * st.size / 2 - bh / 2) * k, bw * k, bh * k, 0, 0, 240, 180); st = keep; return; }
       if (!bgL) paintBg();
       g.drawImage(bgL[0], 0, 120, 480, 360, 0, 0, 240, 180);
       const fr = g.createLinearGradient(0, 14, 0, 170); fr.addColorStop(0, '#3a4f6e'); fr.addColorStop(1, '#0c1424');
@@ -334,18 +477,19 @@
     return {
       id:'cubes', music:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
       tile:{ order:5, name:'Cube Escape', kind:'Neon block puzzle', art: artTile },
-      controls: ['Drag a block to slide it around the box.', 'Push it into the glowing bar of the same color to send it out.', 'The block has to fit inside the bar to get through.', 'Free every block before the timer runs out.', "If time runs out you lose a heart and try the level again."],
+      controls: ['Drag a block to slide it around the box.', 'Push it into the glowing bar of the same color to send it out.', 'The block has to line up with the bar to get through. Slide it level with the bar first!', 'Free every block before the timer runs out.', "If time runs out you lose a heart and try the level again."],
       powersTitle: 'Helpers',
       powers: [
         { name:'Freeze time', desc:'Stops the clock for 8 seconds. One per level', icon: g => { g.strokeStyle = '#9fe8ff'; g.lineWidth = 1.5; g.fillStyle = '#0c1828'; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#dff8ff'; g.font = '700 8px Orbitron, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('FREEZE', 23, 14); } },
         { name:'Time bonus', desc:'Seconds left over turn into points', icon: g => { g.fillStyle = '#3dffb5'; g.beginPath(); g.roundRect(4, 11, 38, 7, 3); g.fill(); } },
         { name:'Bonus life', desc:'Your streak gives extra hearts at the start', icon: g => { g.fillStyle = N.red; g.font = '900 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u2665', 23, 15); } },
       ],
-      init(){},
+      init(){ assets3D(); },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
       start(mode, rand, lives, msg){ fresh(mode, rand, lives, 'play'); st.msg = msg ? msg + ' Tap to start' : 'Level 1 \u00b7 Tap to start'; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      debug(){ return { st }; },
       metrics(){ return { score: st.score, level: st.level }; },
       dailyGoals: [
         { text:'Reach level {n}', m:'level', n:[3, 4, 5] },
@@ -357,35 +501,41 @@
         if (st.msg) { st.msg = null; st.running = true; return; }
         if (y > H - 70 && Math.abs(x - W/2) < 84) { if (st.freezes > 0 && st.running) { st.freezes--; st.freezeT = 8; if (PB.sfx) PB.sfx('power'); pop(W/2, H - 90, 'Time frozen!', '#9fe8ff'); } return; }
         const b = blockAt(x, y); if (!b) return;
-        st.drag = { id: b.id, x, y, r0: b.r, c0: b.c };
+        st.drag = { id: b.id, ax: x, ay: y, axis: null, br: b.r, bc: b.c };
       },
+      // Blocks slide along one line at a time (left/right or up/down), follow your finger smoothly, and stop
+      // at walls and other blocks. A block only leaves through an exit of its color when it lines up with it.
       pointerMove(x, y){
-        if (!st.drag) return;
-        const b = st.blocks[st.drag.id]; if (!b || b.out) { st.drag = null; return; }
-        const step = v => Math.sign(v) * Math.floor(Math.abs(v) + 0.62);   // a block moves once you drag about a third of a cell
-        const fr = (y - st.drag.y) / st.cell, fc = (x - st.drag.x) / st.cell;
-        const tr = st.drag.r0 + step(fr), tc = st.drag.c0 + step(fc);
-        const g = occupied(b.id);
-        for (let guard = 0; guard < 24; guard++) {
-          const dr = Math.sign(tr - b.r), dc = Math.sign(tc - b.c);
-          if (!dr && !dc) break;
-          const preferX = Math.abs(tc - b.c) >= Math.abs(tr - b.r);
-          let res = 'blocked';
-          if (preferX && dc) res = tryStep(b, 0, dc, g);
-          if (res === 'blocked' && dr) res = tryStep(b, dr, 0, g);
-          if (res === 'blocked' && !preferX && dc) res = tryStep(b, 0, dc, g);
-          if (res !== 'moved') break; if (PB.sfx) PB.sfx('slide');
+        const d = st.drag; if (!d) return;
+        const b = st.blocks[d.id]; if (!b || b.out) { st.drag = null; return; }
+        const fc = (x - d.ax) / st.cell, fr = (y - d.ay) / st.cell;
+        if (!d.axis) { if (Math.max(Math.abs(fc), Math.abs(fr)) < 0.18) return; d.axis = Math.abs(fc) >= Math.abs(fr) ? 'c' : 'r'; }
+        // switching direction: finish the current line (snap) and start a new one from here
+        const main = d.axis === 'c' ? fc : fr, perp = d.axis === 'c' ? fr : fc;
+        if (Math.abs(perp) > 0.45 && Math.abs(perp) > Math.abs(main - Math.round(main)) + 0.3 && Math.abs(perp) > Math.abs(main) * 0.6) {
+          b.fc = null; b.fr = null; d.br = b.r; d.bc = b.c; d.ax = x - (d.axis === 'c' ? 0 : fc * st.cell) * 0; d.ay = y;
+          d.ax = x; d.ay = y; d.axis = d.axis === 'c' ? 'r' : 'c'; return;
         }
-        if (!st.drag) return;
-        // if a wall stops the block, re-anchor so sliding back the other way responds right away
-        const wantR = st.drag.r0 + fr, wantC = st.drag.c0 + fc;
-        if (Math.abs(wantC - b.c) > 0.9) { st.drag.x = x - (b.c - st.drag.c0) * st.cell - Math.sign(wantC - b.c) * 0.4 * st.cell; }
-        if (Math.abs(wantR - b.r) > 0.9) { st.drag.y = y - (b.r - st.drag.r0) * st.cell - Math.sign(wantR - b.r) * 0.4 * st.cell; }
-        // the block leans toward your finger a little, so it feels like it glides
-        b.nx = Math.max(-0.22, Math.min(0.22, (st.drag.c0 + (x - st.drag.x) / st.cell - b.c) * 0.5));
-        b.ny = Math.max(-0.22, Math.min(0.22, (st.drag.r0 + (y - st.drag.y) / st.cell - b.r) * 0.5));
+        const g = occupied(b.id), dr = d.axis === 'r' ? 1 : 0, dc = d.axis === 'c' ? 1 : 0;
+        const reach = sgn => { let k = 0; for (;;) { const nr = d.br + dr * sgn * (k + 1), nc = d.bc + dc * sgn * (k + 1); let outside = false, ok = true;
+            for (const [r0, c0] of b.cells) { const r = nr + r0, c = nc + c0; if (r < 0 || r >= st.size || c < 0 || c >= st.size) { outside = true; continue; } if (g[r][c] !== -1) { ok = false; break; } }
+            if (!ok) return { k, exit: false };
+            if (outside) { const side = d.axis === 'r' ? (sgn < 0 ? 'top' : 'bottom') : (sgn < 0 ? 'left' : 'right'), e = st.exits.find(q => q.side === side && q.color === b.color);
+              if (!e) return { k, exit: false, side };
+              const along = side === 'top' || side === 'bottom', lo = Math.min(...b.cells.map(p => along ? d.bc + p[1] : d.br + p[0])), hi = Math.max(...b.cells.map(p => along ? d.bc + p[1] : d.br + p[0]));
+              return { k, exit: lo >= e.start && hi < e.start + e.len, side, wrong: true }; }
+            k++; if (k > 12) return { k, exit: false }; } };
+        const lo = reach(-1), hi = reach(1);
+        let pos = Math.max(-lo.k - (lo.exit ? 3 : 0.12), Math.min(hi.k + (hi.exit ? 3 : 0.12), main));
+        // pushing a block that doesn't line up against an exit gives a little "nope" bump
+        if ((main > hi.k + 0.35 && hi.wrong && !hi.exit) || (main < -lo.k - 0.35 && lo.wrong && !lo.exit)) { if (!(st.bump && st.bump.id === b.id)) { if (PB.sfx) PB.sfx('nope'); st.bump = { id: b.id, t: 0.2 }; } }
+        if ((hi.exit && pos > hi.k + 0.55) || (lo.exit && pos < -lo.k - 0.55)) { b.fc = null; b.fr = null; exitBlock(b, pos > 0 ? hi.side : lo.side); return; }
+        const cell = Math.max(-lo.k, Math.min(hi.k, Math.round(pos)));
+        const nr = d.br + dr * cell, nc = d.bc + dc * cell;
+        if (nr !== b.r || nc !== b.c) { b.r = nr; b.c = nc; if (PB.sfx) PB.sfx('slide'); }
+        if (d.axis === 'c') { b.fc = d.bc + pos; b.fr = null; } else { b.fr = d.br + pos; b.fc = null; }
       },
-      pointerUp(){ if (st.drag && st.blocks[st.drag.id]) { st.blocks[st.drag.id].nx = 0; st.blocks[st.drag.id].ny = 0; } st.drag = null; },
+      pointerUp(){ if (st.drag && st.blocks[st.drag.id]) { const b = st.blocks[st.drag.id]; b.fc = null; b.fr = null; b.nx = 0; b.ny = 0; } st.drag = null; },
       key(e){ if (e.key === ' ' && st.msg) { e.preventDefault(); st.msg = null; st.running = true; } },
     };
   }

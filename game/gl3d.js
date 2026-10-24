@@ -132,6 +132,24 @@
         const o = P.length / 3; P.push(x0, y0, z, x1, y1, z, x1, y1, -z, x0, y0, -z); for (let k=0;k<4;k++) N.push(nx, ny, 0); U.push(0, 0, 1, 0, 1, 1, 0, 1); I.push(o, o+2, o+1, o, o+3, o+2); }
       return { p: P, n: N, uv: U, idx: I };
     },
+    // a surface of revolution around y from a profile of [radius, y] points, listed from the bottom up
+    lathe(profile, seg = 32){
+      const P = [], N = [], U = [], I = [], n = profile.length;
+      for (let i=0;i<n;i++) { const [r, y] = profile[i], a = profile[Math.max(0, i - 1)], b = profile[Math.min(n - 1, i + 1)];
+        let tr = b[0] - a[0], ty = b[1] - a[1]; const tl = Math.hypot(tr, ty) || 1; const nr = ty / tl, ny = -tr / tl;
+        for (let j=0;j<=seg;j++) { const t = j / seg * Math.PI * 2, c = Math.cos(t), s = Math.sin(t); P.push(c * r, y, s * r); N.push(c * nr, ny, s * nr); U.push(j / seg, i / (n - 1)); } }
+      for (let i=0;i<n-1;i++) for (let j=0;j<seg;j++) { const a = i * (seg + 1) + j, b = a + seg + 1; I.push(a, b, a + 1, a + 1, b, b + 1); }
+      return { p: P, n: N, uv: U, idx: I };
+    },
+    // split every triangle so each facet gets its own flat normal (for cut gems)
+    faceted(g){
+      const P = [], N = [], U = [], I = [];
+      for (let t=0;t<g.idx.length;t+=3) { const ids = [g.idx[t], g.idx[t+1], g.idx[t+2]]; const v = ids.map(i => [g.p[i*3], g.p[i*3+1], g.p[i*3+2]]);
+        const ux = v[1][0]-v[0][0], uy = v[1][1]-v[0][1], uz = v[1][2]-v[0][2], wx = v[2][0]-v[0][0], wy = v[2][1]-v[0][1], wz = v[2][2]-v[0][2];
+        let nx = uy*wz - uz*wy, ny = uz*wx - ux*wz, nz = ux*wy - uy*wx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+        for (let k=0;k<3;k++) { P.push(...v[k]); N.push(nx, ny, nz); U.push(g.uv[ids[k]*2] || 0, g.uv[ids[k]*2+1] || 0); I.push(P.length / 3 - 1); } }
+      return { p: P, n: N, uv: U, idx: I };
+    },
     transform(g, m){
       const nm = M.normalMat(m), P = [], N = [];
       for (let i=0;i<g.p.length;i+=3) { const x = g.p[i], y = g.p[i+1], z = g.p[i+2]; P.push(m[0]*x + m[4]*y + m[8]*z + m[12], m[1]*x + m[5]*y + m[9]*z + m[13], m[2]*x + m[6]*y + m[10]*z + m[14]);
@@ -162,15 +180,15 @@
 
   // ---------------- shaders ----------------
   const VS = `#version 300 es
-  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor; layout(location=2) in vec2 aUV;
+  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor; layout(location=2) in vec2 aUV; layout(location=3) in vec4 aCol;
   uniform mat4 uModel, uVP, uLightVP; uniform mat3 uNM; uniform float uOutline;
-  out vec3 vW; out vec3 vN; out vec2 vUV; out vec4 vL;
-  void main(){ vec4 w = uModel * vec4(aPos, 1.0); vN = normalize(uNM * aNor); w.xyz += vN * uOutline; vW = w.xyz; vUV = aUV; vL = uLightVP * w; gl_Position = uVP * w; }`;
+  out vec3 vW; out vec3 vN; out vec2 vUV; out vec4 vL; out vec4 vCol;
+  void main(){ vec4 w = uModel * vec4(aPos, 1.0); vN = normalize(uNM * aNor); w.xyz += vN * uOutline; vW = w.xyz; vUV = aUV; vCol = aCol; vL = uLightVP * w; gl_Position = uVP * w; }`;
   const FS = `#version 300 es
   precision highp float; precision highp sampler2DShadow;
-  in vec3 vW; in vec3 vN; in vec2 vUV; in vec4 vL; out vec4 o;
-  uniform vec3 uColor, uEmis, uCam, uSunDir, uSunCol, uSky, uGround, uFog; uniform float uFogD, uSpec, uShine, uAlpha, uUnlit, uHasTex, uShadowOn, uRim, uFogStart, uToon;
-  uniform vec2 uUVs, uUVo; uniform sampler2D uTex; uniform sampler2DShadow uShadow;
+  in vec3 vW; in vec3 vN; in vec2 vUV; in vec4 vL; in vec4 vCol; out vec4 o;
+  uniform vec3 uColor, uEmis, uCam, uSunDir, uSunCol, uSky, uGround, uFog; uniform float uFogD, uSpec, uShine, uAlpha, uUnlit, uHasTex, uShadowOn, uRim, uFogStart, uToon, uRaw, uRecv;
+  uniform vec2 uUVs, uUVo; uniform sampler2D uTex; uniform sampler2DShadow uShadow; uniform float uOrtho; uniform vec3 uViewDir;
   uniform vec3 uPL[6]; uniform vec3 uPC[6]; uniform float uPR[6]; uniform int uPN;
   vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }
   float shadow(){
@@ -180,11 +198,13 @@
     return s / 9.0;
   }
   void main(){
-    vec4 base = vec4(uColor, uAlpha);
+    vec4 base = vec4(uColor, uAlpha) * vCol;
     if (uHasTex > 0.5) { vec4 t = texture(uTex, vUV * uUVs + uUVo); base.rgb *= pow(t.rgb, vec3(2.2)); base.a *= t.a; }
     if (base.a < 0.02) discard;
     vec3 col;
-    vec3 V = normalize(uCam - vW);
+    // painted backdrops: shown exactly as painted, darkened only where something casts a shadow
+    if (uRaw > 0.5) { col = base.rgb; if (uRecv > 0.0 && uShadowOn > 0.5) col *= mix(1.0 - uRecv, 1.0, shadow()); o = vec4(pow(col, vec3(1.0/2.2)), base.a); return; }
+    vec3 V = uOrtho > 0.5 ? normalize(-uViewDir) : normalize(uCam - vW);
     if (uUnlit > 0.5) col = base.rgb + uEmis;
     else {
       vec3 N = normalize(vN); if (!gl_FrontFacing) N = -N;
@@ -358,12 +378,67 @@
       const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
       const usage = g.dynamic ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW;
       const put = (data, loc, size) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), usage); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0); return b; };
-      const bp = put(g.p, 0, 3), bn = put(g.n, 1, 3); put(g.uv, 2, 2);
+      const bp = put(g.p, 0, 3), bn = put(g.n, 1, 3); put(g.uv, 2, 2); if (g.col) put(g.col, 3, 4);
       const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
       const big = g.p.length / 3 > 65535;
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, big ? new Uint32Array(g.idx) : new Uint16Array(g.idx), gl.STATIC_DRAW);
       gl.bindVertexArray(null);
-      return { vao, count: g.idx.length, type: big ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, bp, bn };
+      return { vao, count: g.idx.length, type: big ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, bp, bn, g: g.dynamic ? null : g };
+    };
+    // Meshes without per-vertex colors read this constant white color.
+    gl.vertexAttrib4f(3, 1, 1, 1, 1);
+
+    // ---- Baking: record the parts a function draws (in its own local space) once, then merge parts that
+    // share a material into single meshes with per-vertex colors. A house of 25 parts becomes ~4 draws.
+    let recording = null;
+    const looseKey = m => [m.tex ? (m.tex.__bid || (m.tex.__bid = ++bakeIds)) : 0, m.unlit ? 1 : 0, (m.emissive && (m.emissive[0] || m.emissive[1] || m.emissive[2])) ? m.emissive.join(',') : 0, m.alpha ?? 1, m.additive ? 1 : 0, m.blend ? 1 : 0, m.doubleSided ? 1 : 0, m.noShadow ? 1 : 0, m.outline || 0].join('|');
+    const matKey = m => [m.tex ? (m.tex.__bid || (m.tex.__bid = ++bakeIds)) : 0, m.spec ?? 0.25, m.shine ?? 32, m.unlit ? 1 : 0, m.rim || 0, (m.emissive || [0,0,0]).join(','), m.alpha ?? 1, m.additive ? 1 : 0, m.blend ? 1 : 0, m.doubleSided ? 1 : 0, m.noShadow ? 1 : 0, m.fogless ? 1 : 0, m.outline || 0].join('|');
+    let bakeIds = 0;
+    // opts.loose: parts that differ only in shininess are merged too (fine for small scenery bits)
+    E.bake = (fn, opts) => {
+      recording = []; try { fn(); } finally { var rec = recording; recording = null; }
+      const groups = new Map(), keyOf = opts && opts.loose ? looseKey : matKey;
+      for (const r of rec) {
+        const g = r.mesh.g; if (!g) continue;
+        const k = keyOf(r.mat); if (!groups.has(k)) groups.set(k, { mat: r.mat, parts: [] });
+        groups.get(k).parts.push(r);
+      }
+      const out = [];
+      for (const { mat, parts } of groups.values()) {
+        const P = [], N = [], U = [], C = [], I = [];
+        for (const { mesh, model, mat: m } of parts) {
+          const g = mesh.g, t = G.transform(g, model), o = P.length / 3, us = m.uvScale || [1, 1], uo = m.uvOffset || [0, 0];
+          const c = m.color || [1, 1, 1], lc = [Math.pow(c[0], 2.2), Math.pow(c[1], 2.2), Math.pow(c[2], 2.2)];
+          for (let i=0;i<t.p.length;i++) { P.push(t.p[i]); N.push(t.n[i]); }
+          for (let i=0;i<g.uv.length;i+=2) U.push(g.uv[i] * us[0] + uo[0], g.uv[i+1] * us[1] + uo[1]);
+          for (let i=0;i<g.p.length/3;i++) C.push(lc[0], lc[1], lc[2], 1);
+          for (const i of g.idx) I.push(i + o);
+        }
+        const merged = E.mesh({ p: P, n: N, uv: U, col: C, idx: I }); merged.g = null;
+        const bm = { ...mat, color: [1, 1, 1], uvScale: null, uvOffset: null, baked: true };
+        out.push({ mesh: merged, mat: bm, outline: !!mat.outline });
+      }
+      return out;
+    };
+    // flat-camera helpers: game pixel (x, y) at height z above the board
+    E.px = (x, y, z = 0) => [x, -y, z];
+    let quadMesh = null;
+    E.backdrop = (texture, w, h, opts = {}) => { if (!quadMesh) quadMesh = E.mesh(G.quad(1, 1)); queue.push({ mesh: quadMesh, model: M.trs([w / 2, -h / 2, opts.z || 0], [0, 0, 0], [w, h, 1]), mat: { tex: texture, raw: true, recv: opts.shadow ?? 0.4, noShadow: true } }); };
+    // replace the pixels of a texture made with E.texture (for painted backdrops that change now and then)
+    E.updateTexture = (t, src) => { gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); gl.generateMipmap(gl.TEXTURE_2D); };
+    E.drawBaked = (prefab, model, extra) => { for (const g of prefab) queue.push({ mesh: g.mesh, model, mat: extra ? { ...g.mat, ...extra } : g.mat }); };
+    // ---- Automatic resolution: render as sharp as the device can keep smooth (60 fps).
+    const Q = { scale: 0, max: 1.5, ema: 1 / 60, t: 0, last: 0 };
+    E.quality = (maxScale) => {
+      const now = performance.now(), dt = Math.min(0.1, (now - (Q.last || now)) / 1000); Q.last = now;
+      const want = Math.min(maxScale || 1.5, Math.max(1, window.devicePixelRatio || 1));
+      if (!Q.scale || Q.max !== want) { Q.max = want; Q.scale = want; Q.t = 0; }
+      if (dt > 0 && dt < 0.09) {
+        Q.ema += (dt - Q.ema) * 0.06; Q.t += dt;
+        if (Q.t > 0.9 && Q.ema > 1 / 50 && Q.scale > 0.85) { Q.scale = Math.max(0.85, Q.scale * 0.86); Q.t = 0; Q.ema = 1 / 60; }
+        else if (Q.t > 4 && Q.ema < 1 / 58.5 && Q.scale < Q.max) { Q.scale = Math.min(Q.max, Q.scale * 1.1); Q.t = 0; }
+      }
+      return Q.scale;
     };
     // replace vertex positions/normals of a mesh made with { dynamic: true } (same vertex count)
     E.updateMesh = (m, p, n) => { gl.bindBuffer(gl.ARRAY_BUFFER, m.bp); gl.bufferSubData(gl.ARRAY_BUFFER, 0, p); gl.bindBuffer(gl.ARRAY_BUFFER, m.bn); gl.bufferSubData(gl.ARRAY_BUFFER, 0, n); };
@@ -381,14 +456,16 @@
     const queue = [], sprites = [], lights = [];
     let cam = null, env = null;
     E.begin = (camera, environment) => { cam = camera; env = environment; queue.length = 0; sprites.length = 0; lights.length = 0; };
-    E.draw = (mesh, model, mat) => { queue.push({ mesh, model, mat }); };
+    E.draw = (mesh, model, mat) => { (recording || queue).push({ mesh, model, mat }); };
     E.light = (pos, color, range) => { if (lights.length < 6) lights.push({ pos, color, range }); };
     E.sprite = (pos, size, color, alpha = 1, additive = true, rot = 0, texture = null, stretch = null) => { sprites.push({ pos, size, color, alpha, additive, rot, texture, stretch }); };
     E.project = (p) => { const v = M.xform(E.vp, p); return [(v[0] * 0.5 + 0.5) * W, (1 - (v[1] * 0.5 + 0.5)) * H, v[2]]; };
     E.unproject = (sx, sy, depth) => { const inv = M.invert(E.vp); const x = sx / W * 2 - 1, y = 1 - sy / H * 2; return M.xform(inv, [x, y, depth]); };
     E.end = () => {
       const asp = W / H;
-      const P = M.persp(cam.fov || 0.9, asp, cam.near || 0.1, cam.far || 500);
+      // cam.ortho = [w, h]: a flat camera where world (x, -y) is exactly game pixel (x, y); z comes toward you
+      if (cam.ortho) { cam.pos = cam.pos || [0, 0, 1500]; cam.target = cam.target || [0, 0, 0]; }
+      const P = cam.ortho ? M.ortho(0, cam.ortho[0], -cam.ortho[1], 0, 1, 3000) : M.persp(cam.fov || 0.9, asp, cam.near || 0.1, cam.far || 500);
       const V = M.lookAt(cam.pos, cam.target, cam.up || [0, 1, 0]);
       const VP = M.mul(P, V); E.vp = VP;
       const sd = env.sunDir; const sl = Math.hypot(...sd); const L = [sd[0]/sl, sd[1]/sl, sd[2]/sl];
@@ -405,7 +482,7 @@
         gl.enable(gl.CULL_FACE); gl.cullFace(gl.FRONT); gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
         gl.useProgram(sprog.p); gl.uniformMatrix4fv(sprog.u.uLightVP, false, LVP);
         const scx = c[0], scz = c[2], sr2 = (r * 1.6) * (r * 1.6);
-        for (const q of queue) { if (q.mat.noShadow || q.mat.unlit || (q.mat.alpha != null && q.mat.alpha < 1)) continue; const dx = q.model[12] - scx, dz = q.model[14] - scz; if (dx * dx + dz * dz > sr2) continue; gl.uniformMatrix4fv(sprog.u.uModel, false, q.model); gl.bindVertexArray(q.mesh.vao); gl.drawElements(gl.TRIANGLES, q.mesh.count, q.mesh.type, 0); }
+        for (const q of queue) { if (q.mat.noShadow || q.mat.unlit || q.mat.raw || (q.mat.alpha != null && q.mat.alpha < 1)) continue; const dx = q.model[12] - scx, dz = q.model[14] - scz; if (dx * dx + dz * dz > sr2) continue; gl.uniformMatrix4fv(sprog.u.uModel, false, q.model); gl.bindVertexArray(q.mesh.vao); gl.drawElements(gl.TRIANGLES, q.mesh.count, q.mesh.type, 0); }
         gl.disable(gl.POLYGON_OFFSET_FILL); gl.cullFace(gl.BACK); gl.colorMask(true, true, true, true);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       }
@@ -414,9 +491,10 @@
       if (env.post && E.postOn !== false) { PP = ensurePost(canvas.width, canvas.height); if (!PP.ok) PP = null; }
       gl.bindFramebuffer(gl.FRAMEBUFFER, PP ? PP.msFB : null);
       gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      const cc = env.clear || [0, 0, 0]; gl.clearColor(cc[0], cc[1], cc[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       // sky
       gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
+      if (!env.noSky) {
       gl.useProgram(sky.p); gl.uniformMatrix4fv(sky.u.uInvVP, false, M.invert(VP));
       const s = env.sky || {};
       gl.uniform3fv(sky.u.uZen, lin(s.zenith || [0.2, 0.4, 0.8])); gl.uniform3fv(sky.u.uHor, lin(s.horizon || [0.8, 0.85, 0.9])); gl.uniform3fv(sky.u.uGnd, lin(s.ground || [0.3, 0.3, 0.3]));
@@ -424,6 +502,7 @@
       gl.uniform1f(sky.u.uHasTex, s.tex ? 1 : 0); gl.uniform1f(sky.u.uTexBright, s.texBright || 1);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, s.tex || white); gl.uniform1i(sky.u.uTex, 0);
       gl.bindVertexArray(skyVao); gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
       // meshes
       gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
       gl.useProgram(prog.p); const u = prog.u;
@@ -432,6 +511,7 @@
       gl.uniform3fv(u.uSky, lin(env.ambSky || [0.4, 0.5, 0.7])); gl.uniform3fv(u.uGround, lin(env.ambGround || [0.25, 0.22, 0.2]));
       gl.uniform3fv(u.uFog, lin(env.fogColor || [0.7, 0.75, 0.8])); gl.uniform1f(u.uFogD, env.fogDensity || 0); gl.uniform1f(u.uFogStart, env.fogStart || 0);
       gl.uniform1f(u.uShadowOn, shadowOn ? 1 : 0); gl.uniform1f(u.uToon, env.toon || 0);
+      gl.uniform1f(u.uOrtho, cam.ortho ? 1 : 0); { const d = [cam.target[0] - cam.pos[0], cam.target[1] - cam.pos[1], cam.target[2] - cam.pos[2]], l = Math.hypot(...d) || 1; gl.uniform3f(u.uViewDir, d[0] / l, d[1] / l, d[2] / l); }
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, shadowTex); gl.uniform1i(u.uShadow, 1);
       gl.uniform1i(u.uPN, lights.length);
       if (lights.length) { gl.uniform3fv(u.uPL, lights.flatMap(l => l.pos)); gl.uniform3fv(u.uPC, lights.flatMap(l => l.color)); gl.uniform1fv(u.uPR, lights.map(l => l.range)); }
@@ -439,25 +519,36 @@
       const opaque = queue.filter(q => !(q.mat.alpha < 1) && !q.mat.blend), trans = queue.filter(q => q.mat.alpha < 1 || q.mat.blend);
       const dist = q => { const m = q.model; return Math.hypot(m[12] - cam.pos[0], m[13] - cam.pos[1], m[14] - cam.pos[2]); };
       trans.sort((a, b) => dist(b) - dist(a));
+      // cache of the last values sent, so unchanged state is not sent again
+      const S = { raw: -1, recv: -1, tex: -1, cull: -1, spec: -1, shine: -1, alpha: -1, unlit: -1, rim: -1, hasTex: -1, outline: -1, uvs0: -1, uvs1: -1, uvo0: -1, uvo1: -1, col: [-1, -1, -1], emis: [-1, -1, -1] };
+      const f1 = (loc, key, v) => { if (S[key] !== v) { S[key] = v; gl.uniform1f(loc, v); } };
+      const v3 = (loc, key, a, b, c) => { const k = S[key]; if (k[0] !== a || k[1] !== b || k[2] !== c) { k[0] = a; k[1] = b; k[2] = c; gl.uniform3f(loc, a, b, c); } };
+      gl.activeTexture(gl.TEXTURE0);
       const drawList = (list) => {
         for (const q of list) {
-          const m = q.mat;
-          gl.uniformMatrix4fv(u.uModel, false, q.model); gl.uniformMatrix3fv(u.uNM, false, M.normalMat(q.model));
-          gl.uniform3fv(u.uColor, lin(m.color || [1, 1, 1])); gl.uniform3fv(u.uEmis, m.emissive || [0, 0, 0]);
-          gl.uniform1f(u.uSpec, m.spec ?? 0.25); gl.uniform1f(u.uShine, m.shine ?? 32); gl.uniform1f(u.uAlpha, m.alpha ?? 1);
-          gl.uniform1f(u.uUnlit, m.unlit ? 1 : 0); gl.uniform1f(u.uRim, m.rim || 0);
-          gl.uniform1f(u.uHasTex, m.tex ? 1 : 0); gl.uniform2fv(u.uUVs, m.uvScale || [1, 1]); gl.uniform2fv(u.uUVo, m.uvOffset || [0, 0]);
-          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, m.tex || white);
-          gl.uniform1f(u.uOutline, m.outline || 0);
-          if (m.outline) { gl.enable(gl.CULL_FACE); gl.cullFace(gl.FRONT); } else { gl.cullFace(gl.BACK); if (m.doubleSided) gl.disable(gl.CULL_FACE); else gl.enable(gl.CULL_FACE); }
+          const m = q.mat, mm = q.model;
+          gl.uniformMatrix4fv(u.uModel, false, mm); normalMat3(mm, NM); gl.uniformMatrix3fv(u.uNM, false, NM);
+          const c = m.color || ONE; v3(u.uColor, 'col', Math.pow(c[0], 2.2), Math.pow(c[1], 2.2), Math.pow(c[2], 2.2));
+          const e = m.emissive || ZERO; v3(u.uEmis, 'emis', e[0], e[1], e[2]);
+          f1(u.uSpec, 'spec', m.spec ?? 0.25); f1(u.uShine, 'shine', m.shine ?? 32); f1(u.uAlpha, 'alpha', m.alpha ?? 1);
+          f1(u.uUnlit, 'unlit', m.unlit ? 1 : 0); f1(u.uRaw, 'raw', m.raw ? 1 : 0); f1(u.uRecv, 'recv', m.recv || 0); f1(u.uRim, 'rim', m.rim || 0); f1(u.uHasTex, 'hasTex', m.tex ? 1 : 0);
+          const us = m.uvScale || ONE2, uo = m.uvOffset || ZERO2;
+          if (S.uvs0 !== us[0] || S.uvs1 !== us[1]) { S.uvs0 = us[0]; S.uvs1 = us[1]; gl.uniform2f(u.uUVs, us[0], us[1]); }
+          if (S.uvo0 !== uo[0] || S.uvo1 !== uo[1]) { S.uvo0 = uo[0]; S.uvo1 = uo[1]; gl.uniform2f(u.uUVo, uo[0], uo[1]); }
+          const t = m.tex || white; if (S.tex !== t) { S.tex = t; gl.bindTexture(gl.TEXTURE_2D, t); }
+          f1(u.uOutline, 'outline', m.outline || 0);
+          const cull = m.outline ? 2 : m.doubleSided ? 0 : 1;
+          if (S.cull !== cull) { S.cull = cull; if (cull === 0) gl.disable(gl.CULL_FACE); else { gl.enable(gl.CULL_FACE); gl.cullFace(cull === 2 ? gl.FRONT : gl.BACK); } }
           if (m.fogless) gl.uniform1f(u.uFogD, 0);
           gl.bindVertexArray(q.mesh.vao); gl.drawElements(gl.TRIANGLES, q.mesh.count, q.mesh.type, 0);
           if (m.fogless) gl.uniform1f(u.uFogD, env.fogDensity || 0);
         }
       };
+      if (E.collectStats) { let t = 0; for (const q of queue) t += q.mesh.count / 3; E.stats = { draws: queue.length, tris: Math.round(t), sprites: sprites.length, w: canvas.width, h: canvas.height }; }
       drawList(opaque);
       gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
-      for (const q of trans) { if (q.mat.additive) gl.blendFunc(gl.SRC_ALPHA, gl.ONE); else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); drawList([q]); }
+      const one = [null];
+      for (const q of trans) { if (q.mat.additive) gl.blendFunc(gl.SRC_ALPHA, gl.ONE); else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); one[0] = q; drawList(one); }
       // sprites (billboards)
       if (sprites.length) {
         const right = [V[0], V[4], V[8]], up = [V[1], V[5], V[9]];
@@ -486,6 +577,16 @@
       if (PP) runPost(PP, env.post);
       gl.bindVertexArray(null);
     };
+    const NM = new Float32Array(9), ONE = [1, 1, 1], ZERO = [0, 0, 0], ONE2 = [1, 1], ZERO2 = [0, 0];
+    // inverse-transpose of the upper 3x3 (for lighting normals), written into o without allocating
+    function normalMat3(m, o){
+      const a = m[0], b = m[1], c = m[2], d = m[4], e = m[5], f = m[6], g = m[8], h = m[9], i = m[10];
+      const A = e*i - f*h, B = -(d*i - f*g), C = d*h - e*g; let det = a*A + b*B + c*C; det = det ? 1 / det : 1;
+      o[0] = A*det; o[1] = B*det; o[2] = C*det;
+      o[3] = -(b*i - c*h)*det; o[4] = (a*i - c*g)*det; o[5] = -(a*h - b*g)*det;
+      o[6] = (b*f - c*e)*det; o[7] = -(a*f - c*d)*det; o[8] = (a*e - b*d)*det;
+      return o;
+    }
     function lin(c){ return [Math.pow(c[0], 2.2), Math.pow(c[1], 2.2), Math.pow(c[2], 2.2)]; }
     E.hex = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
     return E;

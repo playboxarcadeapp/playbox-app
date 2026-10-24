@@ -118,6 +118,12 @@
     oof: t => critter(t, 330, 170, 0.22, 0.24),
     nom: t => { critter(t, 600, 700, 0.06, 0.12); critter(t + 0.08, 640, 520, 0.07, 0.12); },
     yay: t => { critter(t, 600, 1000, 0.12, 0.18); critter(t + 0.14, 800, 1250, 0.2, 0.18, 6); },
+    // happy jump voices: a two-part "woo-hoo!" with a little sparkle on top
+    woohoo: t => { critter(t, 460, 780, 0.12, 0.19); critter(t + 0.14, 820, 1120, 0.26, 0.19, 7); twinkle(t + 0.08); },
+    yippee: t => { critter(t, 700, 1050, 0.09, 0.17); critter(t + 0.12, 1000, 1320, 0.25, 0.17, 8); twinkle(t + 0.06); },
+    wahoo: t => { critter(t, 380, 640, 0.13, 0.2); critter(t + 0.15, 720, 1020, 0.24, 0.19, 6); twinkle(t + 0.1); },
+    tick: (t, x) => { const f = 880 * Math.pow(2, Math.min(1.5, x || 0)); voice(sfxBus, t, f, { type: ['square', 'sine'], mult: [1, 2], vol: 0.06, d: 0.06, s: 0.01, len: 0.01, cut: 5000 }); },
+    fanfare: t => { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => voice(sfxBus, t + i * 0.07, f, { type: ['triangle', 'square'], mult: [1, 2], vol: 0.08, d: 0.18, s: 0.3, len: i === 5 ? 0.45 : 0.04, r: 0.3, cut: 5000 })); twinkle(t + 0.45); twinkle(t + 0.6); },
     bark: t => { for (const dt of [0, 0.16]) { critter(t + dt, 420, 260, 0.09, 0.26); noise(sfxBus, t + dt, { ft: 'bandpass', f: 700, q: 1.5, vol: 0.12, len: 0.08 }); } },
     step: t => noise(sfxBus, t, { ft: 'bandpass', f: 900 + Math.random() * 300, q: 2, vol: 0.05, len: 0.04 }),
     land: t => { noise(sfxBus, t, { ft: 'lowpass', f: 600, vol: 0.18, len: 0.12 }); voice(sfxBus, t, 120, { type: 'sine', slide: 0.6, vol: 0.18, d: 0.1, s: 0.01, len: 0.02 }); },
@@ -128,6 +134,7 @@
     exit: t => [523, 784, 1047, 1568].forEach((f, i) => voice(sfxBus, t + i * 0.05, f, { type: 'triangle', vol: 0.12, d: 0.15, s: 0.1, len: 0.03, r: 0.1 })),
     lose: t => [392, 370, 349, 294].forEach((f, i) => voice(sfxBus, t + i * 0.2, f, { type: 'triangle', vol: 0.16, d: 0.2, s: 0.4, len: i === 3 ? 0.5 : 0.12, r: 0.25, vib: i === 3 ? 6 : 0 })),
   };
+  function twinkle(t){ [2093, 2637, 3136].forEach((f, i) => voice(sfxBus, t + i * 0.045, f, { type: 'sine', vol: 0.035, d: 0.18, s: 0.01, len: 0.01 })); }
   function critter(t, f0, f1, len, vol, vib){
     const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + len);

@@ -80,10 +80,14 @@
       if (bricks.length < 12) return newLevel(level);
       return bricks;
     }
-    const baseSpeed = () => 300 + Math.min(st.level, 12)*25;
+    // Ball speed: each level starts slow and builds up the longer you stay in it, topping out at the old full speed.
+    const topSpeed = () => Math.min(640, (300 + Math.min(st.level, 12)*25) * 1.12);
+    const startSpeed = () => 235 + Math.min(st.level, 12)*6;
+    const RAMP_TIME = 75; // seconds in a level to reach top speed
+    const baseSpeed = () => { const t = Math.min(1, (st.levelTime || 0) / RAMP_TIME); const e = t * t * (3 - 2 * t); return startSpeed() + (topSpeed() - startSpeed()) * e; };
     function fresh(mode, rand, lives, phase){
       st = { mode, phase, score:0, level:1, lives, nextLife: LIFE_EVERY, rand, parts:[], pops:[], shards:[], rings:[], flash:0, shake:0, msg:null };
-      st.bricks = newLevel(1); st.bdirty = true; st.dropsLeft = 2; st.time = 0;
+      st.bricks = newLevel(1); st.bdirty = true; st.dropsLeft = 2; st.time = 0; st.levelTime = 0;
       st.paddle = { x: W/2 - BASE_W/2, w: BASE_W, h: 14, y: PADDLE_Y };
       clearRound();
     }
@@ -93,7 +97,7 @@
       st.balls = [{ x: W/2, y: st.paddle.y - 10, r: 9, vx: 0, vy: -baseSpeed(), held:true, off:0, trail:[] }];
     }
     function nextLevel(){
-      addPoints(100 * st.level); st.level++; st.flash = 1;
+      addPoints(100 * st.level); st.level++; st.flash = 1; st.levelTime = 0;
       st.bricks = newLevel(st.level); st.bdirty = true; st.dropsLeft = Math.min(MAX_DROPS, 2 + Math.floor(st.level / 3));
       clearRound(); updatePaddleW(); st.msg = 'Level ' + st.level + '! Tap to go';
     }
@@ -104,7 +108,7 @@
     function fire(b){
       const p = st.paddle;
       const ang = b.off === 0 ? (st.rand() < .5 ? -0.35 : 0.35) : Math.max(-0.95, Math.min(0.95, b.off/(p.w/2))) * 1.05;
-      const sp = Math.max(Math.hypot(b.vx, b.vy), baseSpeed());
+      const sp = baseSpeed();
       b.vx = sp*Math.sin(ang); b.vy = -Math.abs(sp*Math.cos(ang)); b.held = false;
     }
     function launch(){
@@ -127,7 +131,7 @@
     }
     function pop(x,y,text,color,life){ st.pops.push({ x, y, text, color: color||'#fff', life: life||0.9 }); }
     function breakBrick(k){
-      k.hp--; st.bdirty = true;
+      k.hp--; st.bdirty = true; k.hit = 0.3;
       if (k.hp > 0) { addPoints(5); burst(k.x+k.w/2, k.y+k.h/2, '#fff', 5); st.shake = Math.max(st.shake, 2); return; }
       st.combo++;
       const mult = Math.min(1 + Math.floor(st.combo/4), 5), pts = 10 * mult; addPoints(pts);
@@ -166,8 +170,11 @@
       for (const k in fx) if (fx[k] > 0) { fx[k] = Math.max(0, fx[k] - dt); if (fx[k] === 0 && (k==='wide'||k==='shrink')) updatePaddleW(); }
       if (fx.magnet === 0 && !st.msg) for (const b of st.balls) if (b.held) fire(b);
       const slow = fx.slow > 0 ? 0.6 : 1;
+      if (!st.msg && st.balls.some(b => !b.held)) st.levelTime += dt;
+      const want = baseSpeed();
       for (const b of st.balls) {
         if (b.held) { b.x = p.x + p.w/2 + b.off; b.y = p.y - b.r - 1; b.trail.length = 0; continue; }
+        { const cur = Math.hypot(b.vx, b.vy) || 1, k = want / cur; b.vx *= k; b.vy *= k; }
         b.x += b.vx*dt*slow; b.y += b.vy*dt*slow;
         if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx); }
         if (b.x > W-b.r) { b.x = W-b.r; b.vx = -Math.abs(b.vx); }
@@ -190,7 +197,6 @@
             if (fx.fire > 0) { k.hp = 1; breakBrick(k); continue; }
             breakBrick(k);
             if (Math.abs(dx) > Math.abs(dy)) b.vx = -b.vx; else b.vy = -b.vy;
-            if (Math.hypot(b.vx,b.vy) < 640) { b.vx *= 1.012; b.vy *= 1.012; }
             break;
           }
         }
@@ -216,6 +222,7 @@
       if (st.bricks.every(k => k.hp <= 0)) nextLevel();
     }
     function effects(dt){
+      for (const k of st.bricks) if (k.hit > 0) k.hit = Math.max(0, k.hit - dt);
       for (const q of st.shards) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 620*dt; q.r += q.vr*dt; q.life -= dt; }
       st.shards = st.shards.filter(q => q.life > 0 && q.y < H + 20);
       for (const q of st.rings) { q.r += 220*dt; q.life -= dt; }
@@ -265,9 +272,89 @@
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 11px ${DISPLAY}`;
       g.fillText(P.label, x+w/2, y+h/2+1);
     }
+    // ---------- 3D look: glossy glowing bricks, a chrome hover-paddle and a ball that lights up the bricks ----------
+    let E3 = null, A3 = null;
+    function assets3D(){
+      if (A3) return A3; if (A3 === false) return null;
+      E3 = PB.gl3d && PB.gl3d.get(); if (!E3) { A3 = false; return null; }
+      const G = E3.G, M = E3.M, T = (g, t, r, sc) => G.transform(g, M.trs(t, r || [0,0,0], sc || [1,1,1]));
+      const crack = document.createElement('canvas'); crack.width = 128; crack.height = 48; { const g = crack.getContext('2d'); g.strokeStyle = 'rgba(10,6,30,.9)'; g.lineWidth = 2.5; g.lineCap = 'round'; g.beginPath(); g.moveTo(38, 0); g.lineTo(56, 22); g.lineTo(46, 48); g.moveTo(56, 22); g.lineTo(88, 16); g.lineTo(104, 30); g.moveTo(56, 22); g.lineTo(70, 36); g.stroke(); g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(40, 0); g.lineTo(58, 21); g.lineTo(90, 14); g.stroke(); }
+      A3 = {
+        brick: E3.mesh(G.roundBox(52, 20, 16, 6, 7)), core: E3.mesh(G.roundBox(40, 11, 6, 4, 3)),
+        frame: E3.mesh(G.roundBox(52, 20, 12, 5, 3)), rivet: E3.mesh(G.sphere(1, 10, 8)),
+        ball: E3.mesh(G.sphere(1, 28, 20)), chunk: E3.mesh(G.roundBox(1, 1, 1, 0.25, 2)),
+        paddle: E3.mesh(G.merge([T(G.cylinder(1, 1, 1, 28, false), [0, 0, 0], [0, 0, Math.PI / 2]), T(G.sphere(1, 24, 16), [0.5, 0, 0], [0, 0, 0], [0.02, 1, 1]), T(G.sphere(1, 24, 16), [-0.5, 0, 0], [0, 0, 0], [0.02, 1, 1])])),
+        cap: E3.mesh(G.sphere(1, 20, 14)), pill: E3.mesh(G.cylinder(1, 1, 1, 24, false)),
+        tCrack: E3.texture(crack, { repeat: false }), quad: E3.mesh(G.quad(1, 1)),
+        tBg: null,
+      };
+      return A3;
+    }
+    const hex3 = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+    function draw3D(clock, tile){
+      const E = E3, M = E.M, fx = st.fx, P3 = E.px;
+      if (!A3.tBg) A3.tBg = E.texture(bgC, { repeat: false });
+      E.resize(W, H, tile ? 1 : E.quality(1.5));
+      const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
+      E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {
+        noSky: true, sunDir: [0.42, -0.62, -0.66], sunColor: [1.35, 1.25, 1.45], ambSky: [0.3, 0.26, 0.44], ambGround: [0.16, 0.08, 0.2], toon: 0.35,
+        shadow: { center: [W / 2, -H / 2, 0], radius: 420 },
+        post: { bloom: 0.7, threshold: 0.8, saturation: 1.22, contrast: 1.08, vignette: 0.32 },
+      });
+      E.backdrop(A3.tBg, W, H, { shadow: 0.45 });
+      const ballCol = fx.fire > 0 ? [1, 0.55, 0.2] : [0.35, 0.95, 1];
+      for (const b of st.balls) E.light(P3(b.x, b.y, 34), ballCol.map(v => v * 2.2), 140);
+      // bricks
+      for (const k of st.bricks) {
+        if (k.hp <= 0) continue;
+        const c = hex3(k.color), wob = k.hit > 0 ? Math.sin(k.hit * 40) * k.hit * 0.5 : 0, s = 1 + (k.hit > 0 ? k.hit * 0.35 : 0);
+        const m = M.trs(P3(k.x + k.w / 2, k.y + k.h / 2, 10), [0, 0, wob], [s, s, s]);
+        if (k.max > 1) {
+          E.draw(A3.frame, m, { color: [0.78, 0.8, 0.88], spec: 1.6, shine: 90, rim: 0.5 });
+          E.draw(A3.core, M.mul(m, M.trs([0, 0, 6])), { color: c, emissive: c.map(v => v * (k.hp < k.max ? 0.35 + 0.25 * Math.sin(clock * 14) : 0.6)), spec: 1.2, shine: 60 });
+          for (const [rx, ry] of [[-21, 6], [21, 6], [-21, -6], [21, -6]]) E.draw(A3.rivet, M.mul(m, M.trs([rx, ry, 6], [0, 0, 0], 1.8)), { color: [1, 1, 1], spec: 2, shine: 100, noShadow: true });
+          if (k.hp < k.max) E.draw(A3.quad, M.mul(m, M.trs([0, 0, 9.2], [0, 0, 0], [52, 20, 1])), { tex: A3.tCrack, blend: true, unlit: true, color: [1, 1, 1], noShadow: true });
+        } else E.draw(A3.brick, m, { color: c, emissive: c.map(v => v * 0.1), spec: 1.1, shine: 70, rim: 0.3 });
+      }
+      // falling power-up capsules
+      for (const d of st.drops) {
+        const c = hex3(POWERS[d.type].color), m = M.trs(P3(d.x + d.w / 2, d.y + d.h / 2, 16), [clock * 3, 0, 0], [1, 1, 1]);
+        E.draw(A3.pill, M.mul(m, M.trs([0, 0, 0], [0, 0, Math.PI / 2], [d.h / 2, d.w - d.h, d.h / 2])), { color: c, emissive: c.map(v => v * 0.45), spec: 1.4, shine: 80 });
+        for (const e of [-1, 1]) E.draw(A3.cap, M.mul(m, M.trs([e * (d.w - d.h) / 2, 0, 0], [0, 0, 0], d.h / 2)), { color: c, emissive: c.map(v => v * 0.45), spec: 1.4, shine: 80 });
+        E.sprite(P3(d.x + d.w / 2, d.y + d.h / 2, 30), 60, c, 0.35, true);
+      }
+      // paddle
+      const p = st.paddle, pc = fx.shrink > 0 ? '#8a96d0' : fx.magnet > 0 ? N.yellow : N.cyan, pcol = hex3(pc);
+      const pm = M.trs(P3(p.x + p.w / 2, p.y + p.h / 2, 14), [0, 0, 0], [p.w - p.h, p.h / 2 + 1, p.h / 2 + 4]);
+      E.draw(A3.paddle, pm, { color: [0.86, 0.88, 0.95], spec: 1.8, shine: 110, rim: 0.6 });
+      E.draw(A3.pill, M.trs(P3(p.x + p.w / 2, p.y + p.h / 2, 14), [0, 0, Math.PI / 2], [p.h / 2 + 1.6, p.w - p.h - 4, p.h / 2 + 1.6].map((v, i) => i === 1 ? v * 0.5 : v)), { color: pcol, emissive: pcol.map(v => v * 0.9), spec: 1, shine: 60, noShadow: true });
+      for (const e of [-1, 1]) { E.draw(A3.cap, M.trs(P3(p.x + p.w / 2 + e * (p.w - p.h) / 2, p.y + p.h / 2, 14), [0, 0, 0], [p.h / 2 + 1.2, p.h / 2 + 1.2, p.h / 2 + 4]), { color: pcol, emissive: pcol.map(v => v * 0.6), spec: 1.6, shine: 90 }); E.sprite(P3(p.x + p.w / 2 + e * (p.w / 2 - 12), p.y + p.h + 4, 20), 26 + Math.sin(clock * 30 + e) * 4, pcol, 0.8, true); }
+      if (fx.laser > 0) for (const e of [p.x + 8, p.x + p.w - 8]) E.draw(A3.pill, M.trs(P3(e, p.y - 2, 16), [0, 0, 0], [3.5, 12, 3.5]), { color: hex3(N.pink), emissive: hex3(N.pink).map(v => v * 0.8), spec: 1.4 });
+      // balls with glowing trails
+      for (const b of st.balls) {
+        b.trail.forEach((t, i) => E.sprite(P3(t.x, t.y, 22), b.r * 2.6 * (1 - i / 11), ballCol, (1 - i / 9) * 0.45, true));
+        E.draw(A3.ball, M.trs(P3(b.x, b.y, 22), [clock * 4, clock * 3, 0], b.r), { color: fx.fire > 0 ? [1, 0.85, 0.7] : [0.95, 1, 1], emissive: ballCol.map(v => v * 1.4), spec: 2, shine: 120 });
+        E.sprite(P3(b.x, b.y, 30), b.r * 9, ballCol, 0.5, true);
+      }
+      // shards tumble as little 3D chunks
+      for (const q of st.shards) { const c = hex3(q.color), a = Math.min(1, q.life * 2); E.draw(A3.chunk, M.trs(P3(q.x, q.y, 24), [q.r, q.r * 0.7, q.r * 1.3], [q.w * a, q.h * a, q.h * a]), { color: c, emissive: c.map(v => v * 0.5), spec: 1.2, shine: 60 }); }
+      for (const q of st.parts) E.sprite(P3(q.x, q.y, 30), q.size * 2.6, hex3(q.color.length === 7 ? q.color : '#ffffff'), Math.max(q.life / 0.6, 0), true);
+      for (const L of st.lasers) E.sprite(P3(L.x, L.y - 9, 26), 8, hex3(N.pink), 1, true, 0, null, [0, 12, 0]);
+      E.end(); if (!tile) E.present(ctx, W, H);
+    }
     let drag = null;
     function draw(clock){
       const fx = st.fx;
+      if (assets3D()) {
+        draw3D(clock);
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (const t of TW) { const a = 0.5 + 0.5 * Math.sin(clock * 3 + t.p); ctx.fillStyle = `rgba(255,220,255,${0.5 * a})`; ctx.fillRect(t.x - 0.5, t.y - 4 * a, 1, 8 * a); ctx.fillRect(t.x - 4 * a, t.y - 0.5, 8 * a, 1); }
+        for (const q of st.rings) { ctx.globalAlpha = q.life / 0.4; ctx.strokeStyle = q.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.stroke(); }
+        ctx.restore();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `900 11px ${DISPLAY}`;
+        for (const d of st.drops) { const P = POWERS[d.type]; ctx.fillStyle = d.type === 'magnet' || d.type === 'wide' ? '#10160a' : '#fff'; ctx.fillText(P.label, d.x + d.w / 2, d.y + d.h / 2 + 1); }
+        return overlay2D();
+      }
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
       ctx.drawImage(bgC, 0, 0, W, H);
@@ -303,6 +390,10 @@
         ctx.fillStyle = fx.fire > 0 ? '#ffe2c4' : '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.restore();
       }
       ctx.restore();
+      overlay2D();
+    }
+    function overlay2D(){
+      const fx = st.fx;
       if (st.flash > 0) { ctx.fillStyle = `rgba(255,220,255,${st.flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
       // finger zone under the paddle
       const zy = PADDLE_Y + 34;
@@ -332,10 +423,10 @@
     }
     return {
       id:'bricks', music:'bricks', touchAnywhere: true, title:'BRICK BASH', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', scoreKey:'bb-scores',
-      tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker', art(g){ const { rr, dot } = PB; if (!bgC) paintBg(); g.drawImage(bgC, 0, 150, 480, 360, 0, 0, 240, 180); g.shadowBlur = 10; const cols=[N.pink,'#ff9f1c',N.yellow,N.lime]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,14+r*17,32,12,4,cols[r]); rr(g,88,156,64,9,5,N.cyan); const hg = g.createRadialGradient(150,120,1,150,120,26); hg.addColorStop(0,'rgba(34,228,255,.7)'); hg.addColorStop(1,'rgba(34,228,255,0)'); g.fillStyle = hg; g.fillRect(120,90,60,60); dot(g,150,120,7,'#fff'); } },
+      tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker', art(g){ if (!bgC) paintBg(); if (assets3D()) { const keep = st; fresh('classic', Math.random, 3, 'menu'); const b = st.balls[0]; b.held = false; b.x = 300; b.y = 330; for (let i=0;i<8;i++) b.trail.push({ x: 300 - i * 7, y: 330 + i * 9 }); draw3D(0, true); g.drawImage(E3.canvas, 0, 50 * E3.canvas.height / H, E3.canvas.width, 360 * E3.canvas.height / H, 0, 0, 240, 180); st = keep; return; } const { rr, dot } = PB; if (!bgC) paintBg(); g.drawImage(bgC, 0, 150, 480, 360, 0, 0, 240, 180); g.shadowBlur = 10; const cols=[N.pink,'#ff9f1c',N.yellow,N.lime]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,14+r*17,32,12,4,cols[r]); rr(g,88,156,64,9,5,N.cyan); const hg = g.createRadialGradient(150,120,1,150,120,26); hg.addColorStop(0,'rgba(34,228,255,.7)'); hg.addColorStop(1,'rgba(34,228,255,0)'); g.fillStyle = hg; g.fillRect(120,90,60,60); dot(g,150,120,7,'#fff'); } },
       controls: ['Slide your finger anywhere (the strip at the bottom is easiest) and the paddle follows.', 'Tap to launch the ball.', 'Break bricks in a row without touching the paddle to multiply your points.', 'Every 3,000 points earns a bonus life.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: (g) => capsule(g, 0, 3, 46, 22, k, false) })),
-      init(){ if (!bgC) paintBg(); },
+      init(){ if (!bgC) paintBg(); assets3D(); },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
       start(mode, rand, lives, msg){ fresh(mode, rand, lives, 'play'); st.msg = msg ? msg + ' Tap to launch' : 'Tap to launch!'; },
       frame(dt, clock){
@@ -343,6 +434,7 @@
         effects(dt); draw(clock);
       },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
+      debug(){ return { st, speed: baseSpeed }; },
       metrics(){ return { score: st.score, level: st.level }; },
       dailyGoals: [
         { text:'Score {n} points', m:'score', n:[2500, 4000, 6000] },
