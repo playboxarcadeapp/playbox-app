@@ -220,7 +220,7 @@
       // lush jungle floor: two-tone mowed squares, soft moss and dirt patches, thousands of grass blades, clover and tiny flowers
       for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++) {
         const tg = g.createLinearGradient(0, BY + y * CELL, 0, BY + (y + 1) * CELL);
-        if ((x + y) % 2) { tg.addColorStop(0, '#6aa844'); tg.addColorStop(1, '#5a963a'); } else { tg.addColorStop(0, '#77b44c'); tg.addColorStop(1, '#68a443'); }
+        if ((x + y) % 2) { tg.addColorStop(0, '#4f9a34'); tg.addColorStop(1, '#438a2c'); } else { tg.addColorStop(0, '#6cbf45'); tg.addColorStop(1, '#5eae3c'); }
         g.fillStyle = tg; g.fillRect(BX + x * CELL, BY + y * CELL, CELL, CELL);
       }
       g.save(); g.beginPath(); g.rect(BX, BY, COLS * CELL, ROWS * CELL); g.clip();
@@ -374,7 +374,7 @@
     let E3 = null, A3 = null;
     const SUB = 4, SIDES = 14, CAP = COLS * ROWS * SUB + 8;
     // Swag Shop skins: back color, blotches, side spots, spot centers
-    const SKINS = { skin_coral: { back: '#d8452e', blot: '#1a1210', spot: '#ffd23f', mid: '#1a1210' }, skin_ocean: { back: '#2f6fd0', blot: '#123068', spot: '#7fe0ff', mid: '#0c2448' }, skin_gold: { back: '#d9a520', blot: '#7a5208', spot: '#fff1a0', mid: '#6a4206' } };
+    const SKINS = { skin_coral: { back: '#d8452e', blot: '#1a1210', spot: '#ffd23f', mid: '#1a1210' }, skin_ocean: { back: '#2f6fd0', blot: '#123068', spot: '#7fe0ff', mid: '#0c2448' }, skin_gold: { back: '#d9a520', blot: '#7a5208', spot: '#fff1a0', mid: '#6a4206' }, skin_galaxy: { back: '#4a2a9a', blot: '#12082e', spot: '#ff8ff0', mid: '#0a0420' }, skin_candy: { back: '#ff9ccf', blot: '#ffffff', spot: '#7fe0ff', mid: '#e0559a' } };
     const skinPal = () => SKINS[PB.meta && PB.meta.look('snake', 'skin')] || { back: '#6f8f26', blot: '#1a2208', spot: '#d6a632', mid: '#141b06' };
     function skinTex(){
       const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'), R = mulberry(9);
@@ -457,9 +457,9 @@
       E.resize(W, H, tile ? 1 : E.quality(1.5));
       const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
       E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {
-        noSky: true, sunDir: [0.45, -0.6, -0.66], sunColor: [1.3, 1.22, 0.95], ambSky: [0.26, 0.32, 0.26], ambGround: [0.1, 0.12, 0.07], toon: 0.4,
+        noSky: true, sunDir: [0.45, -0.6, -0.66], sunColor: [1.35, 1.22, 0.92], ambSky: [0.24, 0.3, 0.24], ambGround: [0.08, 0.1, 0.05], toon: 0.5,
         shadow: { center: [W / 2, -(BY + ROWS * CELL / 2), 0], radius: 330 },
-        post: { bloom: 0.45, threshold: 0.85, saturation: 1.12, contrast: 1.06, vignette: 0.3, tint: [1.02, 1.02, 0.95] },
+        post: { bloom: 0.32, threshold: 0.9, saturation: 1.22, contrast: 1.14, vignette: 0.42, tint: [1.03, 1.02, 0.94] },
       });
       E.backdrop(A3.tBg, W, H, { shadow: 0.42 });
       for (const r of st.rocks) {
@@ -467,6 +467,10 @@
         if (r.log) { E.draw(A3.log, M.trs(P3(x, y, 8), [0, 0, Math.PI / 2 + (r.v - 0.5) * 0.4], [8, CELL * 1.05, 8]), { color: [0.55, 0.36, 0.2], spec: 0.15, shine: 10 }); E.draw(A3.sphereLo, M.trs(P3(x - 6, y - 5, 15), [0, 0, 0], [6, 3, 2.5]), { color: [0.3, 0.62, 0.25], spec: 0.1 }); }
         else { E.draw(A3.rock, M.trs(P3(x, y, 8), [r.v * 6, r.v * 3, r.v * 4], [CELL * 0.46, CELL * 0.4, 11]), { color: [0.62, 0.6, 0.56], spec: 0.25, shine: 14 }); E.draw(A3.sphereLo, M.trs(P3(x - 2, y - 6, 16), [0, 0, -0.2], [8, 4, 2.6]), { color: [0.33, 0.58, 0.22], spec: 0.05 }); }
       }
+      // dappled light: soft leaf shadows and sun spots drifting across the jungle floor
+      if (!tile && !reduceMotion) for (let k=0;k<7;k++) { const t = st.time * 0.05 + k * 1.7, x = BX + ((Math.sin(t * 0.9 + k) * 0.5 + 0.5) * COLS * CELL), y = BY + ((Math.cos(t * 0.7 + k * 2) * 0.5 + 0.5) * ROWS * CELL);
+        E.sprite(P3(x, y, 2), 150 + (k % 3) * 40, [0.02, 0.08, 0.02], 0.22, false);
+        E.sprite(P3(BX + ((Math.cos(t * 1.1 + k * 3) * 0.5 + 0.5) * COLS * CELL), BY + ((Math.sin(t * 0.8 + k) * 0.5 + 0.5) * ROWS * CELL), 3), 70 + (k % 2) * 30, [1, 0.92, 0.6], 0.12, true); }
       for (const it of st.items) {
         const cx = BX + (it.x + 0.5) * CELL, cy = BY + (it.y + 0.5) * CELL, pop = Math.min(1, (st.time - it.born) * 4), bob = Math.sin(st.time * 4 + it.x) * 1.5;
         if (it.kind === 'pow') { const left = it.ttl - (st.time - it.born); if (!(left > 2 || Math.floor(left * 8) % 2)) continue; }
@@ -484,7 +488,7 @@
         // head
         const h = pts[0], nb = pts[1] || { x: h.x - 1, y: h.y }, ang = Math.atan2(-(h.y - nb.y), h.x - nb.x), hr = CELL * 0.56;
         const Hm = M.trs(P3(h.x, h.y, hr * 0.8), [0, 0, ang], [1, 1, 1]), part = (mesh, l, r, sc, mat) => E.draw(mesh, M.mul(Hm, M.trs(l, r, sc)), mat);
-        const skin = { color: [0.47, 0.62, 0.17], spec: 1, shine: 50, rim: 0.3, alpha: ghost ? 0.6 : undefined };
+        const hc = PB.shade(skinPal().back, 0.08).match(/\d+/g).map(v => v / 255), skin = { color: hc, spec: 1, shine: 50, rim: 0.3, alpha: ghost ? 0.6 : undefined };
         part(A3.sphere, [hr * 0.25, 0, 0], [0, 0, 0], [hr * 1.15, hr * 0.92, hr * 0.62], skin);
         part(A3.sphere, [hr * 0.85, 0, -hr * 0.05], [0, 0, 0], [hr * 0.65, hr * 0.62, hr * 0.42], skin);
         part(A3.sphere, [hr * 0.2, 0, hr * 0.38], [0, 0, 0], [hr * 0.7, hr * 0.42, hr * 0.12], { color: [0.12, 0.16, 0.05], spec: 0.5, noShadow: true });

@@ -312,6 +312,42 @@
     }
 
     // ---------- rendering ----------
+    // Swag Shop ships (built the first time they are needed)
+    let SHIPS = null;
+    function shipModels(){
+      if (SHIPS) return SHIPS;
+      const G = E.G, M = E.M, T = (g, t, r, s) => G.transform(g, M.trs(t, r || [0, 0, 0], s || [1, 1, 1]));
+      const fin = (pts, d) => G.extrude(pts, d);
+      SHIPS = {
+        saucer: { body: E.mesh(T(G.sphere(1, 36, 18), [0, 0, 0], [0, 0, 0], [1.6, 0.32, 1.6])), trim: E.mesh(T(G.torus(1.55, 0.09, 48, 8), [0, 0, 0], [Math.PI / 2, 0, 0])),
+          dome: E.mesh(T(G.sphere(1, 24, 16), [0, 0.22, 0], [0, 0, 0], [0.7, 0.55, 0.7])), under: E.mesh(T(G.cylinder(0.6, 0.35, 0.25, 24), [0, -0.3, 0])), lights: E.mesh(G.merge(Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return T(G.sphere(0.1, 8, 6), [Math.cos(a) * 1.35, 0.02, Math.sin(a) * 1.35]); }))),
+          jets: [[0, -0.4, 0.2]] },
+        shark: { body: E.mesh(G.merge([T(G.sphere(1, 32, 20), [0, 0, 0], [0, 0, 0], [0.62, 0.55, 2.0]), T(G.cylinder(0.05, 0.4, 0.9, 16), [0, 0, 2.1], [-Math.PI / 2, 0, 0], [1, 1, 0.8])])),
+          belly: E.mesh(T(G.sphere(1, 24, 16), [0, -0.18, -0.2], [0, 0, 0], [0.5, 0.36, 1.7])),
+          fins: E.mesh(G.merge([T(fin([[0, 0], [0.9, 0], [0.3, 1.0]], 0.08), [0, 0.45, 0.1], [0, Math.PI / 2, 0]), T(fin([[0, 0], [1.6, 0.4], [1.5, 0.75], [0.2, 0.55]], 0.07), [0.45, -0.15, -0.1], [Math.PI / 2, 0, -0.2]), T(fin([[0, 0], [-1.6, 0.4], [-1.5, 0.75], [-0.2, 0.55]].reverse(), 0.07), [-0.45, -0.15, -0.1], [Math.PI / 2, 0, 0.2]), T(fin([[0, 0], [0.7, -0.5], [0.8, 0.6]], 0.07), [0, 0, 2.55], [0, Math.PI / 2, Math.PI / 2])])),
+          eyes: E.mesh(G.merge([T(G.sphere(0.12, 12, 8), [0.38, 0.18, -1.2]), T(G.sphere(0.12, 12, 8), [-0.38, 0.18, -1.2])])),
+          teeth: E.mesh(G.merge(Array.from({ length: 6 }, (_, i) => T(G.cylinder(0, 0.05, 0.12, 4), [(i - 2.5) * 0.11, -0.2, -1.78 + Math.abs(i - 2.5) * 0.04], [Math.PI, 0, 0])))),
+          jets: [[0.25, -0.05, 2.3], [-0.25, -0.05, 2.3]] },
+        rocket: { body: E.mesh(G.merge([T(G.cylinder(0.5, 0.5, 2.4, 24), [0, 0, 0.3], [Math.PI / 2, 0, 0]), T(G.cylinder(0.02, 0.5, 1.2, 24), [0, 0, -1.5], [-Math.PI / 2, 0, 0])])),
+          bands: E.mesh(G.merge([T(G.cylinder(0.52, 0.52, 0.16, 24), [0, 0, -0.85], [Math.PI / 2, 0, 0]), T(G.cylinder(0.52, 0.52, 0.16, 24), [0, 0, 1.3], [Math.PI / 2, 0, 0])])),
+          fins: E.mesh(G.merge([0, 1, 2].map(i => T(T(T(fin([[0, 0], [0.7, 0.3], [0.7, 0.95], [0, 0.75]], 0.08), [0.42, 0, 0]), [0, 0, 0.75], [Math.PI / 2, 0, 0]), [0, 0, 0], [0, 0, i * Math.PI * 2 / 3 + Math.PI / 2])))),
+          windows: E.mesh(G.merge([T(G.cylinder(0.2, 0.2, 0.06, 16), [0, 0.47, -0.4]), T(G.cylinder(0.14, 0.14, 0.06, 16), [0, 0.48, 0.25])])),
+          jets: [[0, 0, 1.65]] },
+      };
+      return SHIPS;
+    }
+    // the player's ship: the classic starfighter, or one from the Swag Shop
+    function drawPlayerShip(M, pos, rot, scale, paint, engine, hot){
+      const kind = PB.meta && PB.meta.look('racer', 'ship'), model = kind && shipModels()[kind.replace('model_', '')];
+      if (!model) return drawShip(M, pos, rot, scale, paint, engine, hot);
+      const m = M.trs(pos, rot, [scale, scale, scale]), INK = { color: [0.06, 0.04, 0.14], unlit: true, outline: 0.045, noShadow: true };
+      const part = (mesh, mat, ink = true) => { E.draw(mesh, m, mat); if (ink) E.draw(mesh, m, INK); };
+      const metal = { color: [0.82, 0.84, 0.9], spec: 1.2, shine: 80 }, pt = { color: paint, spec: 0.9, shine: 60 };
+      if (kind === 'model_saucer') { const spin = M.mul(m, M.trs([0, 0, 0], [0, st.clock * 2, 0])); E.draw(model.body, m, metal); E.draw(model.body, m, INK); E.draw(model.trim, m, pt); E.draw(model.under, m, pt); E.draw(model.dome, m, { color: [0.4, 0.8, 1], spec: 1.8, shine: 120, alpha: 0.85, rim: 0.8 }); E.draw(model.lights, spin, { color: [1, 1, 0.8], emissive: [1.6, 1.4, 0.6], noShadow: true }); }
+      else if (kind === 'model_shark') { part(model.body, pt); part(model.belly, { color: [0.95, 0.95, 0.92], spec: 0.6 }, false); part(model.fins, pt); E.draw(model.eyes, m, { color: [0.05, 0.05, 0.08], spec: 2, shine: 120 }); E.draw(model.teeth, m, { color: [1, 1, 1], spec: 0.8 }); }
+      else { part(model.body, { color: [0.96, 0.96, 0.98], spec: 1, shine: 70 }); part(model.bands, pt, false); part(model.fins, pt); E.draw(model.windows, m, { color: [0.3, 0.7, 1], emissive: [0.2, 0.4, 0.7], spec: 2, shine: 120 }); }
+      for (const j of model.jets) { const wp = M.xform(m, j); E.sprite(wp, (0.6 + engine * 0.6) * scale, [0.45, 0.7, 1], 0.85, true); E.sprite(wp, (0.3 + engine * 0.15) * scale, [1, 1, 1], 0.85, true); if (hot) E.sprite([wp[0], wp[1], wp[2] + 0.6 * scale], (1.3 + engine) * scale, [1, 0.55, 0.2], 0.5 * engine, true); }
+    }
     function drawShip(M, pos, rot, scale, paint, engine, hot){
       const m = M.trs(pos, rot, [scale, scale, scale]);
       const INK = { color: [0.06, 0.04, 0.14], unlit: true, outline: 0.045, noShadow: true };
@@ -379,7 +415,7 @@
       for (const b of st.bolts) E.sprite([b.x, b.y, b.z], 0.35, [1, 0.35, 0.45], 1, true, 0, null, [0, 0, 2.2]);
       const inv = st.inv > 0 && Math.floor(st.inv * 12) % 2;
       const sc = st.fx.mini > 0 ? 0.55 : 1;
-      if (!inv) drawShip(M, [p.x, p.y, 0], [p.y * 0.04 + (p.ty - p.y) * 0.08, 0, p.bank * 0.6], sc, ({ ship_red: [1, 0.2, 0.18], ship_blue: [0.35, 0.78, 1], ship_gold: [1, 0.8, 0.2] })[PB.meta && PB.meta.look('racer', 'paint')] || [1, 0.55, 0.15], st.fx.turbo > 0 ? 1.6 : st.boost > 0 ? 1.1 : 0.55, st.fx.turbo > 0 || st.boost > 0);
+      if (!inv) drawPlayerShip(M, [p.x, p.y, 0], [p.y * 0.04 + (p.ty - p.y) * 0.08, 0, p.bank * 0.6], sc, ({ ship_red: [1, 0.2, 0.18], ship_blue: [0.35, 0.78, 1], ship_gold: [1, 0.8, 0.2] })[PB.meta && PB.meta.look('racer', 'paint')] || [1, 0.55, 0.15], st.fx.turbo > 0 ? 1.6 : st.boost > 0 ? 1.1 : 0.55, st.fx.turbo > 0 || st.boost > 0);
       for (const t of st.trail) E.sprite(t.p, t.size, st.fx.turbo > 0 ? [1, 0.6, 0.25] : [0.45, 0.7, 1], t.life * 0.5, true);
       if (st.fx.shield > 0) E.draw(A.sphere, M.trs([p.x, p.y, 0], [0, st.clock, 0], 2.3 * sc), { color: [0.4, 0.85, 1], alpha: 0.16, additive: true, rim: 4, spec: 1, noShadow: true });
       for (const q of st.parts) E.sprite(q.p, q.size * (0.5 + q.life), q.color, Math.min(1, q.life * 1.6), true);

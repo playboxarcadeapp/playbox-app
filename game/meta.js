@@ -32,6 +32,28 @@
     { id: 'paddle_neon',  game: 'bricks',  slot: 'paddle', name: 'Neon green paddle',price: 150, sw: ['#7dff6a', '#22e4ff'] },
     { id: 'box_gold',     game: 'cubes',   slot: 'box',    name: 'Gold puzzle box',  price: 200, sw: ['#ffd23f', '#8a5a10'] },
     { id: 'box_pink',     game: 'cubes',   slot: 'box',    name: 'Pink puzzle box',  price: 200, sw: ['#ff8fd0', '#7a2a6a'] },
+    // big-ticket items: whole new ships, costumes and effects
+    { id: 'model_saucer', game: 'racer',   slot: 'ship',   name: 'Flying saucer',    price: 600, ic: '\u{1F6F8}', sw: ['#9fb4c8', '#5ec8ff'] },
+    { id: 'model_rocket', game: 'racer',   slot: 'ship',   name: 'Retro rocket',     price: 700, ic: '\u{1F680}', sw: ['#ffffff', '#ff3b3b'] },
+    { id: 'model_shark',  game: 'racer',   slot: 'ship',   name: 'Space shark',      price: 800, ic: '\u{1F988}', sw: ['#5f7fa8', '#d8e4f0'] },
+    { id: 'fur_fox',      game: 'dash',    slot: 'fur',    name: 'Fox costume',      price: 500, ic: '\u{1F98A}', sw: ['#ff8a3a', '#3a1a0a'] },
+    { id: 'fur_snow',     game: 'dash',    slot: 'fur',    name: 'Snow raccoon',     price: 500, ic: '\u2744\uFE0F', sw: ['#eaf4ff', '#4a6aa8'] },
+    { id: 'fur_gold',     game: 'dash',    slot: 'fur',    name: 'Golden raccoon',   price: 900, ic: '\u2728', sw: ['#ffd23f', '#8a5a10'] },
+    { id: 'trail_stars',  game: 'castle',  slot: 'trail',  name: 'Star trail',       price: 300, ic: '\u2B50', sw: ['#fff1a0', '#ffb81f'] },
+    { id: 'trail_hearts', game: 'castle',  slot: 'trail',  name: 'Heart trail',      price: 300, ic: '\u{1F496}', sw: ['#ff8fc4', '#ff3d6e'] },
+    { id: 'trail_rainbow',game: 'castle',  slot: 'trail',  name: 'Rainbow trail',    price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
+    { id: 'magic_glow',   game: 'potions', slot: 'magic',  name: 'Potion sparkles',  price: 250, ic: '\u2728', sw: ['#d4ff9a', '#4fbf3a'] },
+    { id: 'magic_stars',  game: 'potions', slot: 'magic',  name: 'Wizard stars',     price: 350, ic: '\u2B50', sw: ['#fff1a0', '#6a3ac0'] },
+    { id: 'magic_rainbow',game: 'potions', slot: 'magic',  name: 'Rainbow magic',    price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
+    { id: 'skin_candy',   game: 'snake',   slot: 'skin',   name: 'Candy snake skin', price: 350, sw: ['#ff9ccf', '#ffffff', '#7fe0ff'] },
+    { id: 'skin_galaxy',  game: 'snake',   slot: 'skin',   name: 'Galaxy snake skin',price: 500, ic: '\u{1F30C}', sw: ['#4a2a9a', '#ff8ff0'] },
+    { id: 'shine_sparkle',game: 'sweets',  slot: 'shine',  name: 'Twinkle gems',     price: 300, ic: '\u2728', sw: ['#ffffff', '#ff5fa2'] },
+    { id: 'shine_glow',   game: 'sweets',  slot: 'shine',  name: 'Glowing gems',     price: 400, ic: '\u{1F48E}', sw: ['#9ae6ff', '#c76bff'] },
+    { id: 'ball_pink',    game: 'bricks',  slot: 'ball',   name: 'Hot pink ball',    price: 150, sw: ['#ff5fbf', '#a0206a'] },
+    { id: 'ball_gold',    game: 'bricks',  slot: 'ball',   name: 'Gold ball',        price: 300, sw: ['#ffd23f', '#c78a00'] },
+    { id: 'ball_rainbow', game: 'bricks',  slot: 'ball',   name: 'Rainbow ball',     price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
+    { id: 'cols_candy',   game: 'cubes',   slot: 'colors', name: 'Candy cubes',      price: 300, sw: ['#ff8fc4', '#8fdcff', '#a8ff8a', '#fff07a'] },
+    { id: 'cols_jewel',   game: 'cubes',   slot: 'colors', name: 'Jewel cubes',      price: 400, ic: '\u{1F48E}', sw: ['#00d0b0', '#ff2a72', '#ffc400', '#9a5aff'] },
   ];
   const owned = () => store.get('pb-owned') || [];
   const equippedAll = () => store.get('pb-equip') || {};
@@ -257,7 +279,7 @@
         const sec = document.createElement('div'); sec.className = 'shopsec'; sec.innerHTML = `<h4></h4><div class="shopgrid"></div>`; sec.querySelector('h4').textContent = NAME[gid];
         for (const it of items) { const have = owned().includes(it.id), on = look(it.game, it.slot) === it.id;
           const c = document.createElement('button'); c.className = 'item' + (have ? ' have' : '') + (on ? ' on' : '');
-          c.innerHTML = `<span class="sw" style="background:${it.sw.length > 2 ? `conic-gradient(${it.sw.join(',')},${it.sw[0]})` : `linear-gradient(135deg,${it.sw[0]},${it.sw[1]})`}"></span><b></b><span class="pr">${on ? 'Wearing' : have ? 'Wear it' : coin + fmt(it.price)}</span>`;
+          c.innerHTML = `<span class="sw" style="background:${it.sw.length > 2 ? `conic-gradient(${it.sw.join(',')},${it.sw[0]})` : `linear-gradient(135deg,${it.sw[0]},${it.sw[1]})`}">${it.ic || ''}</span><b></b><span class="pr">${on ? 'Wearing' : have ? 'Wear it' : coin + fmt(it.price)}</span>`;
           c.querySelector('b').textContent = it.name;
           c.onclick = () => { buy(it); openModal('shop'); };
           sec.querySelector('.shopgrid').appendChild(c); }

@@ -218,6 +218,10 @@
       for (const b of st.shots) {
         b.age += dt;
         if (!reduceMotion && b.rest === 0 && b.age < 2.4 && Math.random() < 0.7) st.parts.push({ p: [b.x, b.y, 0], v: [(Math.random() - .5) * 10, -12, (Math.random() - .5) * 10], life: 0.55, max: 0.55, color: b.data.type === 'iron' ? [0.5, 0.5, 0.55] : [0.92, 0.88, 0.8], size: b.r * S * 0.4, grow: 0.12, g: 0 });
+        const tr = PB.meta && PB.meta.look('castle', 'trail');
+        if (tr && !reduceMotion && b.rest === 0 && b.age < 3) for (let k=0;k<1;k++) { const hue = (st.time * 2 + k * 0.5 + b.age) % 1;
+          const col = tr === 'trail_rainbow' ? [0.5 + 0.5 * Math.cos(6.28 * hue), 0.5 + 0.5 * Math.cos(6.28 * (hue - 0.33)), 0.5 + 0.5 * Math.cos(6.28 * (hue - 0.67))] : tr === 'trail_hearts' ? [1, 0.35 + Math.random() * 0.3, 0.6] : [1, 0.9, 0.35 + Math.random() * 0.5];
+          st.parts.push({ p: [b.x + (Math.random() - .5) * 10, b.y + (Math.random() - .5) * 10, 0], v: [(Math.random() - .5) * 40, (Math.random() - .5) * 40, (Math.random() - .5) * 20], life: 0.7, max: 0.7, color: col, size: (tr === 'trail_stars' ? 0.12 : 0.1) + Math.random() * 0.05, add: !!(tr === 'trail_stars'), g: tr === 'trail_hearts' ? -40 : 0 }); }
         if (b.data.type === 'fire' && !reduceMotion && Math.random() < 0.8) st.parts.push({ p: [b.x, b.y - 8, 0], v: [0, -60, 0], life: 0.3, max: 0.3, color: [1, 0.6, 0.15], size: 0.13, add: true, g: 0 });
         if (b.y > GROUND + 100 || b.x > st.spec.maxX + 600 || b.x < -300 || b.rest > 1.2 || b.age > 9 || b.dead) b.dead = true;
       }
@@ -451,23 +455,45 @@
       g.save(); g.globalCompositeOperation = 'source-atop'; g.fillStyle = hz; g.fillRect(0, 0, w, h); g.restore();
       return c;
     }
-    function cloudTex(){ const c = cv(256, 128), g = c.getContext('2d'), R = rnd(3); for (let i=0;i<22;i++) { const x = 40 + R() * 176, y = 50 + R() * 40, r = 16 + R() * 28; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(0.6, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } return c; }
+    function cloudTexOld(){ const c = cv(256, 128), g = c.getContext('2d'), R = rnd(3); for (let i=0;i<22;i++) { const x = 40 + R() * 176, y = 50 + R() * 40, r = 16 + R() * 28; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(0.6, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } return c; }
 
     // ---------- meshes ----------
 
     // ---------- painted backdrops (side view) ----------
-    function mountainsTex(){ const c = cv(2048, 512), g = c.getContext('2d'), R = rnd(17);
-      const ridge = (base, amp, f, ph, col, snow) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, 512); const pts = []; for (let x=0;x<=2048;x+=16) { const y = base - Math.abs(Math.sin(x * f + ph)) * amp - Math.sin(x * f * 2.7 + ph) * amp * 0.25; pts.push([x, y]); g.lineTo(x, y); } g.lineTo(2048, 512); g.closePath(); g.fill();
-        if (snow) { g.fillStyle = 'rgba(255,255,255,.85)'; for (let i=1;i<pts.length-1;i++) { const [x, y] = pts[i]; if (y < pts[i-1][1] && y < pts[i+1][1] && y < base - amp * 0.6) { g.beginPath(); g.moveTo(x - 26, y + 22); g.lineTo(x, y); g.lineTo(x + 26, y + 22); g.lineTo(x + 10, y + 16); g.lineTo(x, y + 24); g.lineTo(x - 12, y + 15); g.closePath(); g.fill(); } } } };
-      ridge(330, 170, 0.0042, 0.4, '#b9b3e6', true);
-      ridge(380, 120, 0.0061, 2.1, '#9a9ad6', true);
-      // the king's castle far away on a hill
-      const kx = 1400, ky = 330; g.fillStyle = '#8484c4'; g.beginPath(); g.ellipse(kx, ky + 90, 260, 90, 0, Math.PI, 0); g.fill();
-      g.fillStyle = '#7676b8'; g.fillRect(kx - 90, ky - 40, 180, 90); for (const [tx, th] of [[-100, 120], [100, 120], [-30, 160], [40, 140]]) { g.fillRect(kx + tx - 16, ky + 50 - th, 32, th); g.beginPath(); g.moveTo(kx + tx - 22, ky + 50 - th); g.lineTo(kx + tx, ky + 50 - th - 44); g.lineTo(kx + tx + 22, ky + 50 - th); g.fill(); }
-      g.fillStyle = 'rgba(255,230,150,.7)'; for (let i=0;i<10;i++) g.fillRect(kx - 80 + R() * 160, ky - 20 + R() * 60, 4, 6);
-      ridge(450, 60, 0.008, 4, '#7fa6c8', false);
-      const fog = g.createLinearGradient(0, 300, 0, 512); fog.addColorStop(0, 'rgba(220,235,255,0)'); fog.addColorStop(1, 'rgba(220,235,255,.6)'); g.fillStyle = fog; g.fillRect(0, 300, 2048, 212);
+    // shaded, snow-capped mountain ranges with the king's castle far away (painted column by column)
+    function mountainsTex(){ const c = cv(2048, 512), g = c.getContext('2d'), N = PB.gl3d, R = rnd(17);
+      const sky = g.createLinearGradient(0, 0, 0, 512); sky.addColorStop(0, 'rgba(0,0,0,0)'); g.fillStyle = sky;
+      const range = (base, amp, f, seed, lit, dark, snowLine, haze) => {
+        const hAt = x => { const r = 1 - Math.abs(N.fbm(x * f, seed, 0.5, 4) * 2.2); return base - amp * (0.65 * Math.max(0, r) + 0.35 * (N.fbm(x * f * 2.3, seed + 9, 0, 3) + 0.5)); };
+        let prev = hAt(-1);
+        for (let x=0;x<2048;x++) { const h = hAt(x), slope = h - prev; prev = h; const k = Math.max(0, Math.min(1, 0.5 + slope * 0.8));
+          const gr = g.createLinearGradient(0, h, 0, 512); const col = PB.shade(k > 0.5 ? lit : dark, (k - 0.5) * 0.3);
+          gr.addColorStop(0, col); gr.addColorStop(1, haze); g.fillStyle = gr; g.fillRect(x, h, 1, 512 - h);
+          if (h < snowLine) { const sh = Math.min(snowLine - h, 18 + (N.fbm(x * 0.05, seed, 2, 2) + 0.5) * 30); g.fillStyle = k > 0.5 ? '#ffffff' : '#c8d2f0'; g.fillRect(x, h, 1, sh); } }
+      };
+      range(300, 210, 0.0028, 3, '#a9a6e0', '#7c78bf', 170, 'rgba(190,205,240,.9)');
+      // the king's castle on a far hill
+      const kx = 1300, ky = 330; g.fillStyle = '#8c94cc'; g.beginPath(); g.ellipse(kx, ky + 100, 300, 100, 0, Math.PI, 0); g.fill();
+      g.fillStyle = '#7d84bd'; g.fillRect(kx - 90, ky - 30, 180, 90); for (const [tx, th] of [[-100, 120], [100, 120], [-30, 165], [40, 140]]) { g.fillRect(kx + tx - 15, ky + 60 - th, 30, th); g.fillStyle = '#6a5fa8'; g.beginPath(); g.moveTo(kx + tx - 21, ky + 60 - th); g.lineTo(kx + tx, ky + 60 - th - 46); g.lineTo(kx + tx + 21, ky + 60 - th); g.fill(); g.fillStyle = '#7d84bd'; }
+      for (const tx of [-100, -30, 40, 100]) { g.strokeStyle = '#6a5fa8'; g.lineWidth = 2; g.beginPath(); g.moveTo(kx + tx, ky - 110 - (tx === -30 ? 45 : 0)); g.lineTo(kx + tx, ky - 140 - (tx === -30 ? 45 : 0)); g.stroke(); g.fillStyle = '#ff6a6a'; g.fillRect(kx + tx, ky - 140 - (tx === -30 ? 45 : 0), 14, 8); }
+      g.fillStyle = 'rgba(255,230,150,.75)'; for (let i=0;i<12;i++) g.fillRect(kx - 80 + R() * 160, ky - 10 + R() * 60, 4, 6);
+      range(400, 120, 0.0045, 11, '#93a8d8', '#6a7eb8', 300, 'rgba(200,220,245,.9)');
+      range(470, 60, 0.008, 23, '#7fb08c', '#5d8f70', 0, 'rgba(210,228,240,.8)');
       return c; }
+    // soft cartoon cumulus clouds
+    function cloudTex(){ const c = cv(512, 256), g = c.getContext('2d'), R = rnd(3); const puffs = [];
+      for (let i=0;i<16;i++) { const t = i / 15; puffs.push([70 + t * 370 + (R() - .5) * 30, 170 - Math.sin(t * Math.PI) * (50 + R() * 40), 30 + Math.sin(t * Math.PI) * 40 + R() * 14]); }
+      for (const [x, y, r] of puffs) { g.fillStyle = 'rgba(170,185,225,1)'; g.beginPath(); g.arc(x, y + 10, r, 0, 7); g.fill(); }
+      for (const [x, y, r] of puffs) { const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.45, r * 0.1, x, y, r); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.7, '#f4f6ff'); gr.addColorStop(1, '#dfe6fb'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+      g.globalCompositeOperation = 'destination-out'; const f = g.createLinearGradient(0, 190, 0, 230); f.addColorStop(0, 'rgba(0,0,0,0)'); f.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = f; g.fillRect(0, 190, 512, 66);
+      return c; }
+    // rich soil with pebbles, roots and layers for the slice of ground in front
+    function soilTex(){ const c = cv(256, 256), g = c.getContext('2d'), R = rnd(29);
+      const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#6a4428'); gr.addColorStop(1, '#3e2614'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+      for (const y of [70, 150, 215]) { g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(0, y, 256, 10); g.fillStyle = 'rgba(255,220,170,.06)'; g.fillRect(0, y - 3, 256, 3); }
+      for (let i=0;i<70;i++) { const x = R() * 256, y = R() * 256, r = 3 + R() * 8; g.fillStyle = ['#8a7a6c', '#a59585', '#6d5f53'][i % 3]; g.beginPath(); g.ellipse(x, y, r, r * 0.7, R() * 3, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(x - r * 0.3, y - r * 0.3, r * 0.35, r * 0.2, 0, 0, 7); g.fill(); }
+      g.strokeStyle = 'rgba(40,24,10,.6)'; g.lineWidth = 2; for (let i=0;i<6;i++) { let x = R() * 256, y = 0; g.beginPath(); g.moveTo(x, y); for (let k=0;k<5;k++) { x += (R() - .5) * 30; y += 12 + R() * 14; g.lineTo(x, y); } g.stroke(); }
+      grain(g, 256, 256, R, 2500, 0.18); return c; }
     function hillsTex(){ const c = cv(2048, 384), g = c.getContext('2d'), R = rnd(23);
       const hill = (base, amp, f, ph, c1, c2) => { const gr = g.createLinearGradient(0, base - amp, 0, 384); gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.beginPath(); g.moveTo(0, 384); for (let x=0;x<=2048;x+=12) g.lineTo(x, base - (Math.sin(x * f + ph) * 0.5 + 0.5) * amp - Math.sin(x * f * 2.3 + ph) * amp * 0.15); g.lineTo(2048, 384); g.closePath(); g.fill(); };
       hill(230, 120, 0.004, 1.2, '#8fd06a', '#5aa047');
@@ -485,7 +511,7 @@
       A.tStone = {}; for (const k of Object.keys(MAT)) if (k !== 'goblin') A.tStone[k] = E.texture(stoneTex(MAT[k], k.length * 7));
       A.tGoblin = E.texture(goblinTex()); A.tFace = { stone: E.texture(faceTex('#a7a39d', '#3a2a20', 1)), triple: E.texture(faceTex('#d9a86a', '#5a3010', 2)), iron: E.texture(faceTex('#4a4e58', '#111', 3)), fire: E.texture(faceTex('#ff6a2a', '#5a1000', 4)), boulder: E.texture(faceTex('#9a8f80', '#3a2a20', 5)) };
       A.tCrack = [crackTex(31, 5), crackTex(57, 11)];
-      A.tPlank = E.texture(plankTex()); A.tGrass = E.texture(grassTex()); A.tDirt = E.texture(dirtTex()); A.tRock = E.texture(rockTex());
+      A.tPlank = E.texture(plankTex()); A.tGrass = E.texture(grassTex()); A.tDirt = E.texture(soilTex()); A.tRock = E.texture(rockTex());
       A.tCloud = E.texture(cloudTex(), { repeat: false }); A.tMount = E.texture(mountainsTex(), { repeat: true, clampV: true }); A.tHills = E.texture(hillsTex(), { repeat: true, clampV: true }); A.tEdge = E.texture(grassEdgeTex(), { repeat: true, clampV: true });
       A.tCloth = E.texture(clothTex('#8e1f1a', '#e0b43c'));
       A.box = E.mesh(Gm.roundBox(1, 1, 1, 0.1, 3)); A.flat = E.mesh(Gm.box(1, 1, 1)); A.sphere = E.mesh(Gm.sphere(1, 24, 16)); A.cyl = E.mesh(Gm.cylinder(0.5, 0.5, 1, 20)); A.cone = E.mesh(Gm.cylinder(0, 0.5, 1, 20, true));
@@ -590,17 +616,17 @@
     }
     function scenery(M){
       const cx = st.cam.x;
-      E.draw(A.quad, M.trs(P3(cx * 0.65 + 300, GROUND - 330, -2400), [0, 0, 0], [180, 45, 1]), { tex: A.tMount, unlit: true, color: [1, 1, 1], uvScale: [1.5, 1], fogless: true, blend: true, noShadow: true });
+      E.draw(A.quad, M.trs(P3(cx * 0.75 + 250, GROUND - 330, -2400), [0, 0, 0], [44, 11, 1]), { tex: A.tMount, unlit: true, color: [1, 1, 1], uvScale: [1, 1], fogless: true, blend: true, noShadow: true });
       E.draw(A.quad, M.trs(P3(cx * 0.35 + 200, GROUND - 120, -1000), [0, 0, 0], [90, 17, 1]), { tex: A.tHills, unlit: true, color: [0.95, 1, 0.95], uvScale: [1.6, 1], fogless: true, blend: true, noShadow: true });
       E.sprite(P3(cx * 0.8 + 520, GROUND - 1300, -2000), 5, [1, 0.9, 0.6], 0.5, true); E.sprite(P3(cx * 0.8 + 520, GROUND - 1300, -2000), 1.8, [1, 1, 0.92], 1, true);
-      for (let k=0;k<7;k++) { const x = ((k * 330 + st.time * (8 + k * 2)) % 2600) - 700, y = GROUND - 620 - (k % 3) * 90; for (let q=0;q<4;q++) E.sprite(P3(x + (q - 1.5) * 70, y + Math.sin(q * 1.7 + k) * 22, -900 - (k % 2) * 200), 1.6 + (q % 2) * 0.6, [1, 1, 1], 0.92, false, 0, A.tCloud); }
+      for (let k=0;k<6;k++) { const x = ((k * 420 + st.time * (6 + k * 2)) % 2800) - 800, y = GROUND - 760 - (k % 3) * 120, sc = 3.2 + (k % 3) * 1.1; E.draw(A.quad, M.trs(P3(x, y, -1100 - (k % 2) * 300), [0, 0, 0], [sc, sc * 0.5, 1]), { tex: A.tCloud, unlit: true, color: [1, 1, 1], fogless: true, blend: true, noShadow: true }); }
       for (let k=0;k<5;k++) { const t = (st.time * 40 + k * 60) % 2400 - 800, bx = t + (k % 2) * 30, by = GROUND - 520 - k * 16 + Math.sin(st.time + k) * 8, flap = Math.sin(st.time * 9 + k) * 0.5; for (const sd of [-1, 1]) E.draw(A.flat, M.trs(P3(bx + sd * 8, by, -300), [0, 0, sd * (0.35 + flap)], [0.18, 0.02, 0.05]), { color: [0.15, 0.13, 0.16], noShadow: true, unlit: true }); }
       E.draw(A.trunks, M.trs([0, 0, 0]), { color: [0.42, 0.28, 0.16], spec: 0.05 });
       E.draw(A.pines, M.trs([0, 0, 0]), { color: [0.18, 0.48, 0.28], spec: 0.06 });
       E.draw(A.crowns, M.trs([0, 0, 0]), { color: [0.36, 0.66, 0.28], spec: 0.08, rim: 0.3 });
       E.draw(A.bushes, M.trs([0, 0, 0]), { color: [0.3, 0.6, 0.26], spec: 0.08 });
       // the ground: grassy top and a slice of earth in front
-      E.draw(A.flat, M.trs([5, -1.0, -2.5], [0, 0, 0], [40, 2, 8]), { tex: A.tDirt, color: [0.6, 0.42, 0.3], spec: 0.04, uvScale: [40, 3] });
+      E.draw(A.flat, M.trs([5, -1.0, -2.5], [0, 0, 0], [40, 2, 8]), { tex: A.tDirt, color: [1, 1, 1], spec: 0.04, uvScale: [40, 2] });
       E.draw(A.flat, M.trs([5, -0.02, -3], [0, 0, 0], [40, 0.06, 7]), { tex: A.tGrass, color: [0.7, 0.86, 0.56], spec: 0.05, uvScale: [40, 7] });
       E.draw(A.quad, M.trs([5, -0.12, 1.505], [0, 0, 0], [40, 0.26, 1]), { tex: A.tEdge, color: [1, 1, 1], uvScale: [80, 1], blend: true, noShadow: true });
       E.draw(A.flowers, M.trs([0, 0, 0]), { color: [1, 0.85, 0.35], emissive: [0.2, 0.15, 0.05], spec: 0.2, noShadow: true });
@@ -612,11 +638,11 @@
       const shake = st.shake > 0 && !reduceMotion ? [(Math.random() - .5) * st.shake * 0.004, (Math.random() - .5) * st.shake * 0.004] : [0, 0];
       const c = P3(cam.x, cam.y);
       E.begin({ pos: [c[0] + shake[0], c[1] + 0.25 + shake[1], dist], target: [c[0], c[1], 0], fov: FOV, near: 0.1, far: 400 }, {
-        sunDir: [0.45, -0.7, -0.55], sunColor: [2.4, 2.15, 1.8], ambSky: [0.48, 0.56, 0.78], ambGround: [0.34, 0.32, 0.22], toon: 0.6,
-        fogColor: [0.8, 0.88, 0.97], fogDensity: 0.004, fogStart: 20,
+        sunDir: [0.5, -0.62, -0.6], sunColor: [2.6, 2.2, 1.7], ambSky: [0.42, 0.5, 0.74], ambGround: [0.32, 0.3, 0.2], toon: 0.65,
+        fogColor: [0.72, 0.83, 0.97], fogDensity: 0.003, fogStart: 24,
         shadow: { center: P3(cam.x, GROUND - 120), radius: Math.max(4, cam.w * S * 0.7) },
-        post: { bloom: 0.38, threshold: 0.88, saturation: 1.15, contrast: 1.1, vignette: 0.32, tint: [1.02, 1, 0.96] },
-        sky: { zenith: [0.22, 0.5, 0.95], horizon: [0.95, 0.9, 0.82], ground: [0.5, 0.6, 0.4], sunColor: [1, 0.9, 0.7], sunSize: 2 },
+        post: { bloom: 0.42, threshold: 0.86, saturation: 1.18, contrast: 1.12, vignette: 0.38, tint: [1.03, 1, 0.95] },
+        sky: { zenith: [0.12, 0.36, 0.86], horizon: [0.62, 0.8, 0.98], ground: [0.5, 0.6, 0.4], sunColor: [1, 0.9, 0.7], sunSize: 2 },
       });
       scenery(M);
       if (st.boomLight) E.light(P3(st.boomLight.p[0], st.boomLight.p[1] - 20, 30), [6 * st.boomLight.t / 0.35, 3 * st.boomLight.t / 0.35, 0.8], 3.5);

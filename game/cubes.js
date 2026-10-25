@@ -69,7 +69,9 @@
       st = { mode, phase, rand, lives, score:0, level:1, parts:[], pops:[], shake:0, msg:null, clock:0, freezeT:0, freezes:1, running:false };
       loadLevel();
     }
+    const COLS0 = COLS.slice(), PALS = { cols_candy: ['#ff8fc4', '#8fdcff', '#a8ff8a', '#fff07a', '#ffb870', '#cfa8ff'], cols_jewel: ['#2f5bff', '#e0103f', '#10b860', '#ffb000', '#ff5a10', '#8a3aff'] };
     function loadLevel(){
+      COLS.splice(0, COLS.length, ...(PALS[PB.meta && PB.meta.look('cubes', 'colors')] || COLS0));
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.rand;
       const lv = genLevel(st.level + 5, R);
       st.size = lv.size; st.exits = lv.exits;

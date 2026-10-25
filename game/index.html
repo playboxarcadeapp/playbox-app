@@ -484,7 +484,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 .shopsec h4 { margin: 12px 0 6px; font-family: var(--display); font-size: .85rem; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
 .shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 .item { appearance: none; font: inherit; color: inherit; cursor: pointer; display: grid; justify-items: center; gap: 4px; padding: 10px 6px; border-radius: 14px; background: var(--panel-2); border: 2px solid var(--line); text-align: center; }
-.item .sw { width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(255,255,255,.8); box-shadow: 0 3px 10px rgba(0,0,0,.4); }
+.item .sw { display: grid; place-items: center; font-size: 22px; line-height: 1; width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(255,255,255,.8); box-shadow: 0 3px 10px rgba(0,0,0,.4); }
 .item b { font-size: .82rem; font-weight: 900; line-height: 1.15; } .item .pr { display: inline-flex; align-items: center; gap: 3px; font-weight: 900; font-size: .82rem; color: #ffc21a; }
 .item.have .pr { color: var(--cyan); } .item.on { border-color: var(--lime); } .item.on .pr { color: var(--lime); }
 .trophies { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }

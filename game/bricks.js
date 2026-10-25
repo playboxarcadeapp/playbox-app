@@ -302,7 +302,8 @@
         post: { bloom: 0.7, threshold: 0.8, saturation: 1.22, contrast: 1.08, vignette: 0.32 },
       });
       E.backdrop(A3.tBg, W, H, { shadow: 0.45 });
-      const ballCol = fx.fire > 0 ? [1, 0.55, 0.2] : [0.35, 0.95, 1];
+      const bk = PB.meta && PB.meta.look('bricks', 'ball'), rb = h => [0.5 + 0.5 * Math.cos(6.28 * h), 0.5 + 0.5 * Math.cos(6.28 * (h - 0.33)), 0.5 + 0.5 * Math.cos(6.28 * (h - 0.67))];
+      const ballCol = fx.fire > 0 ? [1, 0.55, 0.2] : bk === 'ball_pink' ? [1, 0.35, 0.75] : bk === 'ball_gold' ? [1, 0.8, 0.25] : bk === 'ball_rainbow' ? rb(clock * 0.6) : [0.35, 0.95, 1];
       for (const b of st.balls) E.light(P3(b.x, b.y, 34), ballCol.map(v => v * 2.2), 140);
       // bricks
       for (const k of st.bricks) {
@@ -314,7 +315,13 @@
           E.draw(A3.core, M.mul(m, M.trs([0, 0, 6])), { color: c, emissive: c.map(v => v * (k.hp < k.max ? 0.35 + 0.25 * Math.sin(clock * 14) : 0.6)), spec: 1.2, shine: 60 });
           for (const [rx, ry] of [[-21, 6], [21, 6], [-21, -6], [21, -6]]) E.draw(A3.rivet, M.mul(m, M.trs([rx, ry, 6], [0, 0, 0], 1.8)), { color: [1, 1, 1], spec: 2, shine: 100, noShadow: true });
           if (k.hp < k.max) E.draw(A3.quad, M.mul(m, M.trs([0, 0, 9.2], [0, 0, 0], [52, 20, 1])), { tex: A3.tCrack, blend: true, unlit: true, color: [1, 1, 1], noShadow: true });
-        } else E.draw(A3.brick, m, { color: c, emissive: c.map(v => v * 0.1), spec: 1.1, shine: 70, rim: 0.3 });
+        } else {
+          // a glass case with a glowing neon core and a bright top highlight; a shimmer ripples across the rows
+          const sh = reduceMotion ? 0.8 : 0.72 + 0.28 * Math.sin(clock * 3 - k.x * 0.03 + k.y * 0.05);
+          E.draw(A3.brick, m, { color: c.map(v => v * 0.5 + 0.05), emissive: c.map(v => v * 0.06), spec: 1.8, shine: 120, rim: 0.7 });
+          E.draw(A3.core, M.mul(m, M.trs([0, -1, 6])), { color: c, emissive: c.map(v => v * sh), spec: 0.6, shine: 40, noShadow: true });
+          E.draw(A3.core, M.mul(m, M.trs([0, 6.5, 8.5], [0, 0, 0], [0.86, 0.16, 0.25])), { color: [1, 1, 1], emissive: [0.55, 0.55, 0.6], unlit: true, noShadow: true, alpha: 0.75 });
+        }
       }
       // falling power-up capsules
       for (const d of st.drops) {
@@ -332,7 +339,7 @@
       if (fx.laser > 0) for (const e of [p.x + 8, p.x + p.w - 8]) E.draw(A3.pill, M.trs(P3(e, p.y - 2, 16), [0, 0, 0], [3.5, 12, 3.5]), { color: hex3(N.pink), emissive: hex3(N.pink).map(v => v * 0.8), spec: 1.4 });
       // balls with glowing trails
       for (const b of st.balls) {
-        b.trail.forEach((t, i) => E.sprite(P3(t.x, t.y, 22), b.r * 2.6 * (1 - i / 11), ballCol, (1 - i / 9) * 0.45, true));
+        b.trail.forEach((t, i) => E.sprite(P3(t.x, t.y, 22), b.r * 2.6 * (1 - i / 11), bk === 'ball_rainbow' && !(fx.fire > 0) ? rb(clock * 0.6 + i * 0.09) : ballCol, (1 - i / 9) * 0.45, true));
         E.draw(A3.ball, M.trs(P3(b.x, b.y, 22), [clock * 4, clock * 3, 0], b.r), { color: fx.fire > 0 ? [1, 0.85, 0.7] : [0.95, 1, 1], emissive: ballCol.map(v => v * 1.4), spec: 2, shine: 120 });
         E.sprite(P3(b.x, b.y, 30), b.r * 9, ballCol, 0.5, true);
       }

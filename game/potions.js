@@ -874,6 +874,12 @@
         part(A3.sphere, [0, 7, w / 2 - 4], [7, 7, 3.5], { color: [0.7, 0.12, 0.1], spec: 1.2, shine: 60 });
         E.sprite(M.xform(Bm, [0, 38, 6]), 26, [1, 0.85, 0.35], 0.9, true);
       }
+      // store magic: sparkles drifting up out of every flask with potion in it
+      const mg = PB.meta && PB.meta.look('potions', 'magic'), tb = blocks[blocks.length - 1];
+      if (mg && tb && !tb.hidden && !reduceMotion) for (let k=0;k<4;k++) { const ph = (st.clock * 0.45 + k * 0.25 + i * 0.17) % 1, hu = (ph + i * 0.13 + st.clock * 0.2) % 1;
+        const col = mg === 'magic_rainbow' ? [0.5 + 0.5 * Math.cos(6.28 * hu), 0.5 + 0.5 * Math.cos(6.28 * (hu - 0.33)), 0.5 + 0.5 * Math.cos(6.28 * (hu - 0.67))] : mg === 'magic_stars' ? [1, 0.88, 0.4] : hex3(tb.col).map(v => v * 0.6 + 0.4);
+        const pos = M.xform(Bm, [Math.sin(ph * 6 + k * 1.7) * w * 0.32, 6 + ph * 56, 6]), sz = 10 * (1 - ph) + 3;
+        E.sprite(pos, sz * 1.8, col, 0.5 * (1 - ph), true); E.sprite(pos, sz * 0.6, [1, 1, 1], 0.9 * (1 - ph), true); }
     }
     // where every flask is this frame (the one being poured flies over in an arc and tips)
     function animPose(){

@@ -1432,7 +1432,8 @@
       if (!R) return;
       const B = bodyFrame(), Bm = B.m, run = B.run;
       const flick = p.inv > 0 && Math.floor(p.inv * 10) % 2;
-      const grey = { tex: A.tFur, uvScale: [2, 2], color: [0.62, 0.58, 0.6], spec: 0.35, shine: 24, rim: 0.7, ol: 0.035, alpha: flick ? 0.45 : 1 }, dark = { color: [0.16, 0.15, 0.2], spec: 0.5, shine: 30, ol: 0.03, alpha: flick ? 0.45 : 1 }, cream = { color: [1, 0.95, 0.88], spec: 0.25, ol: 0.025, alpha: flick ? 0.45 : 1 }, pink = { color: [1, 0.6, 0.68], spec: 0.2 };
+      const FURS = { fur_fox: [[1.3, 0.62, 0.24], [0.24, 0.11, 0.06], [1, 0.62, 0.32]], fur_snow: [[1.32, 1.4, 1.55], [0.3, 0.42, 0.66], [0.95, 1, 1.12]], fur_gold: [[1.55, 1.18, 0.45], [0.42, 0.24, 0.06], [1.15, 0.9, 0.45]] }, fur = FURS[PB.meta && PB.meta.look('dash', 'fur')] || [[0.62, 0.58, 0.6], [0.16, 0.15, 0.2], [1, 1, 1]];
+      const grey = { tex: A.tFur, uvScale: [2, 2], color: fur[0], spec: fur === FURS.fur_gold ? 1.1 : 0.35, shine: 24, rim: 0.7, ol: 0.035, alpha: flick ? 0.45 : 1 }, dark = { color: fur[1], spec: 0.5, shine: 30, ol: 0.03, alpha: flick ? 0.45 : 1 }, cream = { color: [1, 0.95, 0.88], spec: 0.25, ol: 0.025, alpha: flick ? 0.45 : 1 }, pink = { color: [1, 0.6, 0.68], spec: 0.2 };
       const part = (mesh, local, rot, sc, mat, parent) => D(mesh, M.mul(parent || Bm, M.trs(local, rot || [0, 0, 0], sc)), mat);
       // legs: thigh swings from the hip, foot lifts off the ground
       for (const [sx, ph] of [[-0.2, 0], [0.2, Math.PI]]) {
@@ -1509,7 +1510,7 @@
       // dizzy stars after a bump
       if (R.spin > 0 || p.inv > 0.6) { const hc = M.xform(Hm, [0, 0.5, 0]); for (let k=0;k<4;k++) { const a = st.time * 7 + k * Math.PI / 2; SP([hc[0] + Math.cos(a) * 0.45, hc[1] + Math.sin(a * 2) * 0.05, hc[2] + Math.sin(a) * 0.45], 0.28, [1, 0.9, 0.3], 1, true); } }
       // the tail: one smooth, bendy, furry tube
-      if (R.tail) { buildTail(R.tail.q); D(A.tail, M.trs([0, 0, 0]), { tex: A.tTail, color: [1, 1, 1], spec: 0.2, shine: 14, alpha: flick ? 0.45 : 1 }); }
+      if (R.tail) { buildTail(R.tail.q); D(A.tail, M.trs([0, 0, 0]), { tex: A.tTail, color: fur[2], spec: 0.2, shine: 14, alpha: flick ? 0.45 : 1 }); }
       // dust puffs and snacks being gobbled up
       for (const d of R.dust) SP(d.p, d.size * 0.8, [0.9, 0.84, 0.74], (d.life / d.max) * 0.3, false);
       const mouth = M.xform(Hm, [0, -0.1, -0.4]);

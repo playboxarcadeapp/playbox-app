@@ -540,6 +540,9 @@
         E.draw(A3.gems[type], M.trs(P3(x, y, z - 8), [tilt, sway + spin, 0], [k * 1.13, k * 1.13, k * 0.5]), { color: type === 6 ? [0.3, 0.25, 0.4] : col.map(v => v * 0.32), unlit: true, noShadow: true });
         E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * (type === 6 ? 0.14 : 0.14)), spec: 2.2, shine: 140, rim: 0.7 });
         if (!t.dying) E.sprite(P3(x - CELL * 0.14 * sc, y - CELL * 0.16 * sc, z + 16), CELL * 0.3 * sc, [1, 1, 1], 0.55, true);
+        const shine = PB.meta && PB.meta.look('sweets', 'shine');
+        if (shine && !t.dying) { if (shine === 'shine_glow') E.sprite(P3(x, y, z - 10), CELL * 1.45 * sc, col, 0.5 + 0.15 * Math.sin(time * 3 + t.id), true);
+          else { const tw = Math.max(0, Math.sin(time * 2.2 + t.id * 2.39)); if (tw > 0.6) { const a = (tw - 0.6) / 0.4, gx = x + CELL * 0.18 * sc, gy = y - CELL * 0.2 * sc; E.sprite(P3(gx, gy, z + 20), CELL * 0.55 * a * sc, [1, 1, 1], a, true); E.sprite(P3(gx, gy, z + 19), CELL * 0.9 * a * sc, col, a * 0.5, true); } } }
         if (t.sp === 'h' || t.sp === 'v') {
           const rot = t.sp === 'v' ? Math.PI / 2 : 0, off = 3 * Math.sin(time * 8), bm = M.trs(P3(x, y, z + 10), [0, 0, rot], [1, 1, 1]);
           E.draw(A3.bar, M.mul(bm, M.trs([0, 0, 0], [0, 0, 0], [34 * sc, 4 * sc, 4 * sc])), { color: [0.85, 0.98, 1], emissive: [0.5, 0.9, 1.2], spec: 1.5, shine: 80, noShadow: true });
