@@ -489,7 +489,8 @@
       g.drawImage(caveC, 0, 0, W, H);
       const x0 = BX - 12, y0 = BY - 12, bw = N * CELL + 24;
       g.fillStyle = 'rgba(30,10,60,.35)'; g.beginPath(); g.roundRect(x0 + 3, y0 + 8, bw, bw, 22); g.fill();
-      const fg = g.createLinearGradient(0, y0, 0, y0 + bw); fg.addColorStop(0, '#ffe08a'); fg.addColorStop(0.5, '#f2b13c'); fg.addColorStop(1, '#c7801f');
+      const fk = PB.meta && PB.meta.look('sweets', 'frame'), FC = fk === 'frame_candy' ? ['#ffd0e8', '#ff8fc4', '#e0559a'] : fk === 'frame_ice' ? ['#e8fbff', '#9ae6ff', '#4fa8e0'] : ['#ffe08a', '#f2b13c', '#c7801f']; boardKeyFrame = fk;
+      const fg = g.createLinearGradient(0, y0, 0, y0 + bw); fg.addColorStop(0, FC[0]); fg.addColorStop(0.5, FC[1]); fg.addColorStop(1, FC[2]);
       g.fillStyle = fg; g.beginPath(); g.roundRect(x0, y0, bw, bw, 22); g.fill(); g.strokeStyle = '#7a4a12'; g.lineWidth = 3; g.stroke();
       g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.beginPath(); g.roundRect(x0 + 4, y0 + 4, bw - 8, bw - 8, 18); g.stroke();
       for (let k=0;k<12;k++) { const t = k / 12; for (const [px, py] of [[x0 + 6 + t * (bw - 12), y0 + 6], [x0 + 6 + t * (bw - 12), y0 + bw - 6], [x0 + 6, y0 + 6 + t * (bw - 12)], [x0 + bw - 6, y0 + 6 + t * (bw - 12)]]) { g.fillStyle = 'rgba(255,250,220,.9)'; g.beginPath(); g.arc(px, py, 1.8, 0, 7); g.fill(); } }
@@ -504,8 +505,10 @@
       }
       boardC = c;
     }
+    let boardKeyFrame = null;
     function draw3D(tile){
       const E = E3, M = E.M, P3 = E.px;
+      if (boardC && boardKeyFrame !== ((PB.meta && PB.meta.look('sweets', 'frame')) || null)) { boardC = null; A3.tBoard = null; }
       if (!boardC) paintBoard();
       if (!A3.tBoard) A3.tBoard = E.texture(boardC, { repeat: false });
       E.resize(W, H, tile ? 1 : E.quality(1.5));

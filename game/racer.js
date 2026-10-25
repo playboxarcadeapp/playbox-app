@@ -379,7 +379,7 @@
       for (const b of st.bolts) E.sprite([b.x, b.y, b.z], 0.35, [1, 0.35, 0.45], 1, true, 0, null, [0, 0, 2.2]);
       const inv = st.inv > 0 && Math.floor(st.inv * 12) % 2;
       const sc = st.fx.mini > 0 ? 0.55 : 1;
-      if (!inv) drawShip(M, [p.x, p.y, 0], [p.y * 0.04 + (p.ty - p.y) * 0.08, 0, p.bank * 0.6], sc, [1, 0.55, 0.15], st.fx.turbo > 0 ? 1.6 : st.boost > 0 ? 1.1 : 0.55, st.fx.turbo > 0 || st.boost > 0);
+      if (!inv) drawShip(M, [p.x, p.y, 0], [p.y * 0.04 + (p.ty - p.y) * 0.08, 0, p.bank * 0.6], sc, ({ ship_red: [1, 0.2, 0.18], ship_blue: [0.35, 0.78, 1], ship_gold: [1, 0.8, 0.2] })[PB.meta && PB.meta.look('racer', 'paint')] || [1, 0.55, 0.15], st.fx.turbo > 0 ? 1.6 : st.boost > 0 ? 1.1 : 0.55, st.fx.turbo > 0 || st.boost > 0);
       for (const t of st.trail) E.sprite(t.p, t.size, st.fx.turbo > 0 ? [1, 0.6, 0.25] : [0.45, 0.7, 1], t.life * 0.5, true);
       if (st.fx.shield > 0) E.draw(A.sphere, M.trs([p.x, p.y, 0], [0, st.clock, 0], 2.3 * sc), { color: [0.4, 0.85, 1], alpha: 0.16, additive: true, rim: 4, spec: 1, noShadow: true });
       for (const q of st.parts) E.sprite(q.p, q.size * (0.5 + q.life), q.color, Math.min(1, q.life * 1.6), true);

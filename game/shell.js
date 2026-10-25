@@ -135,6 +135,7 @@
       list.appendChild(b);
     }
     $('chalCount').textContent = `${doneN} of ${list.children.length} done`;
+    if (PB.meta) PB.meta.render();
     for (const g of ordered) {
       const el = $('best-' + g.id); if (!el) continue;
       if (g.type === 'levels') { const p = progress(g); el.textContent = `Level ${Math.min(p.unlocked, g.levels)} \u00b7 \u2605 ${totalStars(p)}`; }
@@ -169,6 +170,9 @@
     hero.onclick = () => openGame(g.id);
   }
   refreshHub(); buildHero();
+  if (PB.meta) PB.meta.initUI();
+  // used by the continue card and daily missions
+  PB.openAndStart = (id, lv) => { openGame(id); startGame('classic', lv || undefined); };
 
   // ---------- Play screen ----------
   function fit(){
@@ -296,6 +300,7 @@
       cachedBest = bestFor(G, m);
     }
     lastEntryId = null; prevHud = null;
+    if (PB.meta) PB.meta.onPlay(G.id, m, level);
     chal = m === 'daily' ? challengeFor(G) : null;
     if (chal) { chal.lives0 = G.hud().lives; chal.value = 0; setTimeout(() => { if (chal && phase === 'play') toast('Goal: ' + chal.label, false); }, 900); }
     if (PB.sfx) PB.sfx('start'); if (PB.music) PB.music.duck(false);
@@ -326,8 +331,9 @@
   shell.gameOver = function(score, summary){
     if (mode === 'daily') checkChallenge();
     phase = 'over'; lastScore = Math.floor(score);
-    const earned = coinsForScore(lastScore); wallet.add(earned);
-    $('oCoins').innerHTML = coinSvg + `<span>+${fmt(earned)} coins</span>`;
+    const mult = PB.meta ? PB.meta.coinMult(G.id) : 1, earned = coinsForScore(lastScore) * mult; wallet.add(earned);
+    $('oCoins').innerHTML = coinSvg + `<span>+${fmt(earned)} coins${mult > 1 ? ` (\u00d7${mult} ${PB.meta.event().name})` : ''}</span>`;
+    const lastKey = 'pb-lastrun-' + G.id + '-' + mode, prevRun = store.get(lastKey) || 0; store.set(lastKey, lastScore);
     $('oChal').hidden = !chal; if (chal) { $('oChal').textContent = chal.done ? '\u2605 Daily goal complete!' : 'Daily goal: ' + chal.label + (chal.failed ? ' (missed)' : ''); $('oChal').className = 'chalres' + (chal.done ? ' ok' : ''); }
     const boards = mode === 'classic' ? boardsOf(G) : [mode];
     const prevBest = bestFor(G, mode), q = boards.some(b => qualifies(G, b, lastScore));
@@ -340,7 +346,9 @@
     if (mode === 'classic' && beat.length) { flag.hidden = false; flag.textContent = beat.includes('classic') ? 'New all-time best!' : beat.includes('weekly') ? 'Best run this week!' : 'Best run today!'; }
     else if (lastScore > prevBest && lastScore > 0) { flag.hidden = false; flag.textContent = 'New high score!'; }
     else if (q) { flag.hidden = false; flag.textContent = 'You made the top 10!'; }
+    else if (prevRun > 0 && lastScore > prevRun) { flag.hidden = false; flag.textContent = 'Better than last time!'; }
     else flag.hidden = true;
+    if (PB.meta) PB.meta.onRun({ g: G.id, mode, score: lastScore, win: false, m: G.metrics ? G.metrics() : {} });
     // every run that makes a board is saved straight away under the last name used; the form just renames it
     const name = store.get('pb-name') || store.get('bb-name') || 'Player';
     lastEntryId = q ? addScore(G, mode, name, lastScore) : null;
@@ -363,8 +371,9 @@
     if (mode === 'daily') { shell.gameOver(score, summary); return; }
     phase = 'over'; lastScore = Math.floor(score);
     const firstClear = win && !(progress(G).stars[level] > 0);
-    const earned = win ? 5 + stars * 3 + (firstClear ? 10 : 0) : 1; wallet.add(earned);
-    $('lCoins').innerHTML = coinSvg + `<span>+${earned} coin${earned === 1 ? '' : 's'}${firstClear ? ' (first clear bonus!)' : ''}</span>`;
+    const mult = PB.meta ? PB.meta.coinMult(G.id) : 1, earned = (win ? 5 + stars * 3 + (firstClear ? 10 : 0) : 1) * mult; wallet.add(earned);
+    $('lCoins').innerHTML = coinSvg + `<span>+${earned} coin${earned === 1 ? '' : 's'}${firstClear ? ' (first clear bonus!)' : ''}${mult > 1 ? ` (\u00d7${mult} event)` : ''}</span>`;
+    const prevStars = progress(G).stars[level] || 0;
     if (PB.sfx) PB.sfx(win ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
     const p = progress(G);
     let newBest = false, lBestText = 'New best for this level!';
@@ -385,7 +394,9 @@
     $('lStars').setAttribute('aria-label', win ? `${stars} of 3 stars` : 'No stars');
     $('lScore').textContent = G.levelScoreText ? G.levelScoreText(lastScore, win) : fmt(lastScore);
     $('lSummary').textContent = summary;
+    if (!newBest && win && prevStars > 0 && stars > prevStars) { newBest = true; lBestText = 'More stars than before!'; }
     $('lFlag').hidden = !newBest; $('lFlag').textContent = lBestText;
+    if (PB.meta) PB.meta.onRun({ g: G.id, mode, score: lastScore, win, stars, level, m: G.metrics ? G.metrics() : {} });
     const next = $('btnNext');
     if (win && level < G.levels) { next.textContent = 'Next level'; next.onclick = () => startGame('classic', level + 1); }
     else if (win) { next.textContent = 'You beat every level!'; next.onclick = openLevels; }

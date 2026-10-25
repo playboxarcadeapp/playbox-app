@@ -373,17 +373,21 @@
     // ---------- 3D look: a smooth, scaly anaconda body, 3D fruit, mossy rocks and logs ----------
     let E3 = null, A3 = null;
     const SUB = 4, SIDES = 14, CAP = COLS * ROWS * SUB + 8;
+    // Swag Shop skins: back color, blotches, side spots, spot centers
+    const SKINS = { skin_coral: { back: '#d8452e', blot: '#1a1210', spot: '#ffd23f', mid: '#1a1210' }, skin_ocean: { back: '#2f6fd0', blot: '#123068', spot: '#7fe0ff', mid: '#0c2448' }, skin_gold: { back: '#d9a520', blot: '#7a5208', spot: '#fff1a0', mid: '#6a4206' } };
+    const skinPal = () => SKINS[PB.meta && PB.meta.look('snake', 'skin')] || { back: '#6f8f26', blot: '#1a2208', spot: '#d6a632', mid: '#141b06' };
     function skinTex(){
       const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'), R = mulberry(9);
       // around the body: v 0..1 = side, top (0.25), other side (0.5), belly (0.75)
       const base = g.createLinearGradient(0, 0, 0, 256);
-      base.addColorStop(0, '#6f8f26'); base.addColorStop(0.18, '#7f9f2c'); base.addColorStop(0.25, '#86a832'); base.addColorStop(0.32, '#7f9f2c'); base.addColorStop(0.5, '#6f8f26');
+      const P = skinPal(), sh = (c, k) => PB.shade(c, k);
+      base.addColorStop(0, P.back); base.addColorStop(0.18, sh(P.back, 0.08)); base.addColorStop(0.25, sh(P.back, 0.14)); base.addColorStop(0.32, sh(P.back, 0.08)); base.addColorStop(0.5, P.back);
       base.addColorStop(0.6, '#a69a4a'); base.addColorStop(0.68, '#e6d58a'); base.addColorStop(0.75, '#f0e2a0'); base.addColorStop(0.82, '#e6d58a'); base.addColorStop(0.92, '#a69a4a'); base.addColorStop(1, '#6f8f26');
       g.fillStyle = base; g.fillRect(0, 0, 512, 256);
       // big blotches on the back, golden-rimmed spots on the sides
       for (let i=0;i<8;i++) { const x = i * 64 + 32 + (R() - .5) * 14;
-        for (const [y, s] of [[64, 1], [64 + 256, 1], [-192, 1]]) { g.fillStyle = '#1a2208'; g.beginPath(); g.ellipse(x, y + (i % 2 ? 14 : -14), 22, 15, 0, 0, 7); g.fill(); }
-        for (const vy of [10, 118]) { const y = vy + (i % 2 ? 6 : -6), xx = x + 32; g.fillStyle = '#d6a632'; g.beginPath(); g.ellipse(xx, y, 15, 11, 0, 0, 7); g.fill(); g.fillStyle = '#141b06'; g.beginPath(); g.ellipse(xx, y, 11, 7.5, 0, 0, 7); g.fill(); }
+        for (const [y, s] of [[64, 1], [64 + 256, 1], [-192, 1]]) { g.fillStyle = P.blot; g.beginPath(); g.ellipse(x, y + (i % 2 ? 14 : -14), 22, 15, 0, 0, 7); g.fill(); }
+        for (const vy of [10, 118]) { const y = vy + (i % 2 ? 6 : -6), xx = x + 32; g.fillStyle = P.spot; g.beginPath(); g.ellipse(xx, y, 15, 11, 0, 0, 7); g.fill(); g.fillStyle = P.mid; g.beginPath(); g.ellipse(xx, y, 11, 7.5, 0, 0, 7); g.fill(); }
       }
       // belly plates
       g.strokeStyle = 'rgba(120,100,40,.35)'; g.lineWidth = 2; for (let x=0;x<512;x+=16) { g.beginPath(); g.moveTo(x, 160); g.lineTo(x, 224); g.stroke(); }
@@ -592,7 +596,7 @@
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => powOrb(g, k, 23, 14, 12) })),
       init(){ assets3D(); },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
-      start(mode, rand, lives, msg){ const R = mode === 'daily' ? mulberry(seedFrom('snake-daily-' + PB.today())) : rand; fresh(mode, R, 1, 'ready'); st.msg = 'Swipe to start slithering'; },
+      start(mode, rand, lives, msg){ if (A3 && E3) { const k = (PB.meta && PB.meta.look('snake', 'skin')) || ''; if (A3.skinKey !== k) { A3.skinKey = k; A3.tSkin = E3.texture(skinTex()); } } const R = mode === 'daily' ? mulberry(seedFrom('snake-daily-' + PB.today())) : rand; fresh(mode, R, 1, 'ready'); st.msg = 'Swipe to start slithering'; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
       debug(){ return st; },

@@ -338,7 +338,10 @@
       { name:'Haunted Library', wall:'books',  sky:['#06102a','#1d2f5a'], moon:[232,240,255], banners:['#1f4a3a','#5a1f3a'], left:'wizard', right:'ghost', fly:'books', storm:true },
       { name:'Moonlit Forest',  wall:'forest', sky:['#071430','#1e3f6a'], moon:[250,250,235], banners:null,                  left:'witch',  right:'cat',   fly:'witch', flies:true },
     ];
-    const sceneOf = spec => spec.n === 'daily' ? (parseInt(PB.today().replace(/\D/g, ''), 10) || 0) % SCENES.length : (spec.n - 1) % SCENES.length;
+    // Swag Shop brew colors for the cauldron
+    const BREWS = { brew_pink: ['#ffd0ec', '#e04aa8', '255,160,220'], brew_blue: ['#d0f4ff', '#2f86ff', '150,210,255'], brew_gold: ['#fff6c0', '#e8b21f', '255,230,140'] };
+    const brew = () => BREWS[PB.meta && PB.meta.look('potions', 'brew')] || ['#d4ff9a', '#4fbf3a', '190,255,150'];
+    const sceneOf = spec => PB.meta && PB.meta.event().id === 'spooky' ? [1, 4][(spec.n === 'daily' ? 0 : spec.n - 1) % 2] : spec.n === 'daily' ? (parseInt(PB.today().replace(/\D/g, ''), 10) || 0) % SCENES.length : (spec.n - 1) % SCENES.length;
     const hallCs = {};
     const hallFor = () => { const sc = st ? st.scene || 0 : 0; if (!hallCs[sc]) hallCs[sc] = paintHall(sc); return hallCs[sc]; };
     // the view through the big arched window
@@ -740,15 +743,15 @@
       const pot = ctx.createRadialGradient(cx - 18, cy - 4, 4, cx, cy + 10, 60); pot.addColorStop(0, '#4a4a55'); pot.addColorStop(1, '#0d0d12');
       ctx.fillStyle = pot; ctx.beginPath(); ctx.moveTo(cx - 54, cy - 10); ctx.quadraticCurveTo(cx - 62, cy + 40, cx - 18, cy + 46); ctx.lineTo(cx + 18, cy + 46); ctx.quadraticCurveTo(cx + 62, cy + 40, cx + 54, cy - 10); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#1f1f27'; ctx.beginPath(); ctx.ellipse(cx, cy - 10, 58, 12, 0, 0, 7); ctx.fill();
-      const brew = ctx.createRadialGradient(cx, cy - 10, 2, cx, cy - 10, 52); brew.addColorStop(0, '#d4ff9a'); brew.addColorStop(1, '#4fbf3a');
-      ctx.fillStyle = brew; ctx.beginPath(); ctx.ellipse(cx, cy - 10, 50, 8.5, 0, 0, 7); ctx.fill();
+      const BR = brew(), brewG = ctx.createRadialGradient(cx, cy - 10, 2, cx, cy - 10, 52); brewG.addColorStop(0, BR[0]); brewG.addColorStop(1, BR[1]);
+      ctx.fillStyle = brewG; ctx.beginPath(); ctx.ellipse(cx, cy - 10, 50, 8.5, 0, 0, 7); ctx.fill();
       ctx.strokeStyle = 'rgba(160,170,190,.45)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy - 10, 58, 12, 0, Math.PI * 1.05, Math.PI * 1.6); ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.ellipse(cx - 30, cy + 12, 8, 16, 0.4, 0, 7); ctx.fill();
-      for (const b of st.bubbles) { ctx.fillStyle = 'rgba(190,255,150,.75)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.3, 0, 7); ctx.fill(); }
+      for (const b of st.bubbles) { ctx.fillStyle = `rgba(${BR[2]},.75)`; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.3, 0, 7); ctx.fill(); }
       // glowing steam curling up from the brew
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let k=0;k<6;k++) { const ph = ((t * 0.18 + k / 6) % 1), sx = cx - 20 + k * 8 + Math.sin(t * 0.9 + k * 2) * 14 * ph, sy = cy - 16 - ph * 120, rr = 14 + ph * 30;
-        const sg = ctx.createRadialGradient(sx, sy, 1, sx, sy, rr); sg.addColorStop(0, `rgba(170,255,140,${0.16 * (1 - ph)})`); sg.addColorStop(1, 'rgba(170,255,140,0)'); ctx.fillStyle = sg; ctx.fillRect(sx - rr, sy - rr, rr * 2, rr * 2); }
+        const sg = ctx.createRadialGradient(sx, sy, 1, sx, sy, rr); sg.addColorStop(0, `rgba(${BR[2]},${0.16 * (1 - ph)})`); sg.addColorStop(1, 'rgba(170,255,140,0)'); ctx.fillStyle = sg; ctx.fillRect(sx - rr, sy - rr, rr * 2, rr * 2); }
       ctx.restore();
     }
     function drawHourglass(x, y, h, frac, t){
@@ -1024,7 +1027,7 @@
       else if (SC.right === 'ghost') drawGhost(W - 62, H - 60, st.clock);
       else if (SC.right === 'dragon') { const m = drawDragon(W - 70, H - 8, st.clock); if (st.puff > 0 && !reduceMotion) for (let k=0;k<3;k++) st.parts.push({ x: m.x, y: m.y, vx: -160 - Math.random() * 120, vy: 40 + Math.random() * 60, life: 0.5, color: ['#ffd27a','#ff9a2a','#ff5a1a'][k], small: true }); }
       ctx.globalCompositeOperation = 'source-atop';
-      const gl = ctx.createRadialGradient(cx, cy - 20, 10, cx, cy - 20, 210); gl.addColorStop(0, 'rgba(150,255,110,.55)'); gl.addColorStop(1, 'rgba(150,255,110,0)'); ctx.fillStyle = gl; ctx.fillRect(0, H - 360, W, 360);
+      const gl = ctx.createRadialGradient(cx, cy - 20, 10, cx, cy - 20, 210); gl.addColorStop(0, `rgba(${brew()[2]},.55)`); gl.addColorStop(1, 'rgba(150,255,110,0)'); ctx.fillStyle = gl; ctx.fillRect(0, H - 360, W, 360);
       const fire = ctx.createRadialGradient(cx, cy + 40, 6, cx, cy + 40, 140); fire.addColorStop(0, 'rgba(255,150,60,.45)'); fire.addColorStop(1, 'rgba(255,150,60,0)'); ctx.fillStyle = fire; ctx.fillRect(0, H - 260, W, 260);
       const moonL = ctx.createLinearGradient(0, H - 330, W * 0.4, H - 200); moonL.addColorStop(0, 'rgba(160,180,255,.22)'); moonL.addColorStop(1, 'rgba(160,180,255,0)'); ctx.fillStyle = moonL; ctx.fillRect(0, H - 360, W, 360);
       const dk = ctx.createLinearGradient(0, H - 120, 0, H); dk.addColorStop(0, 'rgba(0,0,0,0)'); dk.addColorStop(1, 'rgba(0,0,0,.4)'); ctx.fillStyle = dk; ctx.fillRect(0, H - 120, W, 120);

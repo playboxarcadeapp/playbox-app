@@ -237,7 +237,8 @@
       const g = boardL[1], cs = st.cell, s = st.size, bw = cs * s;
       g.clearRect(0, 0, W, H); g.drawImage(bgL[0], 0, 0, W, H);
       g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 30; g.shadowOffsetY = 12;
-      const fr = g.createLinearGradient(0, st.by - 18, 0, st.by + bw + 18); fr.addColorStop(0, '#3a4f6e'); fr.addColorStop(0.5, '#1a2840'); fr.addColorStop(1, '#0c1424');
+      const bk = PB.meta && PB.meta.look('cubes', 'box'), BC = bk === 'box_gold' ? ['#ffe08a', '#c7901f', '#6a4206'] : bk === 'box_pink' ? ['#ffb0e0', '#c0408a', '#5a1440'] : ['#3a4f6e', '#1a2840', '#0c1424'];
+      const fr = g.createLinearGradient(0, st.by - 18, 0, st.by + bw + 18); fr.addColorStop(0, BC[0]); fr.addColorStop(0.5, BC[1]); fr.addColorStop(1, BC[2]);
       g.fillStyle = fr; g.beginPath(); g.roundRect(st.bx - 18, st.by - 18, bw + 36, bw + 36, 22); g.fill(); g.restore();
       g.strokeStyle = 'rgba(160,210,255,.35)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(st.bx - 17, st.by - 17, bw + 34, bw + 34, 21); g.stroke();
       for (const [qx, qy] of [[st.bx - 9, st.by - 9], [st.bx + bw + 9, st.by - 9], [st.bx - 9, st.by + bw + 9], [st.bx + bw + 9, st.by + bw + 9]]) { g.fillStyle = '#7f95b8'; g.beginPath(); g.arc(qx, qy, 3.2, 0, 7); g.fill(); g.fillStyle = '#2a3a55'; g.fillRect(qx - 2.2, qy - 0.6, 4.4, 1.2); }
@@ -253,7 +254,7 @@
     }
     function draw3D(tile){
       const E = E3, M = E.M, P3 = E.px, cs = st.cell, bw = cs * st.size;
-      const key = st.size + '|' + cs + '|' + st.bx + '|' + st.by; if (key !== boardKey) { boardKey = key; paintBoardBackdrop(); }
+      const key = st.size + '|' + cs + '|' + st.bx + '|' + st.by + '|' + ((PB.meta && PB.meta.look('cubes', 'box')) || ''); if (key !== boardKey) { boardKey = key; paintBoardBackdrop(); }
       E.resize(W, H, tile ? 1 : E.quality(1.5));
       const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
       E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {

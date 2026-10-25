@@ -562,7 +562,9 @@
     }
     // the slingshot: a forked log on a stone base with a stretchy leather band
     function drawSling(){
-      const M = E.M, wood = { tex: A.tPlank, color: [0.72, 0.5, 0.32], spec: 0.15, uvScale: [0.5, 1] };
+      const M = E.M, skin = PB.meta && PB.meta.look('castle', 'sling');
+      if (skin === 'sling_candy' && !A.tCandy) { const c = cv(64, 256), g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 256); g.fillStyle = '#ff4f8b'; for (let y=-64;y<256;y+=32) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y + 32); g.lineTo(64, y + 48); g.lineTo(0, y + 16); g.closePath(); g.fill(); } A.tCandy = E.texture(c); }
+      const wood = skin === 'sling_gold' ? { color: [1, 0.78, 0.2], emissive: [0.25, 0.16, 0.02], spec: 1.6, shine: 90 } : skin === 'sling_candy' ? { tex: A.tCandy, color: [1, 1, 1], spec: 0.8, shine: 60, uvScale: [1, 2] } : { tex: A.tPlank, color: [0.72, 0.5, 0.32], spec: 0.15, uvScale: [0.5, 1] };
       E.draw(A.box, M.trs(P3(SLX, GROUND - 18, 0), [0, 0, 0], [0.8, 0.36, 0.6]), { tex: A.tStone.dark, color: [0.9, 0.9, 0.9], spec: 0.2 }); E.draw(A.box, M.trs(P3(SLX, GROUND - 18, 0), [0, 0, 0], [0.8, 0.36, 0.6]), INK);
       const fork = GROUND - 96, tipL = [SLX - 30, GROUND - 158, -12], tipR = [SLX + 27, GROUND - 155, 12];
       const log = (a, b, r) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy), ang = Math.atan2(dx, -dy); const m = M.trs(P3((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), [0, 0, -ang], [r * S, L * S, r * S]); E.draw(A.log, m, wood); E.draw(A.log, m, INK); };

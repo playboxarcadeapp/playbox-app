@@ -326,7 +326,7 @@
       // paddle
       const p = st.paddle, pc = fx.shrink > 0 ? '#8a96d0' : fx.magnet > 0 ? N.yellow : N.cyan, pcol = hex3(pc);
       const pm = M.trs(P3(p.x + p.w / 2, p.y + p.h / 2, 14), [0, 0, 0], [p.w - p.h, p.h / 2 + 1, p.h / 2 + 4]);
-      E.draw(A3.paddle, pm, { color: [0.86, 0.88, 0.95], spec: 1.8, shine: 110, rim: 0.6 });
+      const pk = PB.meta && PB.meta.look('bricks', 'paddle'); E.draw(A3.paddle, pm, pk === 'paddle_lava' ? { color: [1, 0.45, 0.2], emissive: [0.5, 0.15, 0.02], spec: 1.4, shine: 90, rim: 0.6 } : pk === 'paddle_neon' ? { color: [0.45, 1, 0.5], emissive: [0.15, 0.45, 0.2], spec: 1.4, shine: 90, rim: 0.6 } : { color: [0.86, 0.88, 0.95], spec: 1.8, shine: 110, rim: 0.6 });
       E.draw(A3.pill, M.trs(P3(p.x + p.w / 2, p.y + p.h / 2, 14), [0, 0, Math.PI / 2], [p.h / 2 + 1.6, p.w - p.h - 4, p.h / 2 + 1.6].map((v, i) => i === 1 ? v * 0.5 : v)), { color: pcol, emissive: pcol.map(v => v * 0.9), spec: 1, shine: 60, noShadow: true });
       for (const e of [-1, 1]) { E.draw(A3.cap, M.trs(P3(p.x + p.w / 2 + e * (p.w - p.h) / 2, p.y + p.h / 2, 14), [0, 0, 0], [p.h / 2 + 1.2, p.h / 2 + 1.2, p.h / 2 + 4]), { color: pcol, emissive: pcol.map(v => v * 0.6), spec: 1.6, shine: 90 }); E.sprite(P3(p.x + p.w / 2 + e * (p.w / 2 - 12), p.y + p.h + 4, 20), 26 + Math.sin(clock * 30 + e) * 4, pcol, 0.8, true); }
       if (fx.laser > 0) for (const e of [p.x + 8, p.x + p.w - 8]) E.draw(A3.pill, M.trs(P3(e, p.y - 2, 16), [0, 0, 0], [3.5, 12, 3.5]), { color: hex3(N.pink), emissive: hex3(N.pink).map(v => v * 0.8), spec: 1.4 });

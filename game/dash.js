@@ -446,6 +446,7 @@
           else if (r < 0.85) st.objs.push({ kind:'lamp', seg: s.id, side, at: s.decoAt + 3 });
         }
         if (s.kind === 'open' && R() < 0.12 && s.decoAt > s.start + 20 && (zd === 'houses' || zd === 'town')) st.objs.push({ kind:'bunting', seg: s.id, at: s.decoAt + 4, x: 0, c: Math.floor(R() * 4) });
+        if (st.bestDist > 60 && !st.bestFlag && st.bestDist >= s.decoAt && st.bestDist < s.decoAt + 9 && st.bestDist < dlim - 6) { st.bestFlag = true; st.objs.push({ kind:'bestflag', seg: s.id, at: st.bestDist, x: 0 }); }
         if (s.kind === 'open' && zd !== 'farm' && R() < 0.35) st.objs.push({ kind:'decal', type:'manhole', seg: s.id, x: (Math.floor(R() * 3) - 1) * LANE + (R() - .5) * 0.8, at: s.decoAt + R() * 9 });
         s.decoAt += 9;
       }
@@ -705,7 +706,7 @@
     function startTally(label){
       st.phase = 'tally'; st.speed = 0;
       st.tally = { t: 0, base: Math.floor(st.dist), coins: st.coins || 0, left: st.coins || 0, bonus: 0, done: 0, tick: 0, label: label || 'Run over!', best: st.bestDist || 0, fly: [], pops: [], conf: [], bump: 0, spawn: 0 };
-      if (PB.wallet && st.coins) PB.wallet.add(st.coins);
+      if (PB.wallet && st.coins) PB.wallet.add(st.coins * (PB.meta ? PB.meta.coinMult('dash') : 1));
       if (PB.sfx) PB.sfx('lose');
     }
     // Results card timeline: banner + card (0-1 s), "Coin bonus!" strip (1-1.9 s), coins pour into the distance, then the total
@@ -821,6 +822,7 @@
         else if (o.kind === 'sign') drawSign(o, z);
         else if (o.kind === 'bunting') drawBunting(o, z);
         else if (o.kind === 'barrier') drawBarrier(o, z);
+        else if (o.kind === 'bestflag') drawBestFlag(o, z);
       }
       FR = frames[cs.id];
       for (const b of st.bugs || []) { if (!frames[b.seg]) continue; FR = frames[b.seg]; const z = wz(b.at); if (z > 6 || z < -60) continue; const t = st.time * 2 + b.ph, flap = Math.abs(Math.sin(st.time * 22 + b.ph)); const pos = [b.side * (b.x + Math.sin(t * 0.7) * 0.8), b.y + Math.sin(t * 1.3) * 0.35, z + Math.cos(t * 0.5) * 0.8]; for (const sx of [-1, 1]) SP([pos[0] + sx * 0.09 * flap, pos[1], pos[2]], 0.16, b.col, 0.95, false); }
@@ -930,6 +932,13 @@
       const arrow = (dir) => { const sx = dir === 'left' ? -1 : 1; D(A.arrow, M.trs([sx * (o.dirs === 'T' ? 1.25 : 0), y, z + 0.08], [0, 0, dir === 'left' ? 0 : Math.PI], [1.15, 1.15, 1]), { color: [0.17, 0.13, 0.25], spec: 0.2 }); };
       if (o.dirs !== 'R') arrow('left'); if (o.dirs !== 'L') arrow('right');
       D(A.box, M.trs([0, 0.6, z + 1.6], [0, 0, 0], [7, 1.2, 1.1]), { tex: A.tHedge, uvScale: [3, 1], spec: 0.08 });
+    }
+    function drawBestFlag(o, z){
+      const M = E.M;
+      if (!A.tBest) A.tBest = E.texture(canvas(512, 96, (g, w, h) => { for (let x=0;x<w;x+=24) for (let y=0;y<h;y+=24) { g.fillStyle = ((x + y) / 24) % 2 ? '#1e1a22' : '#ffffff'; g.fillRect(x, y, 24, 24); } g.fillStyle = '#ffd23f'; g.beginPath(); g.roundRect(60, 10, w - 120, h - 20, 18); g.fill(); g.strokeStyle = '#2b2140'; g.lineWidth = 6; g.stroke(); g.font = `52px ${TOON}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#2b2140'; g.fillText('YOUR BEST!', w / 2, h / 2 + 3); }, 1), { repeat: false });
+      for (const sx of [-3.7, 3.7]) D(A.cyl, M.trs([sx, 2.0, z], [0, 0, 0], [0.18, 4.0, 0.18]), { color: [0.95, 0.95, 0.95], spec: 0.5, ol: 0.02 });
+      const sway = Math.sin(st.time * 2) * 0.03;
+      D(A.box, M.trs([0, 3.75, z], [sway, 0, 0], [7.6, 1.4, 0.12]), { tex: A.tBest, color: [1, 1, 1], emissive: [0.2, 0.18, 0.1], spec: 0.3 });
     }
     function drawBarrier(o, z){
       const M = E.M;
@@ -1464,8 +1473,9 @@
       part(A.box, [0, 0.98 + pb, 0.4], [0.2, 0, 0], [0.4, 0.06, 0.12], packD);
       for (const sx of [-0.2, 0.2]) part(A.box, [sx, 0.9, 0.05], [0.3, 0, 0], [0.07, 0.42, 0.62], packD);
       // scarf with fluttering ends
-      part(A.torus, [0, 0.98, -0.03], [0.12, 0, 0], [1.08, 0.95, 1.02], { color: C('#ff3b3b'), spec: 0.5, ol: 0.025 });
-      for (const [sx, ph] of [[0.12, 0], [-0.02, 1.4]]) { const fl = Math.sin(st.time * 16 + ph) * 0.35 + (st.phase === 'play' ? 0.9 : 0.2); part(A.box, [sx, 0.92, 0.3 + fl * 0.08], [0.6 + fl * 0.5, 0.25 * Math.sign(sx - 0.05), 0.15], [0.13, 0.34, 0.04], { color: C('#e8463a'), spec: 0.3 }); }
+      const scarf = PB.meta && PB.meta.look('dash', 'scarf'), sc1 = scarf === 'scarf_blue' ? '#3fa9ff' : scarf === 'scarf_rainbow' ? ['#ff3d6e', '#ffd23f', '#3fa9ff'][Math.floor(st.time * 3) % 3] : '#ff3b3b', sc2 = scarf === 'scarf_blue' ? '#1f6fc0' : scarf === 'scarf_rainbow' ? '#7dff6a' : '#e8463a';
+      part(A.torus, [0, 0.98, -0.03], [0.12, 0, 0], [1.08, 0.95, 1.02], { color: C(sc1), spec: 0.5, ol: 0.025 });
+      for (const [sx, ph] of [[0.12, 0], [-0.02, 1.4]]) { const fl = Math.sin(st.time * 16 + ph) * 0.35 + (st.phase === 'play' ? 0.9 : 0.2); part(A.box, [sx, 0.92, 0.3 + fl * 0.08], [0.6 + fl * 0.5, 0.25 * Math.sign(sx - 0.05), 0.15], [0.13, 0.34, 0.04], { color: C(sc2), spec: 0.3 }); }
       // the head: counter-bobs, tilts into turns and looks back at the camera
       st.look = st.look || 0;
       const lookT = st.phase === 'menu' ? Math.PI : (st.lookT > 0 ? 2.3 : 0);
@@ -1491,6 +1501,11 @@
       at(0, -0.14, -0.33, null, [0.38, 0.26, 0.3], cream);
       at(0, -0.08, -0.48, null, [0.13, 0.09, 0.09], { color: [0.08, 0.06, 0.06], spec: 1.4, shine: 90 });
       at(0, -0.24, -0.45, null, [0.13, p.inv > 0 ? 0.08 : 0.04, 0.04], { color: [0.35, 0.12, 0.12] });
+      // Swag Shop hats
+      const hat = PB.meta && PB.meta.look('dash', 'hat'), HP = (mesh, l, r, sc, mat) => { const m = M.mul(Hm, M.trs(l, r || [0, 0, 0], sc)); D(mesh, m, mat); };
+      if (hat === 'hat_cap') { HP(A.sphere, [0, 0.3, 0.02], null, [0.62, 0.36, 0.6], { color: C('#2e6fb7'), spec: 0.4, ol: 0.02 }); HP(A.box, [0, 0.3, -0.36], [-0.15, 0, 0], [0.5, 0.04, 0.34], { color: C('#2e6fb7'), spec: 0.3 }); HP(A.sphere, [0, 0.64, 0.02], null, [0.07, 0.05, 0.07], { color: [1, 1, 1] }); }
+      else if (hat === 'hat_party') { HP(A.cone, [0.06, 0.66, 0.04], [0, 0, -0.18], [0.42, 0.6, 0.42], { color: C('#ff4f8b'), spec: 0.5, ol: 0.02 }); for (let k=0;k<3;k++) HP(A.torus, [0.06 - 0.03 * k, 0.48 + k * 0.16, 0.04], [Math.PI / 2, 0, -0.18], [0.9 - k * 0.27, 0.9 - k * 0.27, 0.6], { color: C('#ffd23f'), spec: 0.5 }); HP(A.sphere, [0.17, 0.98, 0.04], null, [0.11, 0.11, 0.11], { color: C('#7dff6a'), spec: 0.5 }); }
+      else if (hat === 'hat_crown') { const gold = { color: C('#ffd23f'), emissive: [0.25, 0.18, 0.02], spec: 1.6, shine: 90, ol: 0.015 }; HP(A.cyl, [0, 0.46, 0.02], null, [0.5, 0.16, 0.5], gold); for (let k=0;k<5;k++) { const a = k / 5 * Math.PI * 2; HP(A.cone, [Math.cos(a) * 0.21, 0.6, 0.02 + Math.sin(a) * 0.21], null, [0.1, 0.16, 0.1], gold); HP(A.sphere, [Math.cos(a) * 0.21, 0.69, 0.02 + Math.sin(a) * 0.21], null, [0.035, 0.035, 0.035], { color: C(['#ff3d6e', '#3fa9ff', '#7dff6a'][k % 3]), spec: 1.4 }); } }
       // dizzy stars after a bump
       if (R.spin > 0 || p.inv > 0.6) { const hc = M.xform(Hm, [0, 0.5, 0]); for (let k=0;k<4;k++) { const a = st.time * 7 + k * Math.PI / 2; SP([hc[0] + Math.cos(a) * 0.45, hc[1] + Math.sin(a * 2) * 0.05, hc[2] + Math.sin(a) * 0.45], 0.28, [1, 0.9, 0.3], 1, true); } }
       // the tail: one smooth, bendy, furry tube
