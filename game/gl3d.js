@@ -187,7 +187,7 @@
   const FS = `#version 300 es
   precision highp float; precision highp sampler2DShadow;
   in vec3 vW; in vec3 vN; in vec2 vUV; in vec4 vL; in vec4 vCol; out vec4 o;
-  uniform vec3 uColor, uEmis, uCam, uSunDir, uSunCol, uSky, uGround, uFog; uniform float uFogD, uSpec, uShine, uAlpha, uUnlit, uHasTex, uShadowOn, uRim, uFogStart, uToon, uRaw, uRecv;
+  uniform vec3 uColor, uEmis, uCam, uSunDir, uSunCol, uSky, uGround, uFog; uniform float uFogD, uSpec, uShine, uAlpha, uUnlit, uHasTex, uShadowOn, uRim, uFogStart, uToon, uRaw, uRecv, uCut;
   uniform vec2 uUVs, uUVo; uniform sampler2D uTex; uniform sampler2DShadow uShadow; uniform float uOrtho; uniform vec3 uViewDir;
   uniform vec3 uPL[6]; uniform vec3 uPC[6]; uniform float uPR[6]; uniform int uPN;
   vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }
@@ -200,7 +200,7 @@
   void main(){
     vec4 base = vec4(uColor, uAlpha) * vCol;
     if (uHasTex > 0.5) { vec4 t = texture(uTex, vUV * uUVs + uUVo); base.rgb *= pow(t.rgb, vec3(2.2)); base.a *= t.a; }
-    if (base.a < 0.02) discard;
+    if (base.a < max(0.02, uCut)) discard;
     vec3 col;
     // painted backdrops: shown exactly as painted, darkened only where something casts a shadow
     if (uRaw > 0.5) { col = base.rgb; if (uRecv > 0.0 && uShadowOn > 0.5) col *= mix(1.0 - uRecv, 1.0, shadow()); o = vec4(pow(col, vec3(1.0/2.2)), base.a); return; }
@@ -520,7 +520,7 @@
       const dist = q => { const m = q.model; return Math.hypot(m[12] - cam.pos[0], m[13] - cam.pos[1], m[14] - cam.pos[2]); };
       trans.sort((a, b) => dist(b) - dist(a));
       // cache of the last values sent, so unchanged state is not sent again
-      const S = { raw: -1, recv: -1, tex: -1, cull: -1, spec: -1, shine: -1, alpha: -1, unlit: -1, rim: -1, hasTex: -1, outline: -1, uvs0: -1, uvs1: -1, uvo0: -1, uvo1: -1, col: [-1, -1, -1], emis: [-1, -1, -1] };
+      const S = { cut: -1, raw: -1, recv: -1, tex: -1, cull: -1, spec: -1, shine: -1, alpha: -1, unlit: -1, rim: -1, hasTex: -1, outline: -1, uvs0: -1, uvs1: -1, uvo0: -1, uvo1: -1, col: [-1, -1, -1], emis: [-1, -1, -1] };
       const f1 = (loc, key, v) => { if (S[key] !== v) { S[key] = v; gl.uniform1f(loc, v); } };
       const v3 = (loc, key, a, b, c) => { const k = S[key]; if (k[0] !== a || k[1] !== b || k[2] !== c) { k[0] = a; k[1] = b; k[2] = c; gl.uniform3f(loc, a, b, c); } };
       gl.activeTexture(gl.TEXTURE0);
@@ -531,7 +531,7 @@
           const c = m.color || ONE; v3(u.uColor, 'col', Math.pow(c[0], 2.2), Math.pow(c[1], 2.2), Math.pow(c[2], 2.2));
           const e = m.emissive || ZERO; v3(u.uEmis, 'emis', e[0], e[1], e[2]);
           f1(u.uSpec, 'spec', m.spec ?? 0.25); f1(u.uShine, 'shine', m.shine ?? 32); f1(u.uAlpha, 'alpha', m.alpha ?? 1);
-          f1(u.uUnlit, 'unlit', m.unlit ? 1 : 0); f1(u.uRaw, 'raw', m.raw ? 1 : 0); f1(u.uRecv, 'recv', m.recv || 0); f1(u.uRim, 'rim', m.rim || 0); f1(u.uHasTex, 'hasTex', m.tex ? 1 : 0);
+          f1(u.uUnlit, 'unlit', m.unlit ? 1 : 0); f1(u.uRaw, 'raw', m.raw ? 1 : 0); f1(u.uCut, 'cut', m.cutout ? 0.5 : 0); f1(u.uRecv, 'recv', m.recv || 0); f1(u.uRim, 'rim', m.rim || 0); f1(u.uHasTex, 'hasTex', m.tex ? 1 : 0);
           const us = m.uvScale || ONE2, uo = m.uvOffset || ZERO2;
           if (S.uvs0 !== us[0] || S.uvs1 !== us[1]) { S.uvs0 = us[0]; S.uvs1 = us[1]; gl.uniform2f(u.uUVs, us[0], us[1]); }
           if (S.uvo0 !== uo[0] || S.uvo1 !== uo[1]) { S.uvo0 = uo[0]; S.uvo1 = uo[1]; gl.uniform2f(u.uUVo, uo[0], uo[1]); }

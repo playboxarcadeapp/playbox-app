@@ -122,6 +122,8 @@
     woohoo: t => { critter(t, 460, 780, 0.12, 0.19); critter(t + 0.14, 820, 1120, 0.26, 0.19, 7); twinkle(t + 0.08); },
     yippee: t => { critter(t, 700, 1050, 0.09, 0.17); critter(t + 0.12, 1000, 1320, 0.25, 0.17, 8); twinkle(t + 0.06); },
     wahoo: t => { critter(t, 380, 640, 0.13, 0.2); critter(t + 0.15, 720, 1020, 0.24, 0.19, 6); twinkle(t + 0.1); },
+    giggle: t => { for (let i=0;i<4;i++) critter(t + i * 0.11, 980 - i * 70, 820 - i * 70, 0.075, 0.15, 9); },
+    nyah: t => { critter(t, 620, 900, 0.14, 0.16); critter(t + 0.2, 920, 560, 0.26, 0.16, 7); },
     tick: (t, x) => { const f = 880 * Math.pow(2, Math.min(1.5, x || 0)); voice(sfxBus, t, f, { type: ['square', 'sine'], mult: [1, 2], vol: 0.06, d: 0.06, s: 0.01, len: 0.01, cut: 5000 }); },
     fanfare: t => { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => voice(sfxBus, t + i * 0.07, f, { type: ['triangle', 'square'], mult: [1, 2], vol: 0.08, d: 0.18, s: 0.3, len: i === 5 ? 0.45 : 0.04, r: 0.3, cut: 5000 })); twinkle(t + 0.45); twinkle(t + 0.6); },
     bark: t => { for (const dt of [0, 0.16]) { critter(t + dt, 420, 260, 0.09, 0.26); noise(sfxBus, t + dt, { ft: 'bandpass', f: 700, q: 1.5, vol: 0.12, len: 0.08 }); } },
