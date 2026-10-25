@@ -409,19 +409,38 @@
       g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(x + w * 0.3, y + w * 0.2, w * 0.12, w * 0.05, -0.4, 0, 7); g.fill();
     }
     let caveC = null;
+    // A bright, sparkly crystal cavern (candy-colored, so the gems really pop)
     function paintCave(){
       const [c, g] = PB.layer(W, H), R = mulberry(5);
-      const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#3b2a20'); bg.addColorStop(1, '#1d140f'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
-      for (let i=0;i<70;i++) { const x = R() * W, y = R() * H, r = 18 + R() * 46; g.fillStyle = `rgba(${R() < .5 ? '90,66,50' : '20,12,8'},${0.25 + R() * 0.3})`; g.beginPath(); g.moveTo(x - r, y); g.lineTo(x - r * 0.3, y - r * 0.8); g.lineTo(x + r * 0.7, y - r * 0.5); g.lineTo(x + r, y + r * 0.3); g.lineTo(x + r * 0.2, y + r * 0.8); g.closePath(); g.fill(); }
-      // gems glinting in the rock
-      for (let i=0;i<26;i++) { const x = R() * W, y = R() * H, col = COLS[i % 6]; g.fillStyle = col; g.globalAlpha = 0.55; g.beginPath(); g.moveTo(x, y - 5); g.lineTo(x + 4, y); g.lineTo(x, y + 5); g.lineTo(x - 4, y); g.closePath(); g.fill(); g.globalAlpha = 1; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(x - 1, y - 3, 1.5, 1.5); }
-      // wooden mine supports
-      const beam = (x, y, w, h) => { const bg2 = g.createLinearGradient(x, y, x + w, y); bg2.addColorStop(0, '#8a5a32'); bg2.addColorStop(0.5, '#a8723f'); bg2.addColorStop(1, '#6b4223'); g.fillStyle = bg2; g.fillRect(x, y, w, h); g.strokeStyle = '#2a1a10'; g.lineWidth = 2.5; g.strokeRect(x, y, w, h); g.strokeStyle = 'rgba(40,20,5,.35)'; g.lineWidth = 1.2; for (let k=0;k<3;k++) { g.beginPath(); g.moveTo(x + w * (0.25 + k * 0.25), y + 4); g.lineTo(x + w * (0.25 + k * 0.25) + 2, y + h - 4); g.stroke(); } };
-      beam(0, 0, 16, H); beam(W - 16, 0, 16, H);
-      // rail track along the bottom
-      g.fillStyle = '#4a3423'; for (let x = -6; x < W; x += 30) { g.fillRect(x, H - 34, 20, 26); }
-      g.fillStyle = '#9aa0a8'; g.fillRect(0, H - 30, W, 5); g.fillRect(0, H - 14, W, 5);
+      const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#5a2d8c'); bg.addColorStop(0.45, '#8a4fc0'); bg.addColorStop(1, '#2f6fc0'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      // soft light pouring in from a hole in the cave roof
+      g.save(); g.globalCompositeOperation = 'lighter';
+      for (let k=0;k<5;k++) { const x = W * (0.2 + k * 0.16), lg = g.createLinearGradient(x, 0, x + 60, H); lg.addColorStop(0, 'rgba(255,240,200,.16)'); lg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = lg; g.beginPath(); g.moveTo(x - 20, 0); g.lineTo(x + 30, 0); g.lineTo(x + 140, H); g.lineTo(x + 40, H); g.closePath(); g.fill(); }
+      const top = g.createRadialGradient(W / 2, -40, 10, W / 2, -40, 380); top.addColorStop(0, 'rgba(255,230,255,.45)'); top.addColorStop(1, 'rgba(255,230,255,0)'); g.fillStyle = top; g.fillRect(0, 0, W, 380);
+      g.restore();
+      // rounded cave rocks around the edges
+      for (let i=0;i<46;i++) { const side = i % 2 ? 1 : -1, x = side > 0 ? W - R() * 70 : R() * 70, y = R() * H, r = 26 + R() * 40; const rg = g.createRadialGradient(x - r * 0.3, y - r * 0.4, 4, x, y, r); rg.addColorStop(0, '#9a7ad0'); rg.addColorStop(1, '#3d2470'); g.fillStyle = rg; g.beginPath(); g.ellipse(x, y, r, r * 0.8, R(), 0, 7); g.fill(); }
+      // glowing crystal clusters
+      const crystal = (x, y, h, col, lean) => { g.save(); g.translate(x, y); g.rotate(lean); const w = h * 0.32; const cg = g.createLinearGradient(-w, 0, w, 0); cg.addColorStop(0, shade(col, 0.45)); cg.addColorStop(0.5, col); cg.addColorStop(1, shade(col, -0.35)); g.fillStyle = cg; g.beginPath(); g.moveTo(-w, 0); g.lineTo(-w, -h * 0.75); g.lineTo(0, -h); g.lineTo(w, -h * 0.75); g.lineTo(w, 0); g.closePath(); g.fill(); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-w * 0.4, -h * 0.1); g.lineTo(-w * 0.4, -h * 0.72); g.lineTo(0, -h * 0.94); g.stroke(); g.restore(); };
+      g.save(); g.globalCompositeOperation = 'lighter';
+      for (const [x, y, col] of [[40, H - 30, '#ff5fb0'], [W - 46, H - 40, '#5fe0ff'], [36, 160, '#b88cff'], [W - 34, 210, '#ffd25f'], [W / 2, H - 6, '#7dff9a']]) { const gg = g.createRadialGradient(x, y - 30, 4, x, y - 30, 110); gg.addColorStop(0, col + '88'); gg.addColorStop(1, col + '00'); g.fillStyle = gg; g.fillRect(x - 110, y - 140, 220, 220); }
+      g.restore();
+      for (const [x, y, col, s0] of [[40, H - 30, '#ff5fb0', 1], [W - 46, H - 40, '#5fe0ff', 1.1], [36, 160, '#b88cff', 0.7], [W - 34, 210, '#ffd25f', 0.7], [W / 2, H - 6, '#7dff9a', 0.8]]) for (let k=0;k<4;k++) crystal(x + (k - 1.5) * 14 * s0, y, (40 + R() * 40) * s0, col, (k - 1.5) * 0.28);
+      for (let i=0;i<70;i++) { g.fillStyle = `rgba(255,255,255,${0.3 + R() * 0.6})`; const x = R() * W, y = R() * H, r = R() * 1.6 + 0.4; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
       caveC = c;
+    }
+    // flat stone tiles that sit under the gems (two-hit rock has iron bands)
+    let rockTex = null;
+    function rockTileCanvas(f){
+      const [c, g] = PB.layer(64, 64), R = mulberry(f * 31);
+      const base = f > 1 ? ['#7f8aa0', '#3f4860'] : ['#b8997a', '#7a5f45'];
+      const gr = g.createLinearGradient(0, 0, 64, 64); gr.addColorStop(0, base[0]); gr.addColorStop(1, base[1]); g.fillStyle = gr; g.beginPath(); g.roundRect(1, 1, 62, 62, 10); g.fill();
+      // cobbles
+      for (let i=0;i<7;i++) { const x = 10 + R() * 44, y = 10 + R() * 44, r = 8 + R() * 6; g.fillStyle = `rgba(${f > 1 ? '40,48,64' : '90,70,50'},.16)`; g.beginPath(); g.ellipse(x, y, r, r * 0.75, R(), 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(x - 2, y - 3, r * 0.5, r * 0.25, R(), 0, 7); g.fill(); }
+      g.strokeStyle = 'rgba(255,255,255,.65)'; g.lineWidth = 3; g.beginPath(); g.roundRect(3, 3, 58, 58, 9); g.stroke();
+      g.strokeStyle = f > 1 ? 'rgba(20,24,40,.6)' : 'rgba(80,60,40,.45)'; g.lineWidth = 2; g.beginPath(); g.moveTo(12, 16); g.lineTo(26, 30); g.lineTo(20, 46); g.moveTo(26, 30); g.lineTo(46, 36); if (f > 1) { g.moveTo(44, 10); g.lineTo(40, 24); } g.stroke();
+      if (f > 1) { g.fillStyle = '#4a5060'; g.fillRect(1, 20, 62, 6); g.fillRect(1, 40, 62, 6); g.fillStyle = '#c8ccd6'; for (const y of [23, 43]) for (const x of [8, 32, 56]) { g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); } }
+      return c;
     }
     function lantern(x, y){
       const t = st.time || 0, fl = 0.85 + Math.sin(t * 9 + x) * 0.08 + Math.sin(t * 23 + x) * 0.04;
@@ -460,7 +479,7 @@
       const rockG = G.faceted(G.displace(G.sphere(1, 9, 7), (x, y, z) => PB.gl3d.fbm(x * 1.7 + 3, y * 1.7, z * 1.7, 3) * 0.35));
       const ring = G.torus(1, 0.09, 48, 8); ring.col = []; for (let i=0;i<ring.p.length/3;i++) { const c = COLS[Math.floor(i / 9 / 8 * 6) % 6]; ring.col.push(...[c.slice(1,3), c.slice(3,5), c.slice(5,7)].map(h => Math.pow(parseInt(h, 16) / 255, 2.2)), 1); }
       A3 = { gems: GEM_SHAPES.map((_, t) => E3.mesh(gemGeo(t))), rock: E3.mesh(rockG), stick: E3.mesh(G.cylinder(1, 1, 1, 18)), bar: E3.mesh(G.merge([G.transform(G.cylinder(1, 1, 1, 20, false), M.trs([0,0,0], [0,0,Math.PI/2])), G.transform(G.sphere(1, 16, 12), M.trs([0.5,0,0])), G.transform(G.sphere(1, 16, 12), M.trs([-0.5,0,0]))])),
-        cone: E3.mesh(G.cylinder(0, 1, 1, 16, true)), ring: E3.mesh(ring), tBoard: null };
+        cone: E3.mesh(G.cylinder(0, 1, 1, 16, true)), ring: E3.mesh(ring), tile: E3.mesh(G.roundBox(1, 1, 1, 0.12, 3)), tBoard: null };
       return A3;
     }
     const hex3 = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
@@ -468,18 +487,20 @@
       const [c, g] = PB.layer(W, H);
       if (!caveC) paintCave();
       g.drawImage(caveC, 0, 0, W, H);
-      { const fg = g.createLinearGradient(BX - 12, 0, BX + N*CELL + 12, 0); fg.addColorStop(0, '#8a5a32'); fg.addColorStop(0.5, '#a8723f'); fg.addColorStop(1, '#6b4223'); g.fillStyle = fg; }
-      g.strokeStyle = CHOC; g.lineWidth = 4; g.beginPath(); g.roundRect(BX - 12, BY - 12, N*CELL + 24, N*CELL + 24, 14); g.fill(); g.stroke();
-      // wood grain and iron corner plates on the frame
-      g.strokeStyle = 'rgba(40,20,5,.3)'; g.lineWidth = 1.2; for (let k=0;k<10;k++) { const y = BY - 10 + k * (N * CELL + 20) / 10; g.beginPath(); g.moveTo(BX - 11, y); g.lineTo(BX - 3, y + 4); g.moveTo(BX + N * CELL + 3, y); g.lineTo(BX + N * CELL + 11, y + 3); g.stroke(); }
-      for (const [x, y] of [[BX - 12, BY - 12], [BX + N * CELL - 12, BY - 12], [BX - 12, BY + N * CELL - 12], [BX + N * CELL - 12, BY + N * CELL - 12]]) { g.fillStyle = '#4a4e56'; g.beginPath(); g.roundRect(x, y, 24, 24, 5); g.fill(); g.fillStyle = '#9aa0a8'; for (const [dx, dy] of [[6, 6], [18, 6], [6, 18], [18, 18]]) { g.beginPath(); g.arc(x + dx, y + dy, 2, 0, 7); g.fill(); } }
-      g.fillStyle = '#1f1611'; g.beginPath(); g.roundRect(BX - 3, BY - 3, N*CELL + 6, N*CELL + 6, 8); g.fill();
+      const x0 = BX - 12, y0 = BY - 12, bw = N * CELL + 24;
+      g.fillStyle = 'rgba(30,10,60,.35)'; g.beginPath(); g.roundRect(x0 + 3, y0 + 8, bw, bw, 22); g.fill();
+      const fg = g.createLinearGradient(0, y0, 0, y0 + bw); fg.addColorStop(0, '#ffe08a'); fg.addColorStop(0.5, '#f2b13c'); fg.addColorStop(1, '#c7801f');
+      g.fillStyle = fg; g.beginPath(); g.roundRect(x0, y0, bw, bw, 22); g.fill(); g.strokeStyle = '#7a4a12'; g.lineWidth = 3; g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.beginPath(); g.roundRect(x0 + 4, y0 + 4, bw - 8, bw - 8, 18); g.stroke();
+      for (let k=0;k<12;k++) { const t = k / 12; for (const [px, py] of [[x0 + 6 + t * (bw - 12), y0 + 6], [x0 + 6 + t * (bw - 12), y0 + bw - 6], [x0 + 6, y0 + 6 + t * (bw - 12)], [x0 + bw - 6, y0 + 6 + t * (bw - 12)]]) { g.fillStyle = 'rgba(255,250,220,.9)'; g.beginPath(); g.arc(px, py, 1.8, 0, 7); g.fill(); } }
+      g.fillStyle = 'rgba(70,30,110,.55)'; g.beginPath(); g.roundRect(BX - 3, BY - 3, N*CELL + 6, N*CELL + 6, 12); g.fill();
       for (let r=0;r<N;r++) for (let cc=0;cc<N;cc++) {
-        const x0 = BX + cc*CELL + 2, y0 = BY + r*CELL + 2;
-        const cg = g.createLinearGradient(x0, y0, x0, y0 + CELL); cg.addColorStop(0, (r + cc) % 2 ? '#3e322b' : '#463830'); cg.addColorStop(1, (r + cc) % 2 ? '#2e241f' : '#352a24');
-        g.fillStyle = cg; g.beginPath(); g.roundRect(x0, y0, CELL - 4, CELL - 4, 8); g.fill();
-        g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(x0 + 4, y0 + 2, CELL - 12, 2);
-        g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x0 + 4, y0 + CELL - 7, CELL - 12, 2);
+        const tx = BX + cc*CELL + 1.5, ty = BY + r*CELL + 1.5, sz = CELL - 3;
+        const cg = g.createLinearGradient(tx, ty, tx, ty + sz); const light = (r + cc) % 2 === 0;
+        cg.addColorStop(0, light ? 'rgba(255,255,255,.88)' : 'rgba(236,226,255,.80)'); cg.addColorStop(1, light ? 'rgba(240,232,255,.82)' : 'rgba(214,200,250,.74)');
+        g.fillStyle = cg; g.beginPath(); g.roundRect(tx, ty, sz, sz, 9); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.roundRect(tx + 4, ty + 3, sz - 8, 3, 2); g.fill();
+        g.fillStyle = 'rgba(120,90,180,.18)'; g.beginPath(); g.roundRect(tx + 4, ty + sz - 6, sz - 8, 3, 2); g.fill();
       }
       boardC = c;
     }
@@ -490,16 +511,16 @@
       E.resize(W, H, tile ? 1 : E.quality(1.5));
       const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
       E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {
-        noSky: true, sunDir: [0.62, -0.68, -0.4], sunColor: [1.45, 1.32, 1.12], ambSky: [0.2, 0.18, 0.2], ambGround: [0.1, 0.07, 0.06], toon: 0,
+        noSky: true, sunDir: [0.5, -0.7, -0.5], sunColor: [1.25, 1.2, 1.15], ambSky: [0.5, 0.48, 0.58], ambGround: [0.3, 0.26, 0.34], toon: 0.25,
         shadow: { center: [W / 2, -(BY + N * CELL / 2), 0], radius: 300 },
-        post: { bloom: 0.55, threshold: 0.84, saturation: 1.12, contrast: 1.12, vignette: 0.35, tint: [1.04, 1, 0.94] },
+        post: { bloom: 0.45, threshold: 0.88, saturation: 1.22, contrast: 1.08, vignette: 0.22 },
       });
       E.backdrop(A3.tBoard, W, H, { shadow: 0.38 });
-      for (const lx of [40, W - 40]) { const fl = 0.85 + Math.sin(st.time * 9 + lx) * 0.08 + Math.sin(st.time * 23 + lx) * 0.05; E.light(P3(lx, 60, 120), [2.4 * fl, 1.5 * fl, 0.6 * fl], 520); }
+      E.light(P3(W / 2, BY - 40, 260), [0.9, 0.85, 1.0], 700);
       const time = st.time || 0;
       for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
         const f = st.frost ? st.frost[r][c] : 0;
-        if (f > 0) { const x = BX + c * CELL + CELL / 2, y = BY + r * CELL + CELL / 2; E.draw(A3.rock, M.trs(P3(x, y, 4), [r * 1.3, c * 2.1, r + c], [CELL * 0.47, CELL * 0.47, f > 1 ? 15 : 11]), { color: f > 1 ? [0.55, 0.5, 0.46] : [0.74, 0.67, 0.6], spec: 0.2, shine: 12 }); }
+        if (f > 0) { const x = BX + c * CELL + CELL / 2, y = BY + r * CELL + CELL / 2; if (!rockTex) rockTex = [null, E.texture(rockTileCanvas(1), { repeat: false }), E.texture(rockTileCanvas(2), { repeat: false })]; E.draw(A3.tile, M.trs(P3(x, y, 2), [0, 0, 0], [CELL - 4, CELL - 4, 6]), { tex: rockTex[Math.min(2, f)], color: [1, 1, 1], spec: 0.3, shine: 20 }); }
       }
       for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
         const t = st.grid[r][c]; if (!t) continue;
@@ -511,9 +532,11 @@
         if (st.wiggle && ((st.wiggle.a[0] === r && st.wiggle.a[1] === c) || (st.wiggle.b[0] === r && st.wiggle.b[1] === c))) x += Math.sin(time * 60) * 4;
         if (sc <= 0.02) continue;
         const frozen = st.frost && st.frost[r][c] > 0 && !t.dying;
-        const k = sc * 1.14 * (t.sp === 'b' ? 0.85 : 1), sway = Math.sin(time * 1.7 + t.id * 1.3) * 0.22, tilt = Math.cos(time * 1.3 + t.id) * 0.12;
-        const z = 14 + lift + (frozen ? 6 : 0), type = t.sp === 'c' ? 6 : t.t, col = type === 6 ? [1, 1, 1] : hex3(COLS[type]);
-        E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * (type === 6 ? 0.12 : 0.05)), spec: 2.6, shine: 180, rim: 0.5 });
+        const k = sc * 1.3 * (t.sp === 'b' ? 0.85 : 1), sway = Math.sin(time * 1.7 + t.id * 1.3) * 0.16, tilt = Math.cos(time * 1.3 + t.id) * 0.08;
+        const z = 16 + lift + (frozen ? 4 : 0), type = t.sp === 'c' ? 6 : t.t, col = type === 6 ? [1, 1, 1] : hex3(COLS[type]);
+        E.draw(A3.gems[type], M.trs(P3(x, y, z - 8), [tilt, sway + spin, 0], [k * 1.13, k * 1.13, k * 0.5]), { color: type === 6 ? [0.3, 0.25, 0.4] : col.map(v => v * 0.32), unlit: true, noShadow: true });
+        E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * (type === 6 ? 0.14 : 0.14)), spec: 2.2, shine: 140, rim: 0.7 });
+        if (!t.dying) E.sprite(P3(x - CELL * 0.14 * sc, y - CELL * 0.16 * sc, z + 16), CELL * 0.3 * sc, [1, 1, 1], 0.55, true);
         if (t.sp === 'h' || t.sp === 'v') {
           const rot = t.sp === 'v' ? Math.PI / 2 : 0, off = 3 * Math.sin(time * 8), bm = M.trs(P3(x, y, z + 10), [0, 0, rot], [1, 1, 1]);
           E.draw(A3.bar, M.mul(bm, M.trs([0, 0, 0], [0, 0, 0], [34 * sc, 4 * sc, 4 * sc])), { color: [0.85, 0.98, 1], emissive: [0.5, 0.9, 1.2], spec: 1.5, shine: 80, noShadow: true });
@@ -541,7 +564,7 @@
       draw3D();
       ctx.save();
       if (st.shake > 0 && !reduceMotion) ctx.translate((Math.random()-.5)*st.shake, (Math.random()-.5)*st.shake);
-      lantern(40, 22); lantern(W - 40, 22);
+
       drawCard(s);
       if (!reduceMotion) {
         ctx.save(); ctx.globalCompositeOperation = 'lighter';

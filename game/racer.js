@@ -170,7 +170,7 @@
       st.objs = []; st.bolts = []; st.nextSpawn = 70; st.powIn = 5;
       st.fx = { turbo:0, shield:0, magnet:0, blaster:0, mini:0 }; st.boost = 0; st.hitSlow = 0; st.inv = 0; st.fireCD = 0;
       st.p = { x: 0, y: 0, tx: 0, ty: 0, bank: 0 };
-      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([0.94, 0.965, 0.985][i], [0.88, 0.92, 0.95][i] + (st.level - 1) * 0.004), ph: R() * 6 }));
+      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([0.94, 0.965, 0.985][i], [0.87, 0.91, 0.94][i] + (st.level - 1) * 0.003), ph: R() * 6 }));
       st.count = 2.6; st.finished = false; st.place = 4; st.raceStars = 0; st.planetSpin = R() * 6;
       st.drag = null;
       st.dust = Array.from({ length: 90 }, () => ({ x: (Math.random() - .5) * 40, y: (Math.random() - .5) * 26, z: -Math.random() * 160 }));
@@ -185,11 +185,12 @@
     function rock(x, y, d, r){ return { kind:'rock', x, y, d, r, m: Math.floor(Math.random() * 6), rot: [Math.random() * 6, Math.random() * 6, 0], vr: [(Math.random() - .5) * 0.8, (Math.random() - .5) * 0.8], vx: 0 }; }
     function spawn(){
       const R = st.R, d = st.d + 220, L = st.level, r = R();
-      if (r < 0.34) {
-        const n = 3 + Math.floor(R() * Math.min(4, 1 + L / 2));
-        for (let i=0;i<n;i++) st.objs.push(rock(rnd(-XR, XR), rnd(-YR, YR), d + R() * 30, rnd(0.9, 1.6 + L * 0.08)));
-      } else if (r < 0.5 && L >= 5) {
-        const gx = rnd(-XR + 2, XR - 2), gy = rnd(-YR + 1.5, YR - 1.5), gap = Math.max(2.4, 3.4 - L * 0.06);
+      if (r < 0.3) {
+        // a small cluster of rocks (a few more as you go, but never a crowd)
+        const n = 2 + Math.floor(R() * Math.min(3, 1 + L / 6));
+        for (let i=0;i<n;i++) st.objs.push(rock(rnd(-XR, XR), rnd(-YR, YR), d + R() * 30, rnd(0.9, 1.3 + Math.min(L, 25) * 0.03)));
+      } else if (r < 0.42 && L >= 8) {
+        const gx = rnd(-XR + 2, XR - 2), gy = rnd(-YR + 1.5, YR - 1.5), gap = Math.max(2.9, 3.8 - L * 0.03);
         for (let x = -XR - 1; x <= XR + 1; x += 2.4) for (let y = -YR - 0.5; y <= YR + 0.5; y += 2.4) if (Math.hypot(x - gx, y - gy) > gap) st.objs.push(rock(x + rnd(-0.4, 0.4), y + rnd(-0.4, 0.4), d + rnd(-1, 1), rnd(1.0, 1.4)));
         for (let i=0;i<3;i++) st.objs.push({ kind:'star', x: gx, y: gy, d: d + 10 + i * 8 });
       } else if (r < 0.75) {
@@ -202,7 +203,7 @@
         const o = rock(R() < .5 ? -XR - 8 : XR + 8, rnd(-YR, YR), d, rnd(1.3, 2)); o.vx = (o.x < 0 ? 1 : -1) * rnd(4, 7); st.objs.push(o);
       }
       if (st.powIn <= 0) { st.objs.push({ kind:'pow', type: pickPower(), x: rnd(-XR + 1, XR - 1), y: rnd(-YR + 1, YR - 1), d: d + 30 }); st.powIn = 6 + R() * 4; }
-      st.nextSpawn = st.d + Math.max(30, 58 - L * 1.6) + R() * 18;
+      st.nextSpawn = st.d + Math.max(42, 72 - L * 0.9) + R() * 22;
     }
     const rel = o => o.d - st.d;
     function pop(wp, text, color, life){ st.pops.push({ wp, text, color, life: life || 1, rise: 0 }); }

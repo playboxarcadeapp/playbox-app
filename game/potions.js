@@ -20,14 +20,15 @@
     const TIME = 60, MAX_K = 12;
     function levelSpec(n){
       const k = Math.min(4 + Math.floor((n - 1) / 3), MAX_K);
-      const hidden = n >= 40 ? 'all' : n >= 15 ? 'bottom' : 'none';
-      const undos = n >= 45 ? 1 : n >= 20 ? 2 : 3;
-      const tries = 1 + Math.min(5, Math.floor(n / 6));
-      // one minute up to level 20; bigger puzzles after that get a little more time so they stay beatable
-      const time = n <= 20 ? TIME : Math.round(TIME + Math.min(30, (n - 20) * 1.5) + (hidden === 'all' ? 8 : 0));
-      return { n, k, hidden, time, undos, tries, mixed: n >= 4, seed: 'potions-' + n };
+      const hidden = n >= 55 ? 'all' : n >= 15 ? 'bottom' : 'none';
+      const undos = n >= 60 ? 2 : 3;
+      const tries = 1 + Math.min(2, Math.floor(n / 10));
+      // more colors = more pouring, so the hourglass grows with every new color (about 3.5 minutes at the top)
+      const time = Math.round(TIME + (k - 4) * 15 + (hidden === 'bottom' ? 10 : hidden === 'all' ? 30 : 0));
+      // big shelves get a third empty flask to work with
+      return { n, k, hidden, time, undos, tries, spare: k >= 9 ? 3 : 2, mixed: n >= 4, seed: 'potions-' + n };
     }
-    function dailySpec(){ return { n:'daily', k: 9, hidden:'bottom', time: 70, undos: 2, tries: 4, mixed: true, seed: 'potions-daily-' + PB.today() }; }
+    function dailySpec(){ return { n:'daily', k: 9, hidden:'bottom', time: 145, undos: 3, tries: 2, spare: 3, mixed: true, seed: 'potions-daily-' + PB.today() }; }
 
     function solvable(bottles){
       const seen = new Set(); let nodes = 0;
@@ -64,7 +65,7 @@
         const pool = []; for (let c=0;c<spec.k;c++) for (let i=0;i<CAP;i++) pool.push(c);
         shuffle(pool, R);
         const bottles = []; for (let b=0;b<spec.k;b++) bottles.push(pool.slice(b*CAP, b*CAP + CAP));
-        bottles.push([], []);
+        for (let e=0;e<(spec.spare || 2);e++) bottles.push([]);
         const trivial = bottles.some(t => t.length === CAP && t.every(c => c === t[0]));
         if (trivial) continue;
         // harder levels: no two layers of the same color touching
