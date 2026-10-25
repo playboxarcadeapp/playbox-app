@@ -28,20 +28,23 @@
     function respawnSnake(){
       const len = Math.max(7, st.snake.length + st.grow);
       if (len <= 10) { resetSnake(); st.grow = Math.max(0, len - 4); return; }
+      // coil the body in full rows along the bottom, then lay the neck along the row above, heading away
+      // from the wall it starts at, so the head always faces plenty of open space. Any length that does
+      // not fit comes back as growth over the next moves.
       const x0 = 1, x1 = COLS - 2, rowW = x1 - x0 + 1, bodyN = len - 1;
-      const rowsUsed = Math.min(ROWS - 5, Math.ceil(bodyN / rowW));
-      const path = [];
-      for (let r = 0; r < rowsUsed && path.length < bodyN; r++) {
-        const y = ROWS - 1 - r;
-        for (let i = 0; i < rowW && path.length < bodyN; i++) path.push({ x: r % 2 === 0 ? x0 + i : x1 - i, y });
-      }
-      const last = path[path.length - 1], head = { x: last.x, y: last.y - 1 };
-      const cells = [head, ...path.reverse()];
+      const fullRows = Math.min(ROWS - 6, Math.floor(bodyN / rowW)), path = [];
+      for (let r = 0; r < fullRows; r++) { const y = ROWS - 1 - r; for (let i = 0; i < rowW; i++) path.push({ x: r % 2 === 0 ? x0 + i : x1 - i, y }); }
+      let e, ny, dirx;
+      if (fullRows > 0) { e = (fullRows - 1) % 2 === 0 ? x1 : x0; ny = ROWS - 1 - fullRows; dirx = e === x1 ? -1 : 1; }
+      else { e = x0; ny = ROWS - 2; dirx = 1; }
+      const r = Math.min(bodyN - path.length, rowW - 7), neck = [];
+      for (let i = 0; i < r; i++) neck.push({ x: e + dirx * i, y: ny });
+      const head = { x: e + dirx * r, y: ny };
+      const cells = [head, ...neck.reverse(), ...path.reverse()];
       st.snake = cells.map(c => ({ x: c.x, y: c.y, px: c.x, py: c.y }));
-      st.dir = 'up'; st.queue = []; st.acc = 0; st.t = 1; st.grow = Math.max(0, len - st.snake.length); st.dead = false; st.bulges = [];
-      const topY = head.y - 4;
-      st.rocks = st.rocks.filter(r => !(r.y >= topY && (r.y > head.y || r.x === head.x || Math.abs(r.x - head.x) <= 1)));
-      st.rocks = st.rocks.filter(r => !st.snake.some(s => s.x === r.x && s.y === r.y));
+      st.dir = dirx > 0 ? 'right' : 'left'; st.queue = []; st.acc = 0; st.t = 1; st.grow = Math.max(0, len - st.snake.length); st.dead = false; st.bulges = [];
+      // clear rocks from the head's row and the rows just above it so the first moves are safe
+      st.rocks = st.rocks.filter(r => !(r.y <= ny && r.y >= ny - 2) && !st.snake.some(s => s.x === r.x && s.y === r.y));
       const under = st.items.filter(i => st.snake.some(s => s.x === i.x && s.y === i.y));
       st.items = st.items.filter(i => !under.includes(i));
       if (under.some(i => i.kind !== 'pow')) placeFood();
@@ -50,7 +53,7 @@
       const cx = Math.floor(COLS / 2) - 2, cy = Math.floor(ROWS / 2) + 3;
       st.snake = []; for (let i=0;i<4;i++) st.snake.push({ x: cx - i, y: cy, px: cx - i, py: cy });
       st.dir = 'right'; st.queue = []; st.acc = 0; st.t = 1; st.grow = 3; st.dead = false; st.bulges = [];
-      if (st.rocks) st.rocks = st.rocks.filter(r => !(r.y === cy && r.x >= cx - 4 && r.x <= cx + 5));
+      if (st.rocks) st.rocks = st.rocks.filter(r => !(Math.abs(r.y - cy) <= 1 && r.x >= cx - 4));
     }
     const occupied = (x, y) => st.snake.some(s => s.x === x && s.y === y) || st.rocks.some(r => r.x === x && r.y === y) || st.items.some(i => i.x === x && i.y === y);
     function freeCell(){
@@ -603,7 +606,7 @@
       start(mode, rand, lives, msg){ if (A3 && E3) { const k = (PB.meta && PB.meta.look('snake', 'skin')) || ''; if (A3.skinKey !== k) { A3.skinKey = k; A3.tSkin = E3.texture(skinTex()); } } const R = mode === 'daily' ? mulberry(seedFrom('snake-daily-' + PB.today())) : rand; fresh(mode, R, 1, 'ready'); st.msg = 'Swipe to start slithering'; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
-      debug(){ return st; },
+      debug(){ return st; }, debugRespawn(){ respawnSnake(); return st; },
       metrics(){ return { score: st.score, eaten: st.eaten, level: st.level, length: st.snake.length }; },
       dailyGoals: [
         { text:'Eat {n} fruit', m:'eaten', n:[20, 30, 40] },
