@@ -1115,9 +1115,10 @@
     function drawHUD(){
       if (st.flash) { ctx.fillStyle = `rgba(255,200,120,${st.flash})`; ctx.fillRect(0, 0, W, H); }
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = 'rgba(40,24,10,.66)'; ctx.beginPath(); ctx.roundRect(12, 12, 232, 70, 14); ctx.fill(); ctx.strokeStyle = 'rgba(224,180,60,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.fillStyle = '#ffe9b8'; ctx.font = `24px ${FONT}`; ctx.fillText(st.mode === 'daily' ? 'Daily Siege' : `Level ${st.spec.n}`, 24, 40);
-      ctx.font = `800 12px ${BODY}`; ctx.fillStyle = '#e8d3a6'; ctx.fillText('GOBLINS', 24, 63);
+      ctx.save(); ctx.shadowColor = 'rgba(30,15,0,.45)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4; const hp = ctx.createLinearGradient(0, 12, 0, 84); hp.addColorStop(0, '#5a9ae8'); hp.addColorStop(1, '#2a5aa8'); ctx.fillStyle = hp; ctx.beginPath(); ctx.roundRect(12, 12, 240, 72, 18); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = '#ffe08a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(12, 12, 240, 72, 18); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.beginPath(); ctx.roundRect(18, 16, 228, 20, 10); ctx.fill();
+      { const t = st.mode === 'daily' ? 'Daily Siege' : `Level ${st.spec.n}`; ctx.font = `26px "Lilita One", ${FONT}`; ctx.lineJoin = 'round'; ctx.lineWidth = 6; ctx.strokeStyle = '#1a2a50'; ctx.strokeText(t, 24, 42); ctx.fillStyle = '#ffd84a'; ctx.fillText(t, 24, 42); }
+      ctx.font = `900 12px ${BODY}`; ctx.fillStyle = '#ffffff'; ctx.fillText('GOBLINS', 24, 66);
       const done = st.gobs || 0;
       for (let i=0;i<st.goblins;i++) { const x = 92 + i * 19, y = 59, hit = i < done;
         ctx.globalAlpha = hit ? 0.45 : 1; ctx.fillStyle = '#8fc44a'; ctx.beginPath(); ctx.arc(x, y + 2, 7, 0, 7); ctx.fill(); ctx.fillStyle = '#9aa0ab'; ctx.beginPath(); ctx.arc(x, y - 1, 7.5, Math.PI, 0); ctx.fill(); ctx.globalAlpha = 1;
@@ -1125,7 +1126,7 @@
       ctx.textAlign = 'right'; ctx.font = `800 12px ${BODY}`; ctx.fillStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(40,24,10,.8)'; const wt = `Castle wrecked ${Math.round(castleDone() * 100)}%`; ctx.strokeText(wt, W - 16, 30); ctx.fillText(wt, W - 16, 30);
       // ammo tray: tap a ball to load it next
       const types = AMMO_ORDER.filter(k => st.spec.ammo[k] > 0), n = types.length, bw = Math.min(88, (W - 28) / n - 6), ty = H - 78, total = n * (bw + 6) - 6, x0 = W / 2 - total / 2;
-      ctx.fillStyle = 'rgba(40,24,10,.72)'; ctx.beginPath(); ctx.roundRect(x0 - 10, ty - 8, total + 20, 78, 16); ctx.fill(); ctx.strokeStyle = 'rgba(224,180,60,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.save(); ctx.shadowColor = 'rgba(30,15,0,.45)'; ctx.shadowBlur = 12; const tp = ctx.createLinearGradient(0, ty - 8, 0, ty + 70); tp.addColorStop(0, '#9a6a3a'); tp.addColorStop(1, '#5a3418'); ctx.fillStyle = tp; ctx.beginPath(); ctx.roundRect(x0 - 10, ty - 8, total + 20, 78, 18); ctx.fill(); ctx.restore(); ctx.strokeStyle = '#ffe08a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x0 - 10, ty - 8, total + 20, 78, 18); ctx.stroke();
       ctx.save(); ctx.textAlign = 'left'; ctx.font = `900 11px ${BODY}`; ctx.fillStyle = 'rgba(40,24,10,.8)'; ctx.beginPath(); ctx.roundRect(x0 - 10, ty - 30, 118, 20, 10); ctx.fill(); ctx.fillStyle = '#ffd98a'; ctx.fillText('LOAD NEXT SHOT', x0, ty - 16); ctx.restore();
       st.trayRects = [];
       types.forEach((k, i) => {

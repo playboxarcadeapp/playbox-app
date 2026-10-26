@@ -1,11 +1,11 @@
-// CUBE ESCAPE: neon sliding-block puzzle. Drag each block out through the exit bar of its color.
+// CUBE ESCAPE: jelly sliding-block puzzle. Drag each block out through the exit bar of its color.
 (function(){
   const { N, fmt, reduceMotion, ctx, mulberry, seedFrom, neonBg, rr } = PB;
 
   function createCubes(shell){
     const W = 480, H = 690, MAX_LIVES = 5;
-    const DISPLAY = '"Orbitron", "Arial Black", sans-serif';
-    const COLS = [N.cyan, N.pink, N.lime, N.yellow, N.orange, N.violet];
+    const DISPLAY = '"Lilita One", "Arial Rounded MT Bold", "Arial Black", sans-serif';
+    const COLS = ['#33b6ff', '#ff5aa8', '#5ed64a', '#ffcf2e', '#ff8a2a', '#a46bff'];
     const SHAPES = [
       [[0,0]], [[0,0],[0,1]], [[0,0],[1,0]], [[0,0],[0,1],[0,2]], [[0,0],[1,0],[2,0]],
       [[0,0],[0,1],[1,0],[1,1]], [[0,0],[1,0],[1,1]], [[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,1]],
@@ -192,31 +192,38 @@
       }
       ctx.restore();
     }
-    // a cyber "server room" backdrop with circuit traces; light pulses run along them
-    let bgL = null, TRACES = null;
+    // a sunny sky garden: floating islands, waterfalls and big soft clouds, painted once. The far layers
+    // are blurred like a camera's depth of field so the board pops forward.
+    let bgL = null, TRACES = [];
     function paintBg(){
-      bgL = PB.layer(W, H); const g = bgL[1];
-      const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#061428'); bg.addColorStop(0.6, '#040a18'); bg.addColorStop(1, '#02050c');
-      g.fillStyle = bg; g.fillRect(0, 0, W, H);
-      const R = mulberry(5); TRACES = [];
-      g.lineCap = 'round';
-      for (let i=0;i<34;i++) {
-        let x = R() * W, y = R() * H; const pts = [[x, y]];
-        for (let k=0;k<4;k++) { if (R() < 0.5) x += (R() - .5) * 160; else y += (R() - .5) * 160; pts.push([x, y]); }
-        TRACES.push({ pts, col: COLS[Math.floor(R() * COLS.length)], ph: R(), sp: 0.08 + R() * 0.12 });
-        g.strokeStyle = 'rgba(80,140,200,.16)'; g.lineWidth = 2; g.beginPath(); pts.forEach(([px, py], j) => j ? g.lineTo(px, py) : g.moveTo(px, py)); g.stroke();
-        for (const [px, py] of [pts[0], pts[pts.length - 1]]) { g.fillStyle = 'rgba(120,190,255,.25)'; g.beginPath(); g.arc(px, py, 3, 0, 7); g.fill(); }
-      }
-      // soft hex glow behind the board
-      const glow = g.createRadialGradient(W/2, H * 0.55, 20, W/2, H * 0.55, 360); glow.addColorStop(0, 'rgba(61,255,181,.14)'); glow.addColorStop(1, 'rgba(61,255,181,0)');
-      g.fillStyle = glow; g.fillRect(0, 0, W, H);
+      bgL = PB.layer(W, H); const g = bgL[1], R = mulberry(5);
+      const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1a5fd6'); sky.addColorStop(0.4, '#3d8ff0'); sky.addColorStop(0.75, '#7cc0ff'); sky.addColorStop(1, '#bfe2ff');
+      g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      const sun = g.createRadialGradient(W * 0.82, H * 0.1, 10, W * 0.82, H * 0.1, 300); sun.addColorStop(0, 'rgba(255,250,220,.95)'); sun.addColorStop(0.25, 'rgba(255,240,190,.45)'); sun.addColorStop(1, 'rgba(255,240,190,0)'); g.fillStyle = sun; g.fillRect(0, 0, W, H);
+      // soft sun rays
+      g.save(); g.globalCompositeOperation = 'lighter'; g.translate(W * 0.82, H * 0.1); for (let k=0;k<9;k++) { g.rotate(0.45 + R() * 0.25); const rg = g.createLinearGradient(0, 0, 0, 700); rg.addColorStop(0, 'rgba(255,245,210,.07)'); rg.addColorStop(1, 'rgba(255,245,210,0)'); g.fillStyle = rg; g.beginPath(); g.moveTo(-14, 0); g.lineTo(-70, 700); g.lineTo(70, 700); g.lineTo(14, 0); g.fill(); } g.restore();
+      const cloud = (cx, cy, s, a, shade) => { const n = 9; for (let k=0;k<n;k++) { const t = k / (n - 1), x = cx + (t - 0.5) * 220 * s, y = cy - Math.sin(t * Math.PI) * 34 * s + (R() - .5) * 10 * s, r = (34 + Math.sin(t * Math.PI) * 30 + R() * 12) * s;
+          const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r); gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(0.75, `rgba(240,246,255,${a})`); gr.addColorStop(1, `rgba(${shade},${a * 0.9})`); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } };
+      // far layer: distant islands and clouds, blurred
+      const far = PB.layer(W, H), fg = far[1];
+      const island = (gg, x, y, s, fall) => {
+        gg.fillStyle = '#8fb4d6'; gg.beginPath(); gg.moveTo(x - 70 * s, y); gg.quadraticCurveTo(x - 40 * s, y + 70 * s, x, y + 110 * s); gg.quadraticCurveTo(x + 45 * s, y + 60 * s, x + 75 * s, y); gg.closePath(); gg.fill();
+        const top = gg.createLinearGradient(0, y - 30 * s, 0, y + 10 * s); top.addColorStop(0, '#9fe08a'); top.addColorStop(1, '#5fae6a'); gg.fillStyle = top; gg.beginPath(); gg.ellipse(x, y, 78 * s, 16 * s, 0, 0, 7); gg.fill();
+        for (let k=0;k<4;k++) { const tx = x + (k - 1.5) * 28 * s, th = (26 + k % 2 * 10) * s; gg.fillStyle = '#4f9a5c'; gg.beginPath(); gg.arc(tx, y - th, 16 * s, 0, 7); gg.fill(); gg.fillStyle = '#7cc46e'; gg.beginPath(); gg.arc(tx - 4 * s, y - th - 5 * s, 9 * s, 0, 7); gg.fill(); }
+        if (fall) { const wf = gg.createLinearGradient(0, y, 0, y + 200 * s); wf.addColorStop(0, 'rgba(230,248,255,.9)'); wf.addColorStop(1, 'rgba(230,248,255,0)'); gg.fillStyle = wf; gg.fillRect(x + 30 * s, y + 4, 12 * s, 200 * s); } };
+      const cl = (gg, cx, cy, s, a) => { const keep = g; for (let k=0;k<9;k++) { const t = k / 8, x = cx + (t - 0.5) * 220 * s, y = cy - Math.sin(t * Math.PI) * 34 * s, r = (34 + Math.sin(t * Math.PI) * 30) * s; const gr = gg.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r); gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(1, `rgba(214,226,250,${a})`); gg.fillStyle = gr; gg.beginPath(); gg.arc(x, y, r, 0, 7); gg.fill(); } };
+      cl(fg, 70, 200, 0.55, 0.85); cl(fg, 420, 160, 0.6, 0.8); island(fg, 95, 300, 0.6, true); island(fg, 400, 270, 0.75, true); cl(fg, 250, 470, 0.8, 0.7);
+      PB.soften(g, far[0], 0, 0, W, H, 5);
+      // near clouds along the bottom, softly blurred too
+      const near = PB.layer(W, H), ng = near[1]; cl(ng, 40, 670, 1.0, 1); cl(ng, 250, 700, 1.3, 1); cl(ng, 470, 665, 1.0, 1);
+      PB.soften(g, near[0], 0, 0, W, H, 2.5);
     }
     // ---------- 3D look: jelly-glass blocks that lift when you drag them ----------
     let E3 = null, A3 = null, boardKey = '', boardL = null;
     function assets3D(){
       if (A3) return A3; if (A3 === false) return null;
       E3 = PB.gl3d && PB.gl3d.get(); if (!E3) { A3 = false; return null; }
-      A3 = { shapes: new Map(), pill: E3.mesh(E3.G.roundBox(1, 1, 1, 0.45, 4)), tBoard: null };
+      A3 = { shapes: new Map(), pill: E3.mesh(E3.G.roundBox(1, 1, 1, 0.45, 4)), sph: E3.mesh(E3.G.sphere(1, 18, 12)), tBoard: null };
       return A3;
     }
     const hex3 = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
@@ -232,25 +239,33 @@
       const m = E3.mesh(G.merge(parts)); A3.shapes.set(key, m); if (A3.shapes.size > 80) A3.shapes.delete(A3.shapes.keys().next().value);
       return m;
     }
-    // the backdrop with the board for this level painted in (repainted when the board size changes)
+    // the backdrop with the board for this level painted in (repainted when the board size changes):
+    // a chunky carved-wood tray with golden corners and soft cream stone tiles
     function paintBoardBackdrop(){
       if (!bgL) paintBg();
       if (!boardL) boardL = PB.layer(W, H);
-      const g = boardL[1], cs = st.cell, s = st.size, bw = cs * s;
+      const g = boardL[1], cs = st.cell, s = st.size, bw = cs * s, x0 = st.bx, y0 = st.by;
       g.clearRect(0, 0, W, H); g.drawImage(bgL[0], 0, 0, W, H);
-      g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 30; g.shadowOffsetY = 12;
-      const bk = PB.meta && PB.meta.look('cubes', 'box'), BC = bk === 'box_gold' ? ['#ffe08a', '#c7901f', '#6a4206'] : bk === 'box_pink' ? ['#ffb0e0', '#c0408a', '#5a1440'] : ['#3a4f6e', '#1a2840', '#0c1424'];
-      const fr = g.createLinearGradient(0, st.by - 18, 0, st.by + bw + 18); fr.addColorStop(0, BC[0]); fr.addColorStop(0.5, BC[1]); fr.addColorStop(1, BC[2]);
-      g.fillStyle = fr; g.beginPath(); g.roundRect(st.bx - 18, st.by - 18, bw + 36, bw + 36, 22); g.fill(); g.restore();
-      g.strokeStyle = 'rgba(160,210,255,.35)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(st.bx - 17, st.by - 17, bw + 34, bw + 34, 21); g.stroke();
-      for (const [qx, qy] of [[st.bx - 9, st.by - 9], [st.bx + bw + 9, st.by - 9], [st.bx - 9, st.by + bw + 9], [st.bx + bw + 9, st.by + bw + 9]]) { g.fillStyle = '#7f95b8'; g.beginPath(); g.arc(qx, qy, 3.2, 0, 7); g.fill(); g.fillStyle = '#2a3a55'; g.fillRect(qx - 2.2, qy - 0.6, 4.4, 1.2); }
-      g.fillStyle = '#081222'; g.beginPath(); g.roundRect(st.bx - 6, st.by - 6, bw + 12, bw + 12, 12); g.fill();
+      const bk = PB.meta && PB.meta.look('cubes', 'box'), BC = bk === 'box_gold' ? ['#ffe9a0', '#e0a830', '#8a5a10'] : bk === 'box_pink' ? ['#ffc6e8', '#e070b0', '#8a2a64'] : ['#d79a5c', '#a8693a', '#5e3618'];
+      // drop shadow on the clouds
+      g.save(); g.fillStyle = 'rgba(40,40,90,.3)'; g.shadowColor = 'rgba(40,40,90,.45)'; g.shadowBlur = 24; g.beginPath(); g.roundRect(x0 - 14, y0 + 2, bw + 28, bw + 30, 30); g.fill(); g.restore();
+      // the wooden tray: rounded rim with a highlight on top and a dark lip below
+      const fr = g.createLinearGradient(0, y0 - 24, 0, y0 + bw + 24); fr.addColorStop(0, BC[0]); fr.addColorStop(0.45, BC[1]); fr.addColorStop(1, BC[2]);
+      g.fillStyle = fr; g.beginPath(); g.roundRect(x0 - 22, y0 - 22, bw + 44, bw + 44, 26); g.fill();
+      g.strokeStyle = 'rgba(60,30,10,.55)'; g.lineWidth = 3; g.stroke();
+      g.save(); g.beginPath(); g.roundRect(x0 - 22, y0 - 22, bw + 44, bw + 44, 26); g.clip(); g.strokeStyle = 'rgba(80,40,10,.18)'; g.lineWidth = 1.5;
+      for (let k=0;k<26;k++) { const yy = y0 - 22 + k * (bw + 44) / 26; g.beginPath(); g.moveTo(x0 - 22, yy); g.bezierCurveTo(x0 + bw * 0.3, yy + 4, x0 + bw * 0.6, yy - 4, x0 + bw + 22, yy + 2); g.stroke(); } g.restore();
+      g.strokeStyle = 'rgba(255,240,210,.55)'; g.lineWidth = 2; g.beginPath(); g.roundRect(x0 - 19, y0 - 19, bw + 38, bw + 38, 23); g.stroke();
+      // golden corner caps
+      for (const [qx, qy] of [[x0 - 11, y0 - 11], [x0 + bw + 11, y0 - 11], [x0 - 11, y0 + bw + 11], [x0 + bw + 11, y0 + bw + 11]]) { const gg = g.createRadialGradient(qx - 3, qy - 3, 1, qx, qy, 9); gg.addColorStop(0, '#fff6c0'); gg.addColorStop(0.5, '#f2b52c'); gg.addColorStop(1, '#8a5a10'); g.fillStyle = gg; g.beginPath(); g.arc(qx, qy, 8, 0, 7); g.fill(); g.strokeStyle = 'rgba(60,30,0,.5)'; g.lineWidth = 1.2; g.stroke(); }
+      // inset floor and stone tiles
+      g.fillStyle = '#6a4a3a'; g.beginPath(); g.roundRect(x0 - 6, y0 - 6, bw + 12, bw + 12, 14); g.fill();
       for (let r=0;r<s;r++) for (let c=0;c<s;c++) {
-        const x = st.bx + c*cs + 2, y = st.by + r*cs + 2, z = cs - 4;
-        const tg = g.createLinearGradient(0, y, 0, y + z); tg.addColorStop(0, '#132744'); tg.addColorStop(1, '#0a172a');
-        g.fillStyle = tg; g.beginPath(); g.roundRect(x, y, z, z, 7); g.fill();
-        g.strokeStyle = 'rgba(61,255,181,.1)'; g.lineWidth = 1; g.stroke();
-        g.fillStyle = 'rgba(160,210,255,.06)'; g.fillRect(x + 5, y + 3, z - 10, 2);
+        const x = x0 + c*cs + 2, y = y0 + r*cs + 2, z = cs - 4, light = (r + c) % 2;
+        const tg = g.createLinearGradient(0, y, 0, y + z); tg.addColorStop(0, light ? '#fff4e2' : '#f6e6cc'); tg.addColorStop(1, light ? '#ecd9b8' : '#e2cba4');
+        g.fillStyle = tg; g.beginPath(); g.roundRect(x, y, z, z, 8); g.fill();
+        g.strokeStyle = 'rgba(120,80,40,.25)'; g.lineWidth = 1; g.stroke();
+        g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.roundRect(x + 4, y + 3, z - 8, 3, 2); g.fill();
       }
       if (!A3.tBoard) A3.tBoard = E3.texture(boardL[0], { repeat: false }); else E3.updateTexture(A3.tBoard, boardL[0]);
     }
@@ -260,11 +275,10 @@
       E.resize(W, H, tile ? 1 : E.quality(1.5));
       const sx = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0, sy = st.shake > 0 && !reduceMotion && !tile ? (Math.random() - .5) * st.shake : 0;
       E.begin({ ortho: [W, H], pos: [-sx, sy, 1500], target: [-sx, sy, 0] }, {
-        noSky: true, sunDir: [0.55, -0.65, -0.5], sunColor: [1.05, 1.1, 1.2], ambSky: [0.16, 0.22, 0.32], ambGround: [0.04, 0.07, 0.1], toon: 0.2,
-        shadow: { center: [W / 2, -(st.by + bw / 2), 0], radius: 320 },
-        post: { bloom: 0.7, threshold: 0.82, saturation: 1.18, contrast: 1.08, vignette: 0.35 },
+        noSky: true, sunDir: [0.45, -0.6, -0.65], sunColor: [1.35, 1.28, 1.15], ambSky: [0.5, 0.56, 0.7], ambGround: [0.3, 0.26, 0.22], toon: 0.25,
+        post: { bloom: 0.3, threshold: 0.92, saturation: 1.1, contrast: 1.06, vignette: 0.15 },
       });
-      E.backdrop(A3.tBoard, W, H, { shadow: 0.55 });
+      E.backdrop(A3.tBoard, W, H, { shadow: 0 });
       // exits glow like neon doors
       for (const e of st.exits) {
         const c = hex3(COLS[e.color]), pulse = reduceMotion ? 1 : 0.75 + Math.sin(st.clock * 4 + e.color) * 0.25;
@@ -273,20 +287,34 @@
         else if (e.side === 'bottom') { x = st.bx + e.start*cs + 3; y = st.by + bw + 6; w = e.len*cs - 6; h = 8; }
         else if (e.side === 'left') { x = st.bx - 14; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
         else { x = st.bx + bw + 6; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
-        E.draw(A3.pill, M.trs(P3(x + w / 2, y + h / 2, 6), [0, 0, 0], [w, h, 8]), { color: c, emissive: c.map(v => v * (0.6 + 0.5 * pulse)), spec: 1.2, shine: 60, noShadow: true });
-        E.light(P3(x + w / 2, y + h / 2, 30), c.map(v => v * 1.2 * pulse), 90);
+        E.draw(A3.pill, M.trs(P3(x + w / 2, y + h / 2, 8), [0, 0, 0], [w + 4, h + 4, 12]), { color: c, emissive: c.map(v => v * (0.35 + 0.35 * pulse)), spec: 1.6, shine: 90, rim: 0.4, noShadow: true });
+        E.sprite(P3(x + w / 2, y + h / 2, 20), Math.max(w, h) * 1.5, c, 0.35 * pulse, true);
       }
-      // blocks
+      // blocks: glossy jelly characters with faces that look toward their way out
       for (const b of st.blocks) {
         let ox = 0, oy = 0, alpha = 1;
         if (b.out) { if (b.out.t >= 1) continue; const [dr, dc] = DIRS[b.out.side], d = b.out.t * cs * 3; ox = dc * d; oy = dr * d; alpha = 1 - b.out.t; }
         else if (st.bump && st.bump.id === b.id) ox = Math.sin(st.clock * 70) * 3;
         const lifted = st.drag && st.drag.id === b.id, c = hex3(COLS[b.color]);
-        const x0 = st.bx + b.vx * cs + ox, y0 = st.by + b.vy * cs + oy, z = (lifted ? 26 : 12) + cs * 0.31;
-        const wob = lifted ? Math.sin(st.clock * 9) * 0.03 : 0;
-        E.draw(shapeMesh(b), M.trs(P3(x0, y0, z), [wob, -wob, 0], [1, 1, 1]), { color: c, emissive: c.map(v => v * (lifted ? 0.16 : 0.07)), spec: 1.8, shine: 120, rim: 0.4, alpha: alpha < 1 ? alpha : undefined });
-        // a glowing core inside every cell
-        for (const [r, cc] of b.cells) E.sprite(P3(x0 + cc * cs + cs / 2, y0 + r * cs + cs / 2, z + cs * 0.35), cs * 0.62, c.map(v => v * 0.7 + 0.3), 0.22 * alpha, true);
+        const squish = reduceMotion ? 0 : Math.sin(st.clock * 2.2 + b.id * 1.7) * 0.02 + (lifted ? Math.sin(st.clock * 12) * 0.03 : 0);
+        const x0 = st.bx + b.vx * cs + ox, y0 = st.by + b.vy * cs + oy, z = (lifted ? 26 : 12) + cs * 0.31, top = z + cs * 0.31;
+        E.draw(shapeMesh(b), M.trs(P3(x0, y0, z), [0, 0, 0], [1 + squish, 1 - squish, 1]), { color: c, emissive: c.map(v => v * (lifted ? 0.22 : 0.12)), spec: 1.7, shine: 110, rim: 0.55, alpha: alpha < 1 ? alpha : undefined });
+        for (const [r, cc] of b.cells) E.sprite(P3(x0 + cc * cs + cs * 0.56, y0 + r * cs + cs * 0.62, 3), cs * (lifted ? 1.25 : 1.05), [0.25, 0.15, 0.1], (lifted ? 0.28 : 0.38) * alpha, false);
+        for (const [r, cc] of b.cells) { const hx = x0 + cc * cs + cs * 0.3, hy = y0 + r * cs + cs * 0.27; E.sprite(P3(hx, hy, top + 4), cs * 0.34, [1, 1, 1], 0.5 * alpha, true); }
+        // the face goes on the cell nearest this block's exit
+        const ex = st.exits.find(e => e.color === b.color), [er, ec] = ex ? DIRS[ex.side] : [0, 0];
+        let fc = b.cells[0], best = -1e9; for (const cell of b.cells) { const v = cell[0] * er + cell[1] * ec - Math.abs(cell[0] - b.cells[0][0]) * 0.01; if (v > best) { best = v; fc = cell; } }
+        const fx = x0 + fc[1] * cs + cs / 2, fy = y0 + fc[0] * cs + cs / 2, fz = top + 2;
+        let lx = 0, ly = 0; if (ex) { const exx = ex.side === 'left' ? st.bx - 20 : ex.side === 'right' ? st.bx + bw + 20 : st.bx + (ex.start + ex.len / 2) * cs, exy = ex.side === 'top' ? st.by - 20 : ex.side === 'bottom' ? st.by + bw + 20 : st.by + (ex.start + ex.len / 2) * cs, dl = Math.hypot(exx - fx, exy - fy) || 1; lx = (exx - fx) / dl; ly = (exy - fy) / dl; }
+        const blink = !reduceMotion && ((st.clock * 0.45 + b.id * 0.37) % 4) < 0.1, happy = lifted || !!b.out, eyeH = blink ? 0.15 : happy ? 1.15 : 1;
+        for (const sd of [-1, 1]) { const exx = fx + sd * cs * 0.16, eyy = fy - cs * 0.07;
+          E.draw(A3.sph, M.trs(P3(exx, eyy, fz), [0, 0, 0], [cs * 0.14, cs * 0.165 * eyeH, 3]), { color: [1, 1, 1], emissive: [0.25, 0.25, 0.25], spec: 0.8, noShadow: true, alpha: alpha < 1 ? alpha : undefined });
+          if (!blink) { const px = exx + lx * cs * 0.045, py = eyy + ly * cs * 0.05; E.draw(A3.sph, M.trs(P3(px, py, fz + 3), [0, 0, 0], [cs * 0.08, cs * 0.09 * Math.min(1, eyeH), 2]), { color: [0.08, 0.06, 0.12], spec: 1.2, shine: 80, noShadow: true, alpha: alpha < 1 ? alpha : undefined });
+            E.sprite(P3(px - cs * 0.02, py - cs * 0.025, fz + 6), cs * 0.05, [1, 1, 1], alpha, true); }
+          E.sprite(P3(fx + sd * cs * 0.27, fy + cs * 0.1, fz + 1), cs * 0.16, [1, 0.45, 0.55], 0.5 * alpha, false); }
+        const mw = happy ? cs * 0.13 : cs * 0.08, mh = happy ? cs * 0.08 : cs * 0.03;
+        E.draw(A3.sph, M.trs(P3(fx, fy + cs * 0.15, fz), [0, 0, 0], [mw, mh, 2]), { color: [0.32, 0.06, 0.1], spec: 0.4, noShadow: true, alpha: alpha < 1 ? alpha : undefined });
+        if (happy) E.draw(A3.sph, M.trs(P3(fx, fy + cs * 0.19, fz + 1), [0, 0, 0], [mw * 0.55, mh * 0.45, 1.5]), { color: [1, 0.45, 0.55], noShadow: true, alpha: alpha < 1 ? alpha : undefined });
       }
       E.end(); if (!tile) E.present(ctx, W, H);
     }
@@ -317,39 +345,47 @@
         ctx.globalAlpha = 1; }
       drawFooter();
     }
+    // chunky outlined text, like the big cartoon titles in console games
+    function label(text, x, y, size, fill, align){ ctx.font = `${size}px ${DISPLAY}`; ctx.textAlign = align || 'left'; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, size * 0.22); ctx.strokeStyle = 'rgba(30,30,70,.85)'; ctx.strokeText(text, x, y); ctx.fillStyle = fill; ctx.fillText(text, x, y); }
     function drawHeader(){
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = '#e9fff6'; ctx.font = `900 22px ${DISPLAY}`; ctx.fillText(st.mode === 'daily' ? `DAILY \u00b7 ${st.level}` : `LEVEL ${st.level}`, 22, 44);
+      ctx.textBaseline = 'alphabetic';
+      // a glossy panel holds the level, blocks left and the timer
+      ctx.save(); ctx.shadowColor = 'rgba(30,40,90,.35)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
+      const pg = ctx.createLinearGradient(0, 14, 0, 104); pg.addColorStop(0, 'rgba(255,255,255,.95)'); pg.addColorStop(1, 'rgba(222,236,255,.95)');
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(14, 14, W - 28, 92, 22); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = '#3b7be0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(14, 14, W - 28, 92, 22); ctx.stroke();
+      label(st.mode === 'daily' ? `DAILY ${st.level}` : `LEVEL ${st.level}`, 30, 50, 26, '#ffd23f');
       const left = st.blocks.filter(b => !b.out).length;
-      ctx.fillStyle = '#8fb3cf'; ctx.font = `700 13px "Nunito", sans-serif`; ctx.fillText(`${left} block${left === 1 ? '' : 's'} to free`, 22, 66);
-      const frac = st.time / st.timeMax, tw = W - 44, ty = 84;
-      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.roundRect(22, ty, tw, 10, 5); ctx.fill();
-      const tc = st.freezeT > 0 ? '#9fe8ff' : frac > 0.5 ? '#3dffb5' : frac > 0.25 ? N.yellow : N.red;
-      ctx.save(); ctx.shadowColor = tc; ctx.shadowBlur = 10; ctx.fillStyle = tc; ctx.beginPath(); ctx.roundRect(22, ty, Math.max(10, tw * frac), 10, 5); ctx.fill(); ctx.restore();
-      ctx.textAlign = 'right'; ctx.fillStyle = '#e9fff6'; ctx.font = `700 16px ${DISPLAY}`; ctx.fillText(Math.ceil(st.time) + 's', W - 22, 66);
+      ctx.fillStyle = '#3a4a78'; ctx.font = `800 14px "Nunito", sans-serif`; ctx.textAlign = 'left'; ctx.fillText(`${left} jelly friend${left === 1 ? '' : 's'} to free`, 32, 72);
+      const frac = st.time / st.timeMax, tw = W - 60, ty = 82;
+      ctx.fillStyle = 'rgba(40,60,120,.18)'; ctx.beginPath(); ctx.roundRect(30, ty, tw, 12, 6); ctx.fill();
+      const tc = st.freezeT > 0 ? '#7fd8ff' : frac > 0.5 ? '#46d65a' : frac > 0.25 ? '#ffc21a' : '#ff4a4a';
+      const bg2 = ctx.createLinearGradient(0, ty, 0, ty + 12); bg2.addColorStop(0, '#ffffff'); bg2.addColorStop(0.35, tc); bg2.addColorStop(1, tc);
+      ctx.fillStyle = bg2; ctx.beginPath(); ctx.roundRect(30, ty, Math.max(12, tw * frac), 12, 6); ctx.fill();
+      label(Math.ceil(st.time) + 's', W - 30, 54, 24, '#ffffff', 'right');
     }
     function drawFooter(){
-      const fy = H - 46;
-      ctx.globalAlpha = st.freezes > 0 && st.running ? 1 : 0.4;
-      ctx.save(); ctx.shadowColor = '#9fe8ff'; ctx.shadowBlur = st.freezeT > 0 ? 20 : 8;
-      ctx.strokeStyle = '#9fe8ff'; ctx.lineWidth = 2; ctx.fillStyle = '#0c1828';
-      ctx.beginPath(); ctx.roundRect(W/2 - 80, fy - 22, 160, 44, 22); ctx.fill(); ctx.stroke(); ctx.restore();
-      ctx.fillStyle = '#dff8ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 14px ${DISPLAY}`;
-      ctx.fillText(st.freezeT > 0 ? `FROZEN ${Math.ceil(st.freezeT)}s` : `FREEZE TIME (${st.freezes})`, W/2, fy + 1);
-      ctx.globalAlpha = 1;
-      if (st.freezeT > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(120,200,255,.08)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+      const fy = H - 46, on = st.freezes > 0 && st.running;
+      ctx.save(); ctx.globalAlpha = on || st.freezeT > 0 ? 1 : 0.55; ctx.shadowColor = 'rgba(20,40,90,.4)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+      const bgr = ctx.createLinearGradient(0, fy - 24, 0, fy + 24); bgr.addColorStop(0, '#a8e8ff'); bgr.addColorStop(0.5, '#3fb0ff'); bgr.addColorStop(1, '#1c6fd8');
+      ctx.fillStyle = bgr; ctx.beginPath(); ctx.roundRect(W/2 - 92, fy - 24, 184, 48, 24); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.globalAlpha = on || st.freezeT > 0 ? 1 : 0.55; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(W/2 - 92, fy - 24, 184, 48, 24); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.roundRect(W/2 - 80, fy - 20, 160, 14, 7); ctx.fill();
+      ctx.textBaseline = 'middle'; label(st.freezeT > 0 ? `FROZEN ${Math.ceil(st.freezeT)}s` : `FREEZE TIME (${st.freezes})`, W/2, fy + 2, 19, '#ffffff', 'center'); ctx.restore();
+      if (st.freezeT > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(120,200,255,.1)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+      ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (const q of st.parts) { ctx.globalAlpha = Math.max(0, q.life / 0.6); ctx.fillStyle = q.color; ctx.fillRect(q.x, q.y, q.size, q.size); }
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
       ctx.restore();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      for (const q of st.pops) { ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.fillStyle = q.color; ctx.shadowColor = q.color; ctx.shadowBlur = 12; ctx.font = `900 22px ${DISPLAY}`; ctx.fillText(q.text, q.x, q.y); ctx.restore(); }
+      for (const q of st.pops) { ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); label(q.text, q.x, q.y, 26, q.color, 'center'); ctx.restore(); }
       if (st.msg && st.phase === 'play') {
         ctx.font = `900 16px ${DISPLAY}`;
         const tw2 = Math.min(ctx.measureText(st.msg).width + 40, W - 30), y = st.by + st.cell * st.size / 2;
-        ctx.fillStyle = 'rgba(5,10,20,.88)'; ctx.beginPath(); ctx.roundRect(W/2 - tw2/2, y - 24, tw2, 48, 24); ctx.fill();
-        ctx.strokeStyle = '#3dffb5'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.fillText(st.msg, W/2, y + 1, W - 50);
+        ctx.save(); ctx.shadowColor = 'rgba(20,30,80,.4)'; ctx.shadowBlur = 12; ctx.fillStyle = 'rgba(255,255,255,.96)'; ctx.beginPath(); ctx.roundRect(W/2 - tw2/2, y - 24, tw2, 48, 24); ctx.fill(); ctx.restore();
+        ctx.strokeStyle = '#3b7be0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(W/2 - tw2/2, y - 24, tw2, 48, 24); ctx.stroke();
+        ctx.fillStyle = '#2a3a70'; ctx.fillText(st.msg, W/2, y + 1, W - 50);
       }
     }
     function drawFlat(){
@@ -479,7 +515,7 @@
 
     return {
       id:'cubes', music:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
-      tile:{ order:5, name:'Cube Escape', kind:'Neon block puzzle', art: artTile },
+      tile:{ order:5, name:'Cube Escape', kind:'Jelly block puzzle', art: artTile },
       controls: ['Drag a block to slide it around the box.', 'Push it into the glowing bar of the same color to send it out.', 'The block has to line up with the bar to get through. Slide it level with the bar first!', 'Free every block before the timer runs out.', "If time runs out you lose a heart and try the level again."],
       powersTitle: 'Helpers',
       powers: [

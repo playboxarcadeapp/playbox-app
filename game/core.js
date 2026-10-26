@@ -21,6 +21,14 @@
 
   const cv = $('cv'); const ctx = cv.getContext('2d');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // draw a canvas softly blurred (like a camera's depth of field). Uses the canvas blur filter where the
+  // browser has one, otherwise shrinks and re-enlarges the picture, which blurs it nearly the same way.
+  function soften(g, src, x, y, w, h, px){
+    if (typeof g.filter === 'string') { g.save(); g.filter = `blur(${px}px)`; g.drawImage(src, x, y, w, h); g.restore(); return; }
+    const k = Math.max(2, px / 1.2), t = document.createElement('canvas'); t.width = Math.max(1, Math.round(w / k)); t.height = Math.max(1, Math.round(h / k));
+    const tg = t.getContext('2d'); tg.imageSmoothingQuality = 'high'; tg.drawImage(src, 0, 0, t.width, t.height);
+    g.save(); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(t, x, y, w, h); g.restore();
+  }
   function layer(W, H){ const c = document.createElement('canvas'); c.width = W*dpr; c.height = H*dpr; const g = c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); return [c,g]; }
 
   // Tile-art helpers for the hub
@@ -41,6 +49,6 @@
   }
 
   const factories = [];
-  window.PB = { $, N, INK, fmt, reduceMotion, store, today, yesterday, mulberry, seedFrom, shuffle, cv, ctx, dpr, layer, neonBg, rr, dot, shade,
+  window.PB = { $, N, INK, fmt, reduceMotion, store, today, yesterday, mulberry, seedFrom, shuffle, cv, ctx, dpr, layer, soften, neonBg, rr, dot, shade,
     factories, register(f){ factories.push(f); } };
 })();

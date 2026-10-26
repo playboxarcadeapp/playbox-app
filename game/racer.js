@@ -32,14 +32,14 @@
     function cv(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
     function skyTexture(gi){
       const gal = GALAXIES[gi], N = PB.gl3d;
-      const w = 1024, h = 512, lw = 256, lh = 128;
+      const w = 1536, h = 768, lw = 384, lh = 192;
       const low = cv(lw, lh), lg = low.getContext('2d'), id = lg.createImageData(lw, lh);
       for (let y=0;y<lh;y++) for (let x=0;x<lw;x++) {
         const th = y / lh * Math.PI, ph = x / lw * Math.PI * 2;
         const dx = Math.sin(th) * Math.cos(ph), dy = Math.cos(th), dz = Math.sin(th) * Math.sin(ph);
         const n1 = N.fbm(dx * 1.6 + gi * 3, dy * 1.6, dz * 1.6, 5), n2 = N.fbm(dx * 3 + 10, dy * 3, dz * 3 + gi, 4);
         const band = Math.exp(-Math.pow((dy * 0.9 + dx * 0.35) * 1.8, 2));
-        const dens = Math.max(0, n1 * 1.7 + 0.15) * (0.35 + band);
+        const dens = Math.max(0, n1 * 1.7 + 0.24) * (0.45 + band);
         const dust = Math.max(0, n2 * 1.4) * band;
         const c = gal.neb[0], c2 = gal.neb[1], c3 = gal.neb[2];
         const mix = Math.max(0, Math.min(1, n2 + 0.5));
@@ -352,10 +352,10 @@
       const m = M.trs(pos, rot, [scale, scale, scale]);
       const INK = { color: [0.06, 0.04, 0.14], unlit: true, outline: 0.045, noShadow: true };
       const part = (mesh, mat) => { E.draw(mesh, m, mat); if (mesh !== A.nozzles && mesh !== A.stripe && mesh !== A.canopy) E.draw(mesh, m, INK); };
-      part(A.hull, { tex: A.tHull, color: [0.78, 0.8, 0.85], spec: 0.9, shine: 70 });
-      part(A.wings, { color: paint, spec: 0.8, shine: 60 });
-      part(A.fins, { color: paint, spec: 0.7, shine: 50 });
-      part(A.stripe, { color: [0.95, 0.95, 0.97], spec: 0.6 });
+      part(A.hull, { tex: A.tHull, color: [0.8, 0.83, 0.9], spec: 1.3, shine: 110, rim: 0.35 });
+      part(A.wings, { color: paint, emissive: paint.map(v => v * 0.08), spec: 1.6, shine: 100, rim: 0.5 });
+      part(A.fins, { color: paint, spec: 1.5, shine: 90, rim: 0.4 });
+      part(A.stripe, { color: paint.map(v => v * 0.5 + 0.5), emissive: paint.map(v => v * 0.9 + 0.1), spec: 0.6 });
       part(A.pods, { color: [0.32, 0.34, 0.38], spec: 0.9, shine: 60 });
       part(A.nozzles, { color: [0.3, 0.6, 1], emissive: [engine * 1.2, engine * 2.2, engine * 4], noShadow: true });
       part(A.canopy, { color: [0.05, 0.12, 0.25], spec: 1.5, shine: 120, rim: 0.6 });
@@ -376,12 +376,13 @@
         sunDir: [-0.6, -0.4, -0.7], toon: 0.55, sunColor: gal.sun.map(v => v * 3.1 * (gal.sunGlow || 1)), ambSky: [0.16, 0.17, 0.24], ambGround: [0.08, 0.07, 0.1],
         fogColor: [0.02, 0.02, 0.04], fogDensity: 0.0026, fogStart: 140,
         sky: { tex: SKY[gi], texBright: gal.skyBright || 3.0, sunColor: gal.sun.map(v => v * 1.6 * (gal.sunGlow || 1)), sunSize: 3 },
-        post: { bloom: gal.bloom || 0.75, threshold: gal.bloom ? 0.86 : 0.78, saturation: 1.22, contrast: 1.08, vignette: 0.35 },
+        post: { bloom: (gal.bloom || 0.75) * 0.8, threshold: gal.bloom ? 0.88 : 0.84, saturation: 1.2, contrast: 1.1, vignette: 0.3 },
       });
       const pp = [-300, 90, -1150], pr = 170;
-      E.draw(A.sphere, M.trs(pp, [0.2, st.planetSpin + st.clock * 0.01, 0.15], pr), { tex: PLAN[gi], color: [0.6, 0.6, 0.64].map(v => v * (gal.planetDim || 1)), spec: gal.planet === 'earth' ? 0.4 : 0.1, shine: 30, rim: 0.8, fogless: true, emissive: gal.planet === 'lava' ? [0.25, 0.08, 0.02] : [0, 0, 0] });
+      E.draw(A.sphere, M.trs(pp, [0.2, st.planetSpin + st.clock * 0.01, 0.15], pr), { tex: PLAN[gi], color: [0.5, 0.5, 0.54].map(v => v * (gal.planetDim || 1)), spec: gal.planet === 'earth' ? 0.4 : 0.1, shine: 30, rim: 0.8, fogless: true, emissive: gal.planet === 'lava' ? [0.25, 0.08, 0.02] : [0, 0, 0] });
       E.draw(A.sphere, M.trs(pp, [0, 0, 0], pr * 1.035), { color: gal.pc[0].map(v => v * 0.9 + 0.1), alpha: 0.2, additive: true, rim: 3, spec: 0, fogless: true, noShadow: true });
       if (gal.ring) E.draw(A.planetRing, M.trs(pp, [0.35, 0.3, -0.25], pr), { color: gal.pc[2], alpha: gal.ringA || 0.55, spec: 0.1, fogless: true, doubleSided: true, noShadow: true });
+      for (let k=0;k<9;k++) { const a = k * 2.4 + gi, rr = 380 + (k % 3) * 120, col = gal.neb[k % 3].map(v => Math.min(1, v * 0.9 + 0.08)); E.sprite([camP[0] + Math.cos(a) * rr, camP[1] + Math.sin(a * 1.7) * 140 + 40, -900 - (k % 4) * 120], 520 + (k % 3) * 160, col, 0.13, true); }
       for (const s of STARS) E.sprite([camP[0] + s.d[0] * 900, camP[1] + s.d[1] * 900, camP[2] + s.d[2] * 900], s.size, s.c, s.a, true);
       for (const s of STARS) if (s.flare) E.sprite([camP[0] + s.d[0] * 900, camP[1] + s.d[1] * 900, camP[2] + s.d[2] * 900], s.size * 7, s.c, 0.25, true);
       for (const q of st.dust) { const len = Math.min(6, st.speed * 0.05); E.sprite([q.x, q.y, q.z], 0.05 + len * 0.01, [0.8, 0.85, 1], 0.4, true, 0, null, [0, 0, len * 0.5 + 0.04]); }
@@ -435,10 +436,12 @@
       const vg = ctx.createRadialGradient(W/2, H/2, H * 0.35, W/2, H/2, H * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.35)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       if (st.phase !== 'menu') {
         const place = 1 + st.rivals.filter(r => r.d > st.d).length;
+        ctx.save(); ctx.shadowColor = 'rgba(0,0,30,.5)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; const hp = ctx.createLinearGradient(0, 10, 0, 106); hp.addColorStop(0, 'rgba(70,60,190,.92)'); hp.addColorStop(1, 'rgba(30,20,90,.92)'); ctx.fillStyle = hp; ctx.beginPath(); ctx.roundRect(8, 10, 262, 98, 20); ctx.fill(); ctx.restore();
+        ctx.strokeStyle = '#7fe8ff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(8, 10, 262, 98, 20); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.beginPath(); ctx.roundRect(14, 14, 250, 20, 10); ctx.fill();
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = `13px ${FONT}`; ctx.fillText(`${st.mode === 'daily' ? 'RACE' : 'LEVEL'} ${st.level} \u00b7 ${g.name.toUpperCase()}`, 18, 30);
+        ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = `13px ${FONT}`; ctx.fillText(`${st.mode === 'daily' ? 'RACE' : 'LEVEL'} ${st.level} \u00b7 ${g.name.toUpperCase()}`, 18, 30);
         ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 8;
-        ctx.fillStyle = place === 1 ? '#ffd23f' : '#fff'; ctx.font = `italic 40px ${FONT}`; ctx.fillText(st.finished ? PLACE[st.place - 1] : PLACE[place - 1], 18, 72); ctx.restore();
+        ctx.font = `italic 40px ${FONT}`; ctx.lineJoin = 'round'; ctx.lineWidth = 7; ctx.strokeStyle = '#1a1050'; ctx.strokeText(st.finished ? PLACE[st.place - 1] : PLACE[place - 1], 18, 72); ctx.fillStyle = place === 1 ? '#ffd23f' : '#fff'; ctx.fillText(st.finished ? PLACE[st.place - 1] : PLACE[place - 1], 18, 72); ctx.restore();
         ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = `13px ${FONT}`; ctx.fillText(`\u2605 ${st.raceStars}   ${Math.round(st.speed * 9)} km/h   ${Math.max(0, Math.ceil((st.length - st.d) / 10))}m to go`, 20, 94);
         const rx = W - 20, top = 40, bot = H - 60;
         ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(rx, top); ctx.lineTo(rx, bot); ctx.stroke();

@@ -155,6 +155,8 @@
         const wg = g.createLinearGradient(0, 0, 0, h); wg.addColorStop(0, 'rgba(255,250,235,.10)'); wg.addColorStop(0.75, 'rgba(0,0,0,0)'); wg.addColorStop(1, 'rgba(60,40,30,.16)'); g.fillStyle = wg; g.fillRect(0, 0, w, h);
       }, 1.6);
     }
+    // far scenery is softened a little, like a camera's depth of field
+    function softC(c, px){ const o = document.createElement('canvas'); o.width = c.width; o.height = c.height; PB.soften(o.getContext('2d'), c, 0, 0, c.width, c.height, px); return o; }
     function hillsTex(){
       return canvas(2048, 320, (g, w, h) => {
         const R = PB.mulberry(9);
@@ -326,7 +328,7 @@
         lawn: E.mesh(G.plane(40, VIEW + 20, 40 / 4, (VIEW + 20) / 4)),
         curb: E.mesh(G.box(0.25, 0.18, VIEW + 20)),
         tAsph: T(asphaltTex()), tBusSide: T(busSideTex(), { repeat: false }), tStripe: T(canvas(64, 16, (g, w, h) => { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.fillStyle = '#ff5a2a'; for (let x=-16;x<w;x+=16) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 8, 0); g.lineTo(x + 16, 0); g.lineTo(x + 8, h); g.fill(); } })), tManhole: T(manholeTex(), { repeat: false }), tCross: T(crossTex(), { repeat: false }), tBlossom: T(blossomTex()), tWalk: T(walkTex()), tGrass: T(grassTex()), tHedge: T(hedgeTex()), tLeaf: T(leafTex()), tBark: T(barkTex()), tFur: T(furTex()),
-        tHills: T(hillsTex(), { repeat: true, clampV: true }), tSky: T(skyTex(), { repeat: false }), tCloud: T(cloudTex(), { repeat: false }),
+        tHills: T(softC(hillsTex(), 2.5), { repeat: true, clampV: true }), tSky: T(skyTex(), { repeat: false }), tCloud: T(cloudTex(), { repeat: false }),
         fronts: HOUSES.map(s => T(houseFront(s), { repeat: false })), sides: HOUSES.map(s => T(sidingTex(s.col))), roofs: ROOF_COLS.map(c => T(roofTex(c))),
         shirts: [['#ff6b6b','#ffffff'], ['#4fc3f7','#ffffff'], ['#ffd54f','#ff8a65'], ['#81c784','#2e7d32']].map(([a, b]) => T(shirtTex(a, b))),
         quad: E.mesh(G.quad(1, 1)),
@@ -793,7 +795,7 @@
         sunDir: [-0.62 * Math.cos(st.camTh) + 0.42 * Math.sin(st.camTh), -0.5, 0.62 * Math.sin(st.camTh) + 0.42 * Math.cos(st.camTh)], sunColor: [3.9, 3.0, 2.1], ambSky: [0.34, 0.44, 0.78], ambGround: [0.34, 0.36, 0.2], toon: 1.0,
         fogColor: [0.86, 0.88, 0.92], fogDensity: 0.007, fogStart: 40,
         shadow: { center: [0, 2, -16], radius: 30 },
-        post: { bloom: 0.4, threshold: 0.86, saturation: 1.18, contrast: 1.12, vignette: 0.28, tint: [1.02, 0.99, 0.96] },
+        post: { bloom: 0.42, threshold: 0.86, saturation: 1.1, contrast: 1.07, vignette: 0.22, tint: [1.02, 1.0, 0.97] },
         sky: { zenith: [0.12, 0.4, 0.95], horizon: [0.78, 0.88, 0.98], ground: [0.55, 0.55, 0.38], sunColor: [1.4, 1.0, 0.55], sunSize: 3 },
       });
       // painted sky and far hills stay with the camera

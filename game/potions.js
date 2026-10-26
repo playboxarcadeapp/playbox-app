@@ -470,9 +470,13 @@
       if (S.wall === 'wood') { // hanging herbs and a broom on the wall
         for (const hx of [120, 360]) { g.strokeStyle = '#2a1a10'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(hx, 16); g.lineTo(hx, 40); g.stroke(); for (let k=0;k<7;k++) { g.strokeStyle = ['#4f8a3a','#6aa84a','#3f7a2a'][k % 3]; g.lineWidth = 3; g.beginPath(); g.moveTo(hx, 40); g.quadraticCurveTo(hx + (k - 3) * 4, 60, hx + (k - 3) * 6, 84); g.stroke(); } g.fillStyle = '#c9a23c'; g.fillRect(hx - 5, 38, 10, 5); }
       }
-      const vg = g.createRadialGradient(W/2, H * 0.45, H * 0.25, W/2, H * 0.5, H * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
+      // a warm magical glow lifts the whole room, then the room goes slightly soft-focus so the flasks pop
+      g.save(); g.globalCompositeOperation = 'soft-light'; const mgl = g.createRadialGradient(W / 2, H * 0.42, 40, W / 2, H * 0.42, H * 0.7); mgl.addColorStop(0, 'rgba(255,190,255,.45)'); mgl.addColorStop(1, 'rgba(120,60,200,.25)'); g.fillStyle = mgl; g.fillRect(0, 0, W, H); g.restore();
+      g.save(); g.globalCompositeOperation = 'screen'; g.fillStyle = 'rgba(70,30,110,.1)'; g.fillRect(0, 0, W, H); g.restore();
+      const vg = g.createRadialGradient(W/2, H * 0.45, H * 0.3, W/2, H * 0.5, H * 0.78); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(20,0,30,.32)');
       g.fillStyle = vg; g.fillRect(0, 0, W, H);
-      return c;
+      const b = document.createElement('canvas'); b.width = c.width; b.height = c.height; PB.soften(b.getContext('2d'), c, 0, 0, c.width, c.height, 3.5);
+      return b;
     }
     // ---- animated characters ----
     function drawWitch(x, feet, t){
@@ -494,7 +498,10 @@
       ctx.fillStyle = 'rgba(255,120,120,.4)'; ctx.beginPath(); ctx.ellipse(-9, -154, 4, 2.6, 0, 0, 7); ctx.ellipse(10, -154, 4, 2.6, 0, 0, 7); ctx.fill();
       const blink = Math.sin(t * 0.9 + 1) > 0.985;
       if (blink) { ctx.strokeStyle = '#2a1a1a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-9, -163); ctx.lineTo(-3, -163); ctx.moveTo(4, -163); ctx.lineTo(10, -163); ctx.stroke(); }
-      else { ctx.fillStyle = '#2a1a1a'; ctx.beginPath(); ctx.arc(-6, -163, 2.4, 0, 7); ctx.arc(7, -163, 2.4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-5.2, -164, 0.8, 0, 7); ctx.arc(7.8, -164, 0.8, 0, 7); ctx.fill(); }
+      else for (const ex of [-6.5, 7]) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(ex, -163, 4.6, 5.4, 0, 0, 7); ctx.fill(); ctx.strokeStyle = '#2a1a1a'; ctx.lineWidth = 1.1; ctx.stroke();
+        const ir = ctx.createRadialGradient(ex + 0.6, -162, 0.5, ex + 0.6, -162.5, 3.6); ir.addColorStop(0, '#9ff07a'); ir.addColorStop(1, '#1f8a3a'); ctx.fillStyle = ir; ctx.beginPath(); ctx.arc(ex + 0.6, -162.5, 3.4, 0, 7); ctx.fill();
+        ctx.fillStyle = '#1a0f12'; ctx.beginPath(); ctx.arc(ex + 0.8, -162.3, 1.7, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - 0.6, -164.4, 1.2, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(ex + 1.8, -161, 0.6, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#2a1a1a'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(ex - 4.6, -166.5); ctx.lineTo(ex - 6.4, -168.5); ctx.moveTo(ex + 4.4, -166.5); ctx.lineTo(ex + 5.6, -168.8); ctx.stroke(); }
       ctx.strokeStyle = '#8a3a2a'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(1, -154, 5, 0.2, Math.PI - 0.2); ctx.stroke();
       ctx.fillStyle = '#ffb894'; ctx.beginPath(); ctx.ellipse(2, -158, 3, 4, 0, 0, 7); ctx.fill();
       ctx.fillStyle = '#ff7a1a'; ctx.beginPath(); ctx.ellipse(0, -174, 16, 6, 0, Math.PI, 0); ctx.fill();
@@ -806,8 +813,10 @@
     }
     function drawButton(x, y, label, sub, enabled){
       ctx.globalAlpha = enabled ? 1 : 0.4;
-      ctx.fillStyle = 'rgba(30,20,50,.85)'; ctx.strokeStyle = GOLD; ctx.lineWidth = 1.5;
+      const bgr = ctx.createLinearGradient(0, y - 17, 0, y + 17); bgr.addColorStop(0, '#c88cff'); bgr.addColorStop(0.5, '#8a3ad8'); bgr.addColorStop(1, '#5a1aa0');
+      ctx.fillStyle = bgr; ctx.strokeStyle = '#ffd86a'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.roundRect(x - 54, y - 17, 108, 34, 17); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.roundRect(x - 46, y - 14, 92, 11, 6); ctx.fill();
       ctx.fillStyle = '#fff3d6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = `800 14px ${BODY}`; ctx.fillText(label + (sub != null ? ` (${sub})` : ''), x, y + 1);
       ctx.globalAlpha = 1;
@@ -850,7 +859,7 @@
       const ly = sy => -(sy - y), yc = y + h - w / 2;
       const blocks = potionBlocks(i, y, h);
       blocks.forEach((B, bi) => {
-        const c = hex3(B.col), mat = B.hidden ? { color: [0.24, 0.17, 0.36], spec: 0.8, shine: 40 } : { color: c, emissive: c.map(v => v * 0.12), spec: 1.2, shine: 70, rim: 0.15 };
+        const c = hex3(B.col), mat = B.hidden ? { color: [0.3, 0.22, 0.44], spec: 1, shine: 50 } : { color: c.map(v => Math.pow(v, 1.15)), emissive: c.map(v => v * 0.16), spec: 1.8, shine: 100, rim: 0.3 };
         if (B.bot > yc + 0.5) {
           const top = Math.min(B.top, yc);
           if (B.top < yc) part(A3.cyl, [0, (ly(top) + ly(yc)) / 2, 0], [r, ly(top) - ly(yc), r], mat);
@@ -867,13 +876,17 @@
         }
       });
       // the glass, its lip, and a cork once the flask is full of one colour
-      part(glassMesh(w, h), [0, 0, 0], [1, 1, 1], { color: [0.82, 0.88, 1], alpha: 0.2, spec: 2.2, shine: 160, rim: 1.4, doubleSided: true, noShadow: true });
-      part(A3.lip, [0, -1, 0], [w / 2 + 2, 6, w / 2 + 2], { color: [0.9, 0.94, 1], alpha: 0.75, spec: 2, shine: 120, rim: 0.8 });
+      part(glassMesh(w, h), [0, 0, 0], [1, 1, 1], { color: [0.86, 0.9, 1], alpha: 0.24, spec: 2.6, shine: 180, rim: 1.8, doubleSided: true, noShadow: true });
+      // long glossy highlight down the glass, and a little one on the other side
+      part(A3.box, [-r * 0.55, -h * 0.47, r * 0.82], [2.6, h * 0.72, 0.6], { color: [1, 1, 1], emissive: [0.9, 0.9, 0.9], alpha: 0.55, noShadow: true });
+      part(A3.box, [r * 0.62, -h * 0.62, r * 0.7], [1.6, h * 0.22, 0.6], { color: [1, 1, 1], emissive: [0.9, 0.9, 0.9], alpha: 0.35, noShadow: true });
+      part(A3.lip, [0, -1, 0], [w / 2 + 2.5, 7, w / 2 + 2.5], { color: [1, 0.78, 0.32], emissive: [0.18, 0.1, 0.02], spec: 2.4, shine: 120, rim: 0.6 });
       if (isSealed(st.bottles[i])) {
         part(A3.cyl, [0, 9, 0], [w / 2 - 5, 22, w / 2 - 5], { color: [0.66, 0.45, 0.26], spec: 0.2, shine: 12 });
         part(A3.sphere, [0, 7, w / 2 - 4], [7, 7, 3.5], { color: [0.7, 0.12, 0.1], spec: 1.2, shine: 60 });
         E.sprite(M.xform(Bm, [0, 38, 6]), 26, [1, 0.85, 0.35], 0.9, true);
       }
+      if (blocks.length && !blocks[blocks.length - 1].hidden) E.sprite(M.xform(Bm, [0, -h * 0.55, -10]), w * 2.4, hex3(blocks[blocks.length - 1].col), 0.22, true);
       // store magic: sparkles drifting up out of every flask with potion in it
       const mg = PB.meta && PB.meta.look('potions', 'magic'), tb = blocks[blocks.length - 1];
       if (mg && tb && !tb.hidden && !reduceMotion) for (let k=0;k<4;k++) { const ph = (st.clock * 0.45 + k * 0.25 + i * 0.17) % 1, hu = (ph + i * 0.13 + st.clock * 0.2) % 1;
@@ -899,11 +912,11 @@
       A3.tHalls = A3.tHalls || {}; if (!A3.tHalls[st.scene]) A3.tHalls[st.scene] = E.texture(hallFor(), { repeat: false }); if (!A3.tShelf) A3.tShelf = E.texture(shelfC, { repeat: false });
       E.resize(W, H, tile ? 1 : E.quality(1.5));
       E.begin({ ortho: [W, H] }, {
-        noSky: true, sunDir: [-0.35, -0.55, -0.75], sunColor: [0.75, 0.8, 1.05], ambSky: [0.24, 0.2, 0.34], ambGround: [0.12, 0.08, 0.14], toon: 0.2,
+        noSky: true, sunDir: [-0.35, -0.55, -0.75], sunColor: [1.0, 0.98, 1.12], ambSky: [0.4, 0.34, 0.52], ambGround: [0.2, 0.14, 0.24], toon: 0.2,
         shadow: { center: [W / 2, -H * 0.45, 0], radius: 380 },
-        post: { bloom: 0.6, threshold: 0.84, saturation: 1.2, contrast: 1.08, vignette: 0.3 },
+        post: { bloom: 0.45, threshold: 0.86, saturation: 1.25, contrast: 1.08, vignette: 0.18 },
       });
-      E.backdrop(A3.tHalls[st.scene], W, H, { shadow: 0.45 });
+      E.backdrop(A3.tHalls[st.scene], W, H, { shadow: 0.35 });
       // floating candles: real wax, flickering flames, and their light falls on the flasks
       CANDLES.forEach((c, ci) => {
         const bob = reduceMotion ? 0 : Math.sin(st.clock * 1.3 + c.ph) * 5, x = c.x, y = c.y + bob, s = c.s, fl = reduceMotion ? 0 : Math.sin(st.clock * 11 + c.ph) * 1.2;
@@ -939,7 +952,8 @@
       drawSceneSky();
       for (const b of st.bats) drawBat(b, st.clock);
       // header
-      ctx.fillStyle = 'rgba(14,8,26,.78)'; ctx.beginPath(); ctx.roundRect(10, 12, 206, 86, 14); ctx.fill(); ctx.strokeStyle = 'rgba(245,200,76,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.save(); ctx.shadowColor = 'rgba(20,0,40,.5)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4; const pp = ctx.createLinearGradient(0, 12, 0, 98); pp.addColorStop(0, '#9a4ae8'); pp.addColorStop(1, '#4a1488'); ctx.fillStyle = pp; ctx.beginPath(); ctx.roundRect(10, 12, 206, 86, 18); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = '#ffd86a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(10, 12, 206, 86, 18); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.roundRect(16, 16, 194, 22, 11); ctx.fill();
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = GOLD; ctx.font = `900 22px ${FONT}`;
       ctx.fillText(st.spec.n === 'daily' ? 'Daily Brew' : `Level ${st.spec.n}`, 22, 42);

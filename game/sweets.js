@@ -425,6 +425,8 @@
       g.restore();
       // rounded cave rocks around the edges
       for (let i=0;i<46;i++) { const side = i % 2 ? 1 : -1, x = side > 0 ? W - R() * 70 : R() * 70, y = R() * H, r = 26 + R() * 40; const rg = g.createRadialGradient(x - r * 0.3, y - r * 0.4, 4, x, y, r); rg.addColorStop(0, '#9a7ad0'); rg.addColorStop(1, '#3d2470'); g.fillStyle = rg; g.beginPath(); g.ellipse(x, y, r, r * 0.8, R(), 0, 7); g.fill(); }
+      // the cave walls go soft-focus so the board and the crystals in front pop
+      { const cp = document.createElement('canvas'); cp.width = c.width; cp.height = c.height; cp.getContext('2d').drawImage(c, 0, 0); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); PB.soften(g, cp, 0, 0, c.width, c.height, 5); g.restore(); }
       // glowing crystal clusters
       const crystal = (x, y, h, col, lean) => { g.save(); g.translate(x, y); g.rotate(lean); const w = h * 0.32; const cg = g.createLinearGradient(-w, 0, w, 0); cg.addColorStop(0, shade(col, 0.45)); cg.addColorStop(0.5, col); cg.addColorStop(1, shade(col, -0.35)); g.fillStyle = cg; g.beginPath(); g.moveTo(-w, 0); g.lineTo(-w, -h * 0.75); g.lineTo(0, -h); g.lineTo(w, -h * 0.75); g.lineTo(w, 0); g.closePath(); g.fill(); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-w * 0.4, -h * 0.1); g.lineTo(-w * 0.4, -h * 0.72); g.lineTo(0, -h * 0.94); g.stroke(); g.restore(); };
       g.save(); g.globalCompositeOperation = 'lighter';
@@ -624,18 +626,19 @@
     }
     function drawCard(s){
       // Goal card
-      ol(ctx, 3); { const sg = ctx.createLinearGradient(0, 40, 0, 152); sg.addColorStop(0, '#f6e2b8'); sg.addColorStop(1, '#e2c48c'); ctx.fillStyle = sg; }
-      ctx.beginPath(); ctx.roundRect(16, 40, W - 32, 112, 14); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#6b6f78'; for (const [nx, ny] of [[28, 52], [W - 28, 52], [28, 140], [W - 28, 140]]) { ctx.beginPath(); ctx.arc(nx, ny, 3.5, 0, 7); ctx.fill(); }
+      ctx.save(); ctx.shadowColor = 'rgba(30,0,60,.45)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5; { const sg = ctx.createLinearGradient(0, 40, 0, 152); sg.addColorStop(0, '#a65cf0'); sg.addColorStop(1, '#5a1aa8'); ctx.fillStyle = sg; }
+      ctx.beginPath(); ctx.roundRect(16, 40, W - 32, 112, 22); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = '#ffd86a'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.roundRect(16, 40, W - 32, 112, 22); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.roundRect(24, 45, W - 48, 26, 13); ctx.fill(); ol(ctx, 3);
       // moves bubble
-      ctx.fillStyle = st.finishing ? '#7dff6a' : st.moves <= 3 && s.type !== 'daily' ? '#ff5a4a' : '#ffcf4a'; ctx.beginPath(); ctx.arc(70, 96, 38 + (st.finishing ? Math.sin(st.time * 12) * 2 : 0), 0, 7); ctx.fill(); ctx.stroke();
+      { const bc = st.finishing ? ['#d8ffc8', '#3fd04a'] : st.moves <= 3 && s.type !== 'daily' ? ['#ffc8c0', '#e8302a'] : ['#fff2a0', '#ff9a1a'], rg = ctx.createRadialGradient(58, 80, 4, 70, 96, 40); rg.addColorStop(0, bc[0]); rg.addColorStop(1, bc[1]); ctx.fillStyle = rg; } ctx.beginPath(); ctx.arc(70, 96, 38 + (st.finishing ? Math.sin(st.time * 12) * 2 : 0), 0, 7); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3.5; ctx.stroke(); ol(ctx, 3);
       ctx.fillStyle = CHOC; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = `700 34px ${FONT}`; ctx.fillText(st.moves, 70, 92);
       ctx.font = `600 12px ${FONT}`; ctx.fillText(st.finishing ? 'BONUS' : 'MOVES', 70, 117);
       // goals
       const gx = 130;
       ctx.textAlign = 'left';
-      ctx.font = `600 13px ${FONT}`; ctx.fillStyle = '#7a5530';
+      ctx.font = `600 13px ${FONT}`; ctx.fillStyle = '#ffd86a';
       ctx.fillText(s.type === 'daily' ? 'DAILY CHALLENGE \u00b7 SCORE ATTACK' : `LEVEL ${s.n} \u00b7 GOAL`, gx, 60);
       const items = [];
       if (s.type === 'score' || s.type === 'daily') items.push({ text: s.type === 'daily' ? `Score as much as you can!` : `Reach ${fmt(s.target)} points`, done: s.type === 'score' && st.score >= s.target });
@@ -643,15 +646,15 @@
       if (st.frost) items.push({ icon: 'frost', n: Math.max(0, st.frostLeft) });
       let ix = gx;
       for (const it of items) {
-        if (it.text) { ctx.font = `700 19px ${FONT}`; ctx.fillStyle = CHOC; ctx.fillText(it.text, ix, 90); if (it.done) { ctx.fillStyle = '#2fb36b'; ctx.fillText(' \u2713', ix + ctx.measureText(it.text).width, 90); } continue; }
+        if (it.text) { ctx.font = `700 19px ${FONT}`; ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = '#3a0f6a'; ctx.strokeText(it.text, ix, 90); ctx.fillStyle = '#ffffff'; ctx.fillText(it.text, ix, 90); if (it.done) { ctx.fillStyle = '#2fb36b'; ctx.fillText(' \u2713', ix + ctx.measureText(it.text).width, 90); } continue; }
         goalIcon(it.icon, ix + 18, 92, 0.85);
-        ctx.font = `700 22px ${FONT}`; ctx.fillStyle = it.n === 0 ? '#2fb36b' : CHOC;
+        ctx.font = `700 22px ${FONT}`; ctx.fillStyle = it.n === 0 ? '#7dff6a' : '#ffffff';
         ctx.fillText(it.n === 0 ? '\u2713' : it.n, ix + 40, 93);
         ix += 40 + Math.max(24, ctx.measureText(String(it.n)).width) + 16;
       }
       // star progress bar
       const bx = gx, bw = W - 32 - gx - 4, by = 124;
-      ctx.fillStyle = '#c9a66e'; ctx.beginPath(); ctx.roundRect(bx, by, bw, 12, 6); ctx.fill();
+      ctx.fillStyle = '#3a1470'; ctx.beginPath(); ctx.roundRect(bx, by, bw, 12, 6); ctx.fill();
       const maxS = s.type === 'daily' ? Math.max(5000, st.score * 1.2) : s.star3 * 1.08;
       ctx.fillStyle = '#2fd0ff'; ctx.beginPath(); ctx.roundRect(bx, by, Math.max(12, bw * Math.min(1, st.score / maxS)), 12, 6); ctx.fill();
       ol(ctx, 2); ctx.beginPath(); ctx.roundRect(bx, by, bw, 12, 6); ctx.stroke();
