@@ -36,7 +36,7 @@
     { id: 'model_saucer', game: 'racer',   slot: 'ship',   name: 'Flying saucer',    price: 600, ic: '\u{1F6F8}', sw: ['#9fb4c8', '#5ec8ff'] },
     { id: 'model_rocket', game: 'racer',   slot: 'ship',   name: 'Retro rocket',     price: 700, ic: '\u{1F680}', sw: ['#ffffff', '#ff3b3b'] },
     { id: 'model_shark',  game: 'racer',   slot: 'ship',   name: 'Space shark',      price: 800, ic: '\u{1F988}', sw: ['#5f7fa8', '#d8e4f0'] },
-    { id: 'fur_fox',      game: 'dash',    slot: 'fur',    name: 'Fox costume',      price: 500, ic: '\u{1F98A}', sw: ['#ff8a3a', '#3a1a0a'] },
+    { id: 'fur_fox',      game: 'dash',    slot: 'fur',    name: 'Fox costume',      price: 500, ic: '\u{1F98A}', sw: ['#ffa24a', '#ff6a1a'] },
     { id: 'fur_snow',     game: 'dash',    slot: 'fur',    name: 'Snow raccoon',     price: 500, ic: '\u2744\uFE0F', sw: ['#eaf4ff', '#4a6aa8'] },
     { id: 'fur_gold',     game: 'dash',    slot: 'fur',    name: 'Golden raccoon',   price: 900, ic: '\u2728', sw: ['#ffd23f', '#8a5a10'] },
     { id: 'trail_stars',  game: 'castle',  slot: 'trail',  name: 'Star trail',       price: 300, ic: '\u2B50', sw: ['#fff1a0', '#ffb81f'] },

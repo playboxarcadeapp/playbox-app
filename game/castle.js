@@ -33,10 +33,11 @@
 
     // ---------- Level design ----------
     // Castles get bigger level by level: taller towers, more goblins (some hiding inside), tougher ice and
-    // stone, rock pedestals from level 8, shield walls from level 10 and fewer spare shots.
+    // stone, rock pedestals from level 8, shield walls from level 4, bunkers, bridges and stilts, and
+    // only about one shot per goblin plus two spare.
     function levelSpec(n, R){
       const blocks = [], statics = [];
-      const pStone = Math.min(0.6, Math.max(0, (n - 6) / 45)), pIce = Math.min(0.45, Math.max(0, (n - 2) / 28));
+      const pStone = Math.min(0.65, Math.max(0, (n - 4) / 30)), pIce = Math.min(0.5, Math.max(0, (n - 1) / 16));
       const mat = () => { const r = R(); return r < pStone ? 'dark' : r < pStone + pIce ? 'gray' : r < 0.93 ? 'sand' : 'wood'; };
       const add = (x, yBottom, w, h, type, m) => { blocks.push({ x, y: yBottom - h / 2, w, h, type, mat: m || mat(), flag: R() < 0.35 ? BANNERS[Math.floor(R() * BANNERS.length)] : null, roof: ROOFS[Math.floor(R() * ROOFS.length)] }); return yBottom - h; };
       const goblin = (x, yBottom) => blocks.push({ x, y: yBottom - 23, w: 34, h: 46, type: 'goblin', mat: 'goblin' });
@@ -47,25 +48,33 @@
         walls(x, k, y){ for (let i=0;i<k;i++) y = add(x, y, 84, 24, 'wall'); return y; },
         // classic "rooms": posts and planks with a goblin sitting inside each floor
         rooms(x, k, y){ for (let i=0;i<Math.min(k, 3);i++) { add(x - 38, y, 22, 62, 'post'); add(x + 38, y, 22, 62, 'post'); if (i > 0 || R() < 0.7) goblin(x, y); y = add(x, y - 62, 104, 18, 'wall'); } return y; },
+        // a stone bunker: the goblin hides between thick walls under a heavy roof
+        bunker(x, k, y){ add(x - 40, y, 20, 58, 'wall', n >= 8 ? 'dark' : 'gray'); add(x + 40, y, 20, 58, 'wall', n >= 8 ? 'dark' : 'gray'); goblin(x, y); y = add(x, y - 58, 108, 18, 'wall', n >= 12 ? 'dark' : mat()); for (let i=1;i<Math.min(k, 4);i++) y = add(x, y, 40, 40, 'keep'); return y; },
+        // a rope-bridge style span between two towers with goblins standing on it
+        bridge(x, k, y){ const h = 60 + Math.min(40, k * 8); add(x - 56, y, 24, h, 'tower'); add(x + 56, y, 24, h, 'tower'); y = add(x, y - h, 140, 16, 'wall'); goblin(x - 36, y); goblin(x + 36, y); return add(x, y, 26, 34, 'keep'); },
+        // a platform on stilts with little battlements and a goblin in the middle
+        stilts(x, k, y){ const h = 56 + Math.min(36, k * 6); for (const dx of [-44, 0, 44]) add(x + dx, y, 14, h, 'post'); y = add(x, y - h, 112, 16, 'wall'); add(x - 42, y, 24, 30, 'keep'); goblin(x, y); return add(x + 42, y, 24, 30, 'keep'); },
         fortress(x, k, y){ const y1 = add(x - 46, y, 28, 72, 'tower'); add(x + 46, y, 28, 72, 'tower'); add(x, y, 40, 40, 'keep'); y = add(x, y1, 136, 18, 'wall'); add(x - 44, y, 32, 32, 'keep'); add(x + 44, y, 32, 32, 'keep'); y = add(x, y, 36, 58, 'tower'); for (let i=1;i<k;i++) y = add(x, y, 34, 34, 'keep'); return y; },
       };
-      const groups = n < 4 ? 1 : n < 12 ? 2 : (n < 24 || n % 2) ? 2 : 3;
-      const kinds = n < 3 ? ['tower'] : n < 6 ? ['tower', 'walls'] : n < 10 ? ['tower', 'walls', 'arch', 'rooms'] : n < 18 ? ['tower', 'arch', 'pyramid', 'rooms'] : groups === 3 ? ['arch', 'pyramid', 'rooms', 'tower'] : ['arch', 'pyramid', 'fortress', 'rooms', 'fortress'];
+      const groups = n < 3 ? 1 : n < 10 ? 2 : (n % 3 === 0 || n >= 30 && n % 2 === 0) ? 3 : 2;
+      const kinds = n < 3 ? ['tower'] : n < 6 ? ['tower', 'rooms', 'walls'] : n < 10 ? ['rooms', 'bunker', 'arch', 'stilts', 'tower'] : n < 18 ? ['rooms', 'bunker', 'arch', 'pyramid', 'stilts', 'bridge'] : ['bunker', 'fortress', 'rooms', 'pyramid', 'bridge', 'stilts', 'bunker'];
       const xs = groups === 1 ? [n < 3 ? 470 : 510] : groups === 2 ? [445, 590] : [405, 530, 655];
-      const size = 2 + Math.min(5, Math.floor(n / 6));
-      const wantGobs = Math.min(8, 1 + Math.floor(n / 4));
+      const size = 2 + Math.min(6, Math.floor(n / 5));
+      const wantGobs = Math.min(9, n < 3 ? n : 1 + Math.floor(n / 3));
       const freeTop = b => !blocks.some(o => o !== b && Math.abs((o.y + o.h / 2) - (b.y - b.h / 2)) < 3 && Math.abs(o.x - b.x) < (o.w + b.w) / 2 - 4);
       for (let g=0; g<groups; g++) {
         let kind = kinds[Math.floor(R() * kinds.length)];
         if (groups >= 2 && (kind === 'fortress' || kind === 'pyramid') && g > 0 && R() < 0.6) kind = 'tower';
+        if (groups === 3 && (kind === 'bridge' || kind === 'fortress')) kind = 'bunker';
         let base = GROUND;
         // castles on rocky hills from level 8 (only narrow castles fit on a hill)
         const pw = groups === 1 ? 200 : groups === 2 ? 136 : 118;
-        if (n >= 8 && R() < Math.min(0.7, 0.25 + n / 80)) { const ph = 40 + Math.floor(R() * Math.min(90, 20 + n * 2)); statics.push({ x: xs[g], y: GROUND - ph / 2, w: pw, h: ph }); base = GROUND - ph; if (kind === 'pyramid' || kind === 'fortress' || kind === 'walls') kind = ['tower', 'arch', 'rooms'][Math.floor(R() * 3)]; }
+        if (n >= 8 && R() < Math.min(0.7, 0.25 + n / 80)) { const ph = 40 + Math.floor(R() * Math.min(90, 20 + n * 2)); statics.push({ x: xs[g], y: GROUND - ph / 2, w: pw, h: ph }); base = GROUND - ph; if (kind === 'pyramid' || kind === 'fortress' || kind === 'walls' || kind === 'bridge' || (kind === 'bunker' && groups === 3)) kind = ['tower', 'arch', 'rooms', 'stilts'][Math.floor(R() * 4)]; }
         const k = Math.max(kind === 'tower' ? 3 : 1, size + Math.floor(R() * 2));
         const top = B[kind](xs[g], k, base);
-        if (kind !== 'rooms' || R() < 0.6) goblin(xs[g], top);
-        if (n >= 10 && g === 0 && base === GROUND && R() < Math.min(0.85, 0.35 + n / 60)) add(xs[g] - 95, base, 20, Math.min(110, 46 + n * 1.1), 'wall', n >= 25 ? 'dark' : 'gray');
+        if (kind === 'rooms' ? R() < 0.5 : kind !== 'bridge' && kind !== 'stilts') goblin(xs[g], top);
+        if (n >= 4 && base === GROUND && R() < Math.min(0.9, 0.3 + n / 40)) { const sh = Math.min(110, 44 + n * 1.6), sx = xs[g] - (g === 0 ? 95 : 72);
+          if (!blocks.some(o => Math.abs(o.x - sx) < (o.w + 24) / 2 && o.y + o.h / 2 > GROUND - sh - 4)) add(sx, base, 20, sh, 'wall', n >= 20 ? 'dark' : 'gray'); }
       }
       // extra goblins sit on free ledges
       let extra = wantGobs - blocks.filter(b => b.type === 'goblin').length, guard = 0;
@@ -75,9 +84,15 @@
         if (!ledges.length) break;
         const b = ledges[Math.floor(R() * ledges.length)]; goblin(b.x, b.y - b.h / 2); extra--;
       }
+      // any goblins still to place hide on the ground just behind a castle
+      let hidden = 0;
+      if (n >= 10) for (let g = groups - 1; g >= 0 && extra > 0; g--) {
+        const near = [...blocks, ...statics].filter(o => Math.abs(o.x - xs[g]) < 75), right = Math.max(xs[g] + 30, ...near.map(o => o.x + o.w / 2)), gx = right + 21;
+        if (g === groups - 1 && gx > xs[g] + 108) continue;
+        if (!blocks.some(o => Math.abs(o.x - gx) < (o.w + 40) / 2 && o.y + o.h / 2 > GROUND - 50) && !statics.some(o => Math.abs(o.x - gx) < (o.w + 40) / 2)) { goblin(gx, GROUND); extra--; hidden++; } }
       const gobs = blocks.filter(b => b.type === 'goblin').length;
-      const spare = n <= 3 ? 3 : n <= 30 ? 2 : 1;
-      const total = Math.min(14, Math.round(gobs * 1.5) + spare + Math.floor(blocks.length / 16));
+      const spare = n >= 25 ? 3 : 2;
+      const total = Math.min(15, gobs + spare + hidden + Math.floor(blocks.length / 18));
       const ammo = { stone: 0, triple: 0, iron: 0, fire: 0, boulder: 0 };
       if (n >= 3) ammo.triple = 1 + (n >= 20 && R() < 0.5 ? 1 : 0);
       if (n >= 4) ammo.iron = 1 + (n >= 15 ? 1 : 0);

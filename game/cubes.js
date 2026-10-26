@@ -17,7 +17,7 @@
     function genLevel(L, R){
       const size = L <= 2 ? 6 : L <= 6 ? 7 : 8;
       const nColors = Math.min(3 + Math.floor((L - 1) / 2), 6);
-      const target = Math.min(7 + L, 18);
+      const target = Math.min(7 + L, 20);
       for (let attempt = 0; attempt < 30; attempt++) {
         const exits = [];
         for (let c=0;c<nColors;c++) {
@@ -59,7 +59,7 @@
             else scramble(3);
           }
         }
-        scramble(24 + L * 3);
+        scramble(30 + L * 4);
         if (blocks.length >= Math.min(target - 2, 7)) return { size, exits, blocks, colors: nColors };
       }
       return genLevel(Math.max(1, L - 1), R);
@@ -73,12 +73,12 @@
     function loadLevel(){
       COLS.splice(0, COLS.length, ...(PALS[PB.meta && PB.meta.look('cubes', 'colors')] || COLS0));
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.rand;
-      const lv = genLevel(st.level + 5, R);
+      const lv = genLevel(st.level + 9, R);
       st.size = lv.size; st.exits = lv.exits;
       st.blocks = lv.blocks.map((b, i) => ({ ...b, id: i, vx: b.c, vy: b.r, out: null }));
       st.cell = Math.min(54, Math.floor(400 / st.size));
       st.bx = Math.round((W - st.cell * st.size) / 2); st.by = 160 + Math.round((440 - st.cell * st.size) / 2);
-      st.timeMax = Math.round((12 + st.blocks.length * 4.4) * Math.max(0.72, 1 - st.level * 0.012));
+      st.timeMax = Math.round((10 + st.blocks.length * 3.7) * Math.max(0.7, 1 - st.level * 0.012));
       st.time = st.timeMax; st.running = false; st.drag = null; st.freezes = 1; st.freezeT = 0;
     }
     const occupied = (self) => { const g = Array.from({length:st.size}, () => Array(st.size).fill(-1)); st.blocks.forEach(b => { if (!b.out && b.id !== self) b.cells.forEach(([dr,dc]) => g[b.r+dr][b.c+dc] = b.id); }); return g; };

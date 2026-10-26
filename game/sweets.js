@@ -114,7 +114,7 @@
         t.dying = true; t.clearT = 0.25; n++;
         damage(r, c);
         if (t.sp !== 'c' && st.collect && st.collect[t.t] > 0) st.collect[t.t]--;
-        burst(r, c, t.sp === 'c' ? '#fff' : COLS[t.t], 5);
+        burst(r, c, t.sp === 'c' ? '#fff' : COLS[t.t], t.sp ? 12 : 6);
         if (t.sp === 'h') { for (let i=0;i<N;i++) queue.push([r,i]); beam(r, c, 'h'); }
         else if (t.sp === 'v') { for (let i=0;i<N;i++) queue.push([i,c]); beam(r, c, 'v'); }
         else if (t.sp === 'b') { for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) queue.push([r+dr,c+dc]); st.shake = 8; }
@@ -230,6 +230,7 @@
       st.finishing = true; st.busy = true;
       st.bonusMoves = st.moves;
       pop(W/2, BY + 180, 'Level complete!', '#ffd23f', 1.6);
+      if (st.moves > 0) pop(W/2, BY + 230, `${st.moves} moves left = bonus gems!`, '#7dff6a', 2.2);
     }
     function finishWin(){
       if (st.bonusMoves > 0) {
@@ -267,6 +268,9 @@
       if (reduceMotion) return;
       const x = BX + c*CELL + CELL/2, y = BY + r*CELL + CELL/2;
       for (let i=0;i<n;i++){ const a = Math.random()*Math.PI*2, s = 60 + Math.random()*140; st.parts.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 80, life: .55, color, r: 3 + Math.random()*3 }); }
+      const c3 = color === '#fff' ? [1, 1, 1] : hex3(color); st.sparks = st.sparks || [];
+      for (let i=0;i<n + 3;i++){ const a = Math.random()*Math.PI*2, s = 40 + Math.random()*160; st.sparks.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 60, life: 0.7, max: 0.7, col: i % 2 ? [1, 1, 1] : c3, size: 10 + Math.random() * 14 }); }
+      st.sparks.push({ x, y, vx: 0, vy: 0, life: 0.3, max: 0.3, col: c3, size: CELL * 2.2, ring: true });
     }
     function beam(r, c, dir){ st.beams.push({ r, c, dir, life: .3 }); }
     function pop(x, y, text, color, life){ st.pops.push({ x, y, text, color, life: life || 1.1 }); }
@@ -306,6 +310,7 @@
       }
       if (st.wiggle) { st.wiggle.t -= dt; if (st.wiggle.t <= 0) st.wiggle = null; }
       for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 520*dt; q.life -= dt; }
+      if (st.sparks) { for (const q of st.sparks) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 260*dt; q.vx *= 0.97; q.life -= dt; } st.sparks = st.sparks.filter(q => q.life > 0); }
       st.parts = st.parts.filter(q => q.life > 0);
       for (const q of st.pops) { q.y -= 30*dt; q.life -= dt; }
       st.pops = st.pops.filter(q => q.life > 0);
@@ -479,7 +484,7 @@
       const rockG = G.faceted(G.displace(G.sphere(1, 9, 7), (x, y, z) => PB.gl3d.fbm(x * 1.7 + 3, y * 1.7, z * 1.7, 3) * 0.35));
       const ring = G.torus(1, 0.09, 48, 8); ring.col = []; for (let i=0;i<ring.p.length/3;i++) { const c = COLS[Math.floor(i / 9 / 8 * 6) % 6]; ring.col.push(...[c.slice(1,3), c.slice(3,5), c.slice(5,7)].map(h => Math.pow(parseInt(h, 16) / 255, 2.2)), 1); }
       A3 = { gems: GEM_SHAPES.map((_, t) => E3.mesh(gemGeo(t))), rock: E3.mesh(rockG), stick: E3.mesh(G.cylinder(1, 1, 1, 18)), bar: E3.mesh(G.merge([G.transform(G.cylinder(1, 1, 1, 20, false), M.trs([0,0,0], [0,0,Math.PI/2])), G.transform(G.sphere(1, 16, 12), M.trs([0.5,0,0])), G.transform(G.sphere(1, 16, 12), M.trs([-0.5,0,0]))])),
-        cone: E3.mesh(G.cylinder(0, 1, 1, 16, true)), ring: E3.mesh(ring), tile: E3.mesh(G.roundBox(1, 1, 1, 0.12, 3)), tBoard: null };
+        cone: E3.mesh(G.cylinder(0, 1, 1, 16, true)), ring: E3.mesh(ring), ringPlain: E3.mesh(G.torus(1, 0.1, 40, 8)), tile: E3.mesh(G.roundBox(1, 1, 1, 0.12, 3)), tBoard: null };
       return A3;
     }
     const hex3 = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
@@ -538,26 +543,46 @@
         const k = sc * 1.3 * (t.sp === 'b' ? 0.85 : 1), sway = Math.sin(time * 1.7 + t.id * 1.3) * 0.16, tilt = Math.cos(time * 1.3 + t.id) * 0.08;
         const z = 16 + lift + (frozen ? 4 : 0), type = t.sp === 'c' ? 6 : t.t, col = type === 6 ? [1, 1, 1] : hex3(COLS[type]);
         E.draw(A3.gems[type], M.trs(P3(x, y, z - 8), [tilt, sway + spin, 0], [k * 1.13, k * 1.13, k * 0.5]), { color: type === 6 ? [0.3, 0.25, 0.4] : col.map(v => v * 0.32), unlit: true, noShadow: true });
-        E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * (type === 6 ? 0.14 : 0.14)), spec: 2.2, shine: 140, rim: 0.7 });
+        E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * 0.2), spec: 2.6, shine: 150, rim: 0.85 });
         if (!t.dying) E.sprite(P3(x - CELL * 0.14 * sc, y - CELL * 0.16 * sc, z + 16), CELL * 0.3 * sc, [1, 1, 1], 0.55, true);
+        // little star twinkles that come and go on random gems
+        if (!t.dying && !reduceMotion) { const tw = Math.sin(time * 1.7 + t.id * 2.71) * Math.sin(time * 0.9 + t.id * 1.3); if (tw > 0.75) { const a = (tw - 0.75) / 0.25; E.sprite(P3(x + CELL * 0.2, y - CELL * 0.22, z + 22), CELL * 0.62 * a, [1, 1, 1], a, true); E.sprite(P3(x + CELL * 0.2, y - CELL * 0.22, z + 21), CELL * 1.0 * a, col, a * 0.45, true); } }
         const shine = PB.meta && PB.meta.look('sweets', 'shine');
         if (shine && !t.dying) { if (shine === 'shine_glow') E.sprite(P3(x, y, z - 10), CELL * 1.45 * sc, col, 0.5 + 0.15 * Math.sin(time * 3 + t.id), true);
           else { const tw = Math.max(0, Math.sin(time * 2.2 + t.id * 2.39)); if (tw > 0.6) { const a = (tw - 0.6) / 0.4, gx = x + CELL * 0.18 * sc, gy = y - CELL * 0.2 * sc; E.sprite(P3(gx, gy, z + 20), CELL * 0.55 * a * sc, [1, 1, 1], a, true); E.sprite(P3(gx, gy, z + 19), CELL * 0.9 * a * sc, col, a * 0.5, true); } } }
-        if (t.sp === 'h' || t.sp === 'v') {
-          const rot = t.sp === 'v' ? Math.PI / 2 : 0, off = 3 * Math.sin(time * 8), bm = M.trs(P3(x, y, z + 10), [0, 0, rot], [1, 1, 1]);
-          E.draw(A3.bar, M.mul(bm, M.trs([0, 0, 0], [0, 0, 0], [34 * sc, 4 * sc, 4 * sc])), { color: [0.85, 0.98, 1], emissive: [0.5, 0.9, 1.2], spec: 1.5, shine: 80, noShadow: true });
-          for (const d of [-1, 1]) E.draw(A3.cone, M.mul(bm, M.trs([d * (25 + off) * sc, 0, 0], [0, 0, -d * Math.PI / 2], [7 * sc, 10 * sc, 7 * sc])), { color: [0.36, 0.88, 1], emissive: [0.2, 0.6, 0.9], spec: 1.2 });
-          E.sprite(P3(x, y, z + 14), 70 * sc, [0.4, 0.9, 1], 0.4, true);
-        } else if (t.sp === 'b') {
-          for (const dx of [-11, 0, 11]) E.draw(A3.stick, M.trs(P3(x + dx * sc, y, z - 6), [0, 0, 0], [5 * sc, 36 * sc, 5 * sc]), { color: [0.9, 0.2, 0.18], spec: 0.8, shine: 40 });
-          E.sprite(P3(x + 2 * sc, y - 31 * sc, z + 6), (14 + Math.random() * 6) * sc, [1, 0.75, 0.3], 1, true);
-          E.sprite(P3(x, y, z), 80 * sc, [1, 0.55, 0.15], 0.3, true);
-        } else if (t.sp === 'c') {
-          E.draw(A3.ring, M.trs(P3(x, y, z), [Math.PI / 2 + 0.4, time * 2, 0], [25 * sc, 25 * sc, 25 * sc]), { color: [1, 1, 1], emissive: [0.4, 0.4, 0.4], spec: 1.2, noShadow: true });
-          E.sprite(P3(x, y, z), 90 * sc, [0.86, 0.66, 1], 0.4, true);
-          for (let q=0;q<3;q++) { const a = time * 2 + q * 2.1; E.sprite(P3(x + Math.cos(a) * 24 * sc, y + Math.sin(a) * 24 * sc, z + 12), 9 * sc, [1, 1, 1], 0.9, true); }
+        // a shimmer sweeps diagonally across the board every few seconds and makes each gem flash
+        if (!t.dying && !reduceMotion) { const sw = ((time * 0.32) % 1.6) * (N * 2 + 6) - 3 - (t.x + t.y); if (sw > 0 && sw < 1.2) { const a = Math.sin(sw / 1.2 * Math.PI); E.sprite(P3(x + CELL * 0.12, y - CELL * 0.14, z + 22), CELL * 0.7 * a * sc, [1, 1, 1], a, true); E.sprite(P3(x, y, z + 18), CELL * 1.3 * a * sc, col, a * 0.35, true); } }
+        if (t.sp && !t.dying) {
+          const pulse = 1 + Math.sin(time * 6 + t.id) * 0.5, hc = t.sp === 'c' ? [0.9, 0.7, 1] : t.sp === 'b' ? [1, 0.62, 0.2] : col;
+          // big pulsing halo behind every special so it pops out of the board
+          E.draw(A3.tile, M.trs(P3(x, y, 5), [0, 0, 0], [CELL - 5, CELL - 5, 5]), { color: hc.map(v => v * 0.9 + 0.05), emissive: hc.map(v => v * (0.35 + pulse * 0.3)), spec: 1.4, shine: 80, noShadow: true });
+          E.sprite(P3(x, y, z - 12), CELL * (1.55 + pulse * 0.15) * sc, hc, 0.55 + pulse * 0.15, true);
+          E.sprite(P3(x, y, z - 11), CELL * 0.95 * sc, [1, 1, 1], 0.25 + pulse * 0.1, true);
+        }
+        if ((t.sp === 'h' || t.sp === 'v') && !t.dying) {
+          const rot = t.sp === 'v' ? Math.PI / 2 : 0, bm = M.trs(P3(x, y, z + 12), [0, 0, rot], [1, 1, 1]);
+          // three glossy white candy stripes across the gem
+          for (const o of [-9, 0, 9]) E.draw(A3.bar, M.mul(bm, M.trs([0, o * sc, 0], [0, 0, 0], [30 * sc, 2.6 * sc, 2.6 * sc])), { color: [1, 1, 1], emissive: [0.55, 0.55, 0.55], spec: 1.6, shine: 90, noShadow: true });
+          // fat arrows that bounce outward, plus light that shoots along the line
+          const off = 4 * Math.abs(Math.sin(time * 5));
+          for (const d of [-1, 1]) { const am = M.mul(bm, M.trs([d * (29 + off) * sc, 0, 2], [0, 0, -d * Math.PI / 2], [9 * sc, 13 * sc, 6 * sc])); E.draw(A3.cone, am, { color: [1, 1, 1], emissive: [0.6, 0.6, 0.6], spec: 1.2 }); E.draw(A3.cone, am, { color: [0.1, 0.1, 0.2], unlit: true, outline: 1.2 * sc, noShadow: true }); }
+          const run = ((time * 1.4 + t.id * 0.37) % 1) * 2 - 1, dx = t.sp === 'h' ? run * CELL * 1.6 : 0, dy = t.sp === 'v' ? run * CELL * 1.6 : 0;
+          E.sprite(P3(x + dx, y + dy, z + 20), CELL * 0.6 * sc, [1, 1, 1], 1 - Math.abs(run), true);
+        } else if (t.sp === 'b' && !t.dying) {
+          // a spinning golden ring around the gem with a fizzing fuse spark
+          E.draw(A3.ringPlain, M.trs(P3(x, y, z + 2), [Math.PI / 2, time * 1.6, 0.35], [30 * sc, 30 * sc, 30 * sc]), { color: [1, 0.78, 0.25], emissive: [0.45, 0.3, 0.05], spec: 2, shine: 110, noShadow: true });
+          E.draw(A3.ringPlain, M.trs(P3(x, y, z + 2), [Math.PI / 2, -time * 1.3, -0.5], [27 * sc, 27 * sc, 27 * sc]), { color: [1, 0.55, 0.2], emissive: [0.4, 0.15, 0.02], spec: 2, shine: 110, noShadow: true });
+          const fl = 0.6 + Math.random() * 0.4; E.sprite(P3(x + 14 * sc, y - 26 * sc, z + 24), 22 * fl * sc, [1, 0.8, 0.3], 1, true); E.sprite(P3(x + 14 * sc, y - 26 * sc, z + 25), 9 * sc, [1, 1, 0.9], 1, true);
+          if (!reduceMotion && Math.random() < 0.3) { st.sparks = st.sparks || []; st.sparks.push({ x: x + 14 * sc, y: y - 26 * sc, vx: (Math.random() - .5) * 60, vy: -40 - Math.random() * 60, life: 0.4, max: 0.4, col: [1, 0.7, 0.2], size: 7 }); }
+        } else if (t.sp === 'c' && !t.dying) {
+          // rainbow rings spinning in two directions with rainbow sparkles orbiting
+          E.draw(A3.ring, M.trs(P3(x, y, z), [Math.PI / 2 + 0.4, time * 2, 0], [27 * sc, 27 * sc, 27 * sc]), { color: [1, 1, 1], emissive: [0.45, 0.45, 0.45], spec: 1.4, noShadow: true });
+          E.draw(A3.ring, M.trs(P3(x, y, z), [Math.PI / 2 - 0.5, -time * 2.4, 1.2], [23 * sc, 23 * sc, 23 * sc]), { color: [1, 1, 1], emissive: [0.45, 0.45, 0.45], spec: 1.4, noShadow: true });
+          for (let q=0;q<6;q++) { const a = time * 2.4 + q * Math.PI / 3; E.sprite(P3(x + Math.cos(a) * 28 * sc, y + Math.sin(a) * 28 * sc, z + 14), 12 * sc, hex3(COLS[q % COLS.length]), 1, true); }
         }
       }
+      // sparkles from clears: twinkling stars and a quick flash ring where each gem popped
+      if (st.sparks) for (const q of st.sparks) { const k = q.life / q.max; if (q.ring) E.sprite(P3(q.x, q.y, 40), q.size * (1.4 - k * 0.8), q.col, k * 0.8, true); else { E.sprite(P3(q.x, q.y, 44), q.size * (0.4 + k * 0.6), q.col, Math.min(1, k * 1.6), true); E.sprite(P3(q.x, q.y, 45), q.size * 0.35 * k, [1, 1, 1], k, true); } }
       E.end(); if (!tile) E.present(ctx, W, H);
     }
     function draw(){
@@ -603,10 +628,10 @@
       ctx.beginPath(); ctx.roundRect(16, 40, W - 32, 112, 14); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#6b6f78'; for (const [nx, ny] of [[28, 52], [W - 28, 52], [28, 140], [W - 28, 140]]) { ctx.beginPath(); ctx.arc(nx, ny, 3.5, 0, 7); ctx.fill(); }
       // moves bubble
-      ctx.fillStyle = st.moves <= 3 && s.type !== 'daily' ? '#ff5a4a' : '#ffcf4a'; ctx.beginPath(); ctx.arc(70, 96, 38, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = st.finishing ? '#7dff6a' : st.moves <= 3 && s.type !== 'daily' ? '#ff5a4a' : '#ffcf4a'; ctx.beginPath(); ctx.arc(70, 96, 38 + (st.finishing ? Math.sin(st.time * 12) * 2 : 0), 0, 7); ctx.fill(); ctx.stroke();
       ctx.fillStyle = CHOC; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = `700 34px ${FONT}`; ctx.fillText(st.moves, 70, 92);
-      ctx.font = `600 12px ${FONT}`; ctx.fillText('MOVES', 70, 117);
+      ctx.font = `600 12px ${FONT}`; ctx.fillText(st.finishing ? 'BONUS' : 'MOVES', 70, 117);
       // goals
       const gx = 130;
       ctx.textAlign = 'left';
@@ -682,7 +707,12 @@
         if (b.dir === 'h') ctx.fillRect(BX, BY + b.r*CELL + CELL/2 - 6, N*CELL, 12); else ctx.fillRect(BX + b.c*CELL + CELL/2 - 6, BY, 12, N*CELL);
         ctx.restore();
       }
-      for (const q of st.parts) { ctx.globalAlpha = Math.max(0, q.life / 0.55); ctx.fillStyle = q.color; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill(); }
+      // sparkle stars: a coloured four-point star with a white heart, spinning as it flies
+      for (const q of st.parts) { const k = Math.max(0, q.life / 0.55), r = q.r * 2.2 * (0.5 + k * 0.7), a = (q.rot = (q.rot || Math.random() * 3) + 0.15);
+        ctx.globalAlpha = k; ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(a);
+        ctx.fillStyle = q.color; ctx.strokeStyle = 'rgba(40,20,60,.55)'; ctx.lineWidth = 1.2; ctx.beginPath();
+        for (let i=0;i<8;i++) { const rr = i % 2 ? r * 0.32 : r, an = i * Math.PI / 4; ctx.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); } ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, r * 0.28, 0, 7); ctx.fill(); ctx.restore(); }
       ctx.globalAlpha = 1;
       ctx.restore();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -748,7 +778,7 @@
         if (st.sel && Math.abs(st.sel[0] - cell[0]) + Math.abs(st.sel[1] - cell[1]) === 1) trySwap(st.sel, cell);
         else st.sel = (st.sel && st.sel[0] === cell[0] && st.sel[1] === cell[1]) ? null : cell;
       },
-      key(){}, debug(){ return st; }, debugMove(){ const m = findMove(); if (m) trySwap(m[0], m[1]); return m; },
+      key(){}, debug(){ return st; }, debugStep(n){ for (let i=0;i<n;i++) update(1 / 60); }, debugMove(){ const m = findMove(); if (m) trySwap(m[0], m[1]); return m; },
     };
   }
   PB.register(createSweets);
