@@ -5,7 +5,7 @@
   function createCubes(shell){
     const W = 480, H = 690, MAX_LIVES = 5;
     const DISPLAY = '"Lilita One", "Arial Rounded MT Bold", "Arial Black", sans-serif';
-    const COLS = ['#33b6ff', '#ff5aa8', '#5ed64a', '#ffcf2e', '#ff8a2a', '#a46bff'];
+    const COLS = ['#0a5cff', '#ff1a1a', '#00c832', '#ffd800', '#ff7b00', '#9a1eff'];
     const SHAPES = [
       [[0,0]], [[0,0],[0,1]], [[0,0],[1,0]], [[0,0],[0,1],[0,2]], [[0,0],[1,0],[2,0]],
       [[0,0],[0,1],[1,0],[1,1]], [[0,0],[1,0],[1,1]], [[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,1]],
@@ -69,7 +69,26 @@
       st = { mode, phase, rand, lives, score:0, level:1, parts:[], pops:[], shake:0, msg:null, clock:0, freezeT:0, freezes:1, running:false };
       loadLevel();
     }
-    const COLS0 = COLS.slice(), PALS = { cols_candy: ['#ff8fc4', '#8fdcff', '#a8ff8a', '#fff07a', '#ffb870', '#cfa8ff'], cols_jewel: ['#2f5bff', '#e0103f', '#10b860', '#ffb000', '#ff5a10', '#8a3aff'] };
+    // exits: one bold gate per cell, centred on that row/column, right at the board edge
+    function gateCells(e, bw, cs) {
+      const T = 15, G = 3, out = [];
+      for (let k = 0; k < e.len; k++) {
+        const a = (e.start + k) * cs + 3, L = cs - 6;
+        if (e.side === 'top') out.push({ x: st.bx + a, y: st.by - G - T, w: L, h: T });
+        else if (e.side === 'bottom') out.push({ x: st.bx + a, y: st.by + bw + G, w: L, h: T });
+        else if (e.side === 'left') out.push({ x: st.bx - G - T, y: st.by + a, w: T, h: L });
+        else out.push({ x: st.bx + bw + G, y: st.by + a, w: T, h: L });
+      }
+      return out;
+    }
+    function gateArrow(ctx, g, side, sz) {
+      const cx = g.x + g.w / 2, cy = g.y + g.h / 2, [dr, dc] = DIRS[side];
+      ctx.beginPath();
+      if (dr) { ctx.moveTo(cx - sz, cy - dr * sz * 0.45); ctx.lineTo(cx + sz, cy - dr * sz * 0.45); ctx.lineTo(cx, cy + dr * sz * 0.65); }
+      else { ctx.moveTo(cx - dc * sz * 0.45, cy - sz); ctx.lineTo(cx - dc * sz * 0.45, cy + sz); ctx.lineTo(cx + dc * sz * 0.65, cy); }
+      ctx.closePath(); ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fill();
+    }
+    const COLS0 = COLS.slice(), PALS = { cols_candy: ['#ff0f8f', '#00b4ff', '#3ce000', '#ffe600', '#ff5500', '#b300ff'], cols_jewel: ['#2f5bff', '#e0103f', '#10b860', '#ffb000', '#ff5a10', '#8a3aff'] };
     function loadLevel(){
       COLS.splice(0, COLS.length, ...(PALS[PB.meta && PB.meta.look('cubes', 'colors')] || COLS0));
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.rand;
@@ -279,16 +298,15 @@
         post: { bloom: 0.3, threshold: 0.92, saturation: 1.1, contrast: 1.06, vignette: 0.15 },
       });
       E.backdrop(A3.tBoard, W, H, { shadow: 0 });
-      // exits glow like neon doors
+      // exits: bright bold gates, one per cell, lined up with the cubes
       for (const e of st.exits) {
-        const c = hex3(COLS[e.color]), pulse = reduceMotion ? 1 : 0.75 + Math.sin(st.clock * 4 + e.color) * 0.25;
-        let x, y, w, h;
-        if (e.side === 'top') { x = st.bx + e.start*cs + 3; y = st.by - 14; w = e.len*cs - 6; h = 8; }
-        else if (e.side === 'bottom') { x = st.bx + e.start*cs + 3; y = st.by + bw + 6; w = e.len*cs - 6; h = 8; }
-        else if (e.side === 'left') { x = st.bx - 14; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
-        else { x = st.bx + bw + 6; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
-        E.draw(A3.pill, M.trs(P3(x + w / 2, y + h / 2, 8), [0, 0, 0], [w + 4, h + 4, 12]), { color: c, emissive: c.map(v => v * (0.35 + 0.35 * pulse)), spec: 1.6, shine: 90, rim: 0.4, noShadow: true });
-        E.sprite(P3(x + w / 2, y + h / 2, 20), Math.max(w, h) * 1.5, c, 0.35 * pulse, true);
+        const c = hex3(COLS[e.color]), pulse = reduceMotion ? 1 : 0.85 + Math.sin(st.clock * 4 + e.color) * 0.15;
+        for (const g of gateCells(e, bw, cs)) {
+          const gx = g.x + g.w / 2, gy = g.y + g.h / 2;
+          E.draw(A3.pill, M.trs(P3(gx, gy, 6), [0, 0, 0], [g.w + 6, g.h + 6, 10]), { color: [1, 1, 1], emissive: [0.9, 0.9, 0.9], noShadow: true });
+          E.draw(A3.pill, M.trs(P3(gx, gy, 10), [0, 0, 0], [g.w, g.h, 14]), { color: c, emissive: c.map(v => v * 0.4 * pulse), spec: 0.6, shine: 60, noShadow: true });
+          E.sprite(P3(gx, gy, 2), Math.max(g.w, g.h) * 1.6, c, 0.22 * pulse, true);
+        }
       }
       // blocks: glossy jelly characters with faces that look toward their way out
       for (const b of st.blocks) {
@@ -337,12 +355,7 @@
         }
         ctx.restore(); }
       drawHeader();
-      for (const e of st.exits) { const col = COLS[e.color], [dr, dc] = DIRS[e.side]; ctx.fillStyle = col; ctx.globalAlpha = 0.6;
-        let x, y, w, h;
-        if (e.side === 'top') { x = st.bx + e.start*cs + 3; y = st.by - 14; w = e.len*cs - 6; h = 8; } else if (e.side === 'bottom') { x = st.bx + e.start*cs + 3; y = st.by + bw + 6; w = e.len*cs - 6; h = 8; } else if (e.side === 'left') { x = st.bx - 14; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; } else { x = st.bx + bw + 6; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
-        for (let k=0;k<e.len;k++) { const cx = e.side === 'top' || e.side === 'bottom' ? st.bx + (e.start + k + 0.5)*cs : x + w/2 + dc * 14, cy = e.side === 'left' || e.side === 'right' ? st.by + (e.start + k + 0.5)*cs : y + h/2 + dr * 14;
-          ctx.beginPath(); if (dr) { ctx.moveTo(cx - 6, cy - dr*3); ctx.lineTo(cx + 6, cy - dr*3); ctx.lineTo(cx, cy + dr*5); } else { ctx.moveTo(cx - dc*3, cy - 6); ctx.lineTo(cx - dc*3, cy + 6); ctx.lineTo(cx + dc*5, cy); } ctx.closePath(); ctx.fill(); }
-        ctx.globalAlpha = 1; }
+      for (const e of st.exits) for (const g of gateCells(e, bw, cs)) gateArrow(ctx, g, e.side, Math.min(cs * 0.17, 9));
       drawFooter();
     }
     // chunky outlined text, like the big cartoon titles in console games
@@ -429,35 +442,15 @@
         ctx.strokeStyle = 'rgba(61,255,181,.07)'; ctx.lineWidth = 1; ctx.stroke();
       }
 
-      // exit bars
+      // exit gates (2D fallback): bold, one per cell
       for (const e of st.exits) {
-        const col = COLS[e.color];
-        let x, y, w, h;
-        if (e.side === 'top') { x = st.bx + e.start*cs + 3; y = st.by - 14; w = e.len*cs - 6; h = 8; }
-        else if (e.side === 'bottom') { x = st.bx + e.start*cs + 3; y = st.by + bw + 6; w = e.len*cs - 6; h = 8; }
-        else if (e.side === 'left') { x = st.bx - 14; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
-        else { x = st.bx + bw + 6; y = st.by + e.start*cs + 3; w = 8; h = e.len*cs - 6; }
-        const pulse = reduceMotion ? 1 : 0.75 + Math.sin(st.clock * 4 + e.color) * 0.25;
-        ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 22 * pulse; ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.roundRect(x + (w > h ? 4 : 2), y + (w > h ? 2 : 4), w - (w > h ? 8 : 4), h - (w > h ? 4 : 8), 2); ctx.fill(); ctx.restore();
-        if (!reduceMotion) { const [er, ec] = DIRS[e.side]; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = col;
-          for (let q=0;q<6;q++) { const tt = (st.clock * 0.9 + q / 6 + e.color * 0.13) % 1, along = (q * 0.37 + e.color * 0.21) % 1;
-            const px = w > h ? x + along * w : x + w / 2 + ec * tt * 26, py = w > h ? y + h / 2 + er * tt * 26 : y + along * h;
-            ctx.globalAlpha = (1 - tt) * 0.8; ctx.beginPath(); ctx.arc(px, py, 2.2 * (1 - tt) + 0.6, 0, 7); ctx.fill(); }
-          ctx.restore(); }
-        // chevrons pointing out
-        const [dr, dc] = DIRS[e.side];
-        ctx.fillStyle = col; ctx.globalAlpha = 0.55;
-        const n = e.len;
-        for (let k=0;k<n;k++) {
-          const cx = e.side === 'top' || e.side === 'bottom' ? st.bx + (e.start + k + 0.5)*cs : x + w/2 + dc * 14;
-          const cy = e.side === 'left' || e.side === 'right' ? st.by + (e.start + k + 0.5)*cs : y + h/2 + dr * 14;
-          ctx.beginPath();
-          if (dr) { ctx.moveTo(cx - 6, cy - dr*3); ctx.lineTo(cx + 6, cy - dr*3); ctx.lineTo(cx, cy + dr*5); }
-          else { ctx.moveTo(cx - dc*3, cy - 6); ctx.lineTo(cx - dc*3, cy + 6); ctx.lineTo(cx + dc*5, cy); }
-          ctx.closePath(); ctx.fill();
+        const col = COLS[e.color], pulse = reduceMotion ? 1 : 0.8 + Math.sin(st.clock * 4 + e.color) * 0.2;
+        for (const g of gateCells(e, bw, cs)) {
+          ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 20 * pulse;
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(g.x - 3, g.y - 3, g.w + 6, g.h + 6, 7); ctx.fill(); ctx.restore();
+          ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(g.x, g.y, g.w, g.h, 5); ctx.fill();
+          gateArrow(ctx, g, e.side, Math.min(cs * 0.17, 9));
         }
-        ctx.globalAlpha = 1;
       }
 
       // blocks

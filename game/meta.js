@@ -52,7 +52,7 @@
     { id: 'ball_pink',    game: 'bricks',  slot: 'ball',   name: 'Hot pink ball',    price: 150, sw: ['#ff5fbf', '#a0206a'] },
     { id: 'ball_gold',    game: 'bricks',  slot: 'ball',   name: 'Gold ball',        price: 300, sw: ['#ffd23f', '#c78a00'] },
     { id: 'ball_rainbow', game: 'bricks',  slot: 'ball',   name: 'Rainbow ball',     price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
-    { id: 'cols_candy',   game: 'cubes',   slot: 'colors', name: 'Candy cubes',      price: 300, sw: ['#ff8fc4', '#8fdcff', '#a8ff8a', '#fff07a'] },
+    { id: 'cols_candy',   game: 'cubes',   slot: 'colors', name: 'Neon cubes',       price: 300, sw: ['#ff0f8f', '#00b4ff', '#3ce000', '#ffe600'] },
     { id: 'cols_jewel',   game: 'cubes',   slot: 'colors', name: 'Jewel cubes',      price: 400, ic: '\u{1F48E}', sw: ['#00d0b0', '#ff2a72', '#ffc400', '#9a5aff'] },
   ];
   const owned = () => store.get('pb-owned') || [];
