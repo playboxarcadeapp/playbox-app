@@ -48,7 +48,51 @@
     return `rgb(${f(r)},${f(g)},${f(b)})`;
   }
 
+  // ---------- player settings (saved on the device) ----------
+  const prefs = Object.assign({ symbols: true, buzz: true }, store.get('pb-prefs') || {});
+  const setPref = (k, v) => { prefs[k] = v; store.set('pb-prefs', prefs); };
+
+  // ---------- color symbols: a shape for every color, so nobody has to tell shades apart by color alone ----------
+  const SYMBOL_NAMES = ['circle', 'star', 'heart', 'triangle', 'square', 'diamond', 'moon', 'plus', 'drop', 'bolt', 'clover', 'hexagon'];
+  function symbolPath(g, i, x, y, r){
+    g.beginPath();
+    const poly = (n, rot, rr = r) => { for (let k=0;k<n;k++) { const a = rot + k / n * Math.PI * 2; k ? g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); };
+    switch (i % 12) {
+      case 0: g.arc(x, y, r * 0.85, 0, Math.PI * 2); break;
+      case 1: for (let k=0;k<10;k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r * 1.08; k ? g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); break;
+      case 2: g.moveTo(x, y + r * 0.9); g.bezierCurveTo(x - r * 1.5, y - r * 0.1, x - r * 0.65, y - r * 1.15, x, y - r * 0.35); g.bezierCurveTo(x + r * 0.65, y - r * 1.15, x + r * 1.5, y - r * 0.1, x, y + r * 0.9); g.closePath(); break;
+      case 3: poly(3, -Math.PI / 2, r * 1.05); break;
+      case 4: g.rect(x - r * 0.75, y - r * 0.75, r * 1.5, r * 1.5); break;
+      case 5: poly(4, -Math.PI / 2, r * 1.05); break;
+      case 6: g.arc(x, y, r * 0.95, Math.PI * 0.3, Math.PI * 1.7); g.arc(x + r * 0.45, y - r * 0.05, r * 0.72, Math.PI * 1.55, Math.PI * 0.45, true); g.closePath(); break;
+      case 7: { const t = r * 0.36; g.moveTo(x - t, y - r); g.lineTo(x + t, y - r); g.lineTo(x + t, y - t); g.lineTo(x + r, y - t); g.lineTo(x + r, y + t); g.lineTo(x + t, y + t); g.lineTo(x + t, y + r); g.lineTo(x - t, y + r); g.lineTo(x - t, y + t); g.lineTo(x - r, y + t); g.lineTo(x - r, y - t); g.lineTo(x - t, y - t); g.closePath(); break; }
+      case 8: g.moveTo(x, y - r * 1.05); g.bezierCurveTo(x + r * 0.3, y - r * 0.45, x + r * 0.85, y + r * 0.05, x + r * 0.85, y + r * 0.35); g.arc(x, y + r * 0.35, r * 0.85, 0, Math.PI); g.bezierCurveTo(x - r * 0.85, y + r * 0.05, x - r * 0.3, y - r * 0.45, x, y - r * 1.05); g.closePath(); break;
+      case 9: g.moveTo(x + r * 0.25, y - r * 1.05); g.lineTo(x - r * 0.7, y + r * 0.15); g.lineTo(x - r * 0.05, y + r * 0.15); g.lineTo(x - r * 0.3, y + r * 1.05); g.lineTo(x + r * 0.7, y - r * 0.2); g.lineTo(x + r * 0.05, y - r * 0.2); g.closePath(); break;
+      case 10: for (let k=0;k<4;k++) { const a = k * Math.PI / 2 - Math.PI / 4; g.moveTo(x + Math.cos(a) * r * 0.48 + r * 0.42, y + Math.sin(a) * r * 0.48); g.arc(x + Math.cos(a) * r * 0.48, y + Math.sin(a) * r * 0.48, r * 0.42, 0, Math.PI * 2); } break;
+      default: poly(6, 0, r);
+    }
+  }
+  // white shape with a dark outline, so it reads on every color
+  function symbol(g, i, x, y, r, fill){
+    g.save(); symbolPath(g, i, x, y, r);
+    g.lineJoin = 'round'; g.lineWidth = Math.max(1.5, r * 0.32); g.strokeStyle = 'rgba(20,14,40,.7)'; g.stroke();
+    g.fillStyle = fill || '#ffffff'; g.fill(); g.restore();
+  }
+
+  // ---------- phone vibration for the big moments ----------
+  let lastBuzz = 0;
+  function buzz(kind){
+    if (!prefs.buzz) return;
+    const now = Date.now(); if (now - lastBuzz < 90) return; lastBuzz = now;
+    try {
+      const H = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+      if (H) { if (kind === 'success') H.notification({ type: 'SUCCESS' }); else H.impact({ style: kind === 'heavy' ? 'HEAVY' : kind === 'medium' ? 'MEDIUM' : 'LIGHT' }); return; }
+      if (navigator.vibrate && !(navigator.userActivation && !navigator.userActivation.hasBeenActive)) navigator.vibrate(kind === 'heavy' ? 60 : kind === 'medium' ? 35 : kind === 'success' ? [30, 60, 40] : 15);
+    } catch (e) {}
+  }
+
   const factories = [];
   window.PB = { $, N, INK, fmt, reduceMotion, store, today, yesterday, mulberry, seedFrom, shuffle, cv, ctx, dpr, layer, soften, neonBg, rr, dot, shade,
+    prefs, setPref, symbol, SYMBOL_NAMES, buzz,
     factories, register(f){ factories.push(f); } };
 })();

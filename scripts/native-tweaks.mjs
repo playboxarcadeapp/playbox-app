@@ -41,6 +41,12 @@ if (which === 'ios' || which === 'both') {
     if (!s.includes('UIStatusBarHidden')) s = s.replace(/<dict>/, '<dict>\n\t<key>UIStatusBarHidden</key>\n\t<true/>\n\t<key>UIViewControllerBasedStatusBarAppearance</key>\n\t<false/>');
     return s;
   });
+  // Game sound mixes with audiobooks, podcasts and videos instead of stopping them
+  await edit('ios/App/App/AppDelegate.swift', s => {
+    if (s.includes('AVAudioSession')) return s;
+    s = s.replace(/import UIKit/, 'import UIKit\nimport AVFoundation');
+    return s.replace(/(didFinishLaunchingWithOptions[^{]*\{)/, `$1\n        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])`);
+  });
   await edit('ios/App/App.xcodeproj/project.pbxproj', s => s
     .replace(/TARGETED_DEVICE_FAMILY = "?[\d,]+"?;/g, 'TARGETED_DEVICE_FAMILY = 1;')
     .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${build};`)

@@ -65,8 +65,11 @@
       return genLevel(Math.max(1, L - 1), R);
     }
 
-    function fresh(mode, rand, lives, phase){
-      st = { mode, phase, rand, lives, score:0, level:1, parts:[], pops:[], shake:0, msg:null, clock:0, freezeT:0, freezes:1, running:false };
+    // Classic play is 100 set levels (the same puzzle every time you play a level). The daily challenge
+    // is the old endless run: 3 hearts, keep going as far as you can.
+    function fresh(mode, rand, lives, phase, level){
+      const endless = mode === 'daily';
+      st = { mode, phase, rand, lives: endless ? (lives || 3) : null, endless, score:0, level: endless ? 1 : (level || 1), parts:[], pops:[], shake:0, msg:null, clock:0, freezeT:0, freezes:1, running:false, tool: null };
       loadLevel();
     }
     // exits: one bold gate per cell, centred on that row/column, right at the board edge
@@ -91,7 +94,7 @@
     const COLS0 = COLS.slice(), PALS = { cols_candy: ['#ff1f1f', '#00b4ff', '#3ce000', '#ffe600', '#ff7a00', '#7a1fff'], cols_jewel: ['#2f5bff', '#e0103f', '#10b860', '#ffb000', '#ff5a10', '#8a3aff'] };
     function loadLevel(){
       COLS.splice(0, COLS.length, ...(PALS[PB.meta && PB.meta.look('cubes', 'colors')] || COLS0));
-      const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.rand;
+      const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.endless ? st.rand : mulberry(seedFrom('cubes-level-' + st.level));
       const lv = genLevel(st.level + 9, R);
       st.size = lv.size; st.exits = lv.exits;
       st.blocks = lv.blocks.map((b, i) => ({ ...b, id: i, vx: b.c, vy: b.r, out: null }));
@@ -132,10 +135,12 @@
       st.score += bonus; st.running = false;
       pop(W/2, st.by + 200, 'LEVEL CLEAR!', N.lime, 1.6);
       pop(W/2, st.by + 240, '+' + fmt(bonus) + ' time bonus', N.yellow, 1.6);
+      if (!st.endless) { const frac = st.time / st.timeMax; st.won = true; st.done = { win: true, stars: frac >= 0.45 ? 3 : frac >= 0.2 ? 2 : 1, t: 1.4, left: Math.ceil(st.time) }; return; }
       st.level++;
       st.pending = 1.4;
     }
     function timeUp(){
+      if (!st.endless) { st.running = false; st.shake = 10; st.tool = null; pop(W/2, st.by + 200, "Time's up!", N.red, 1.4); st.done = { win: false, t: 0.9 }; return; }
       st.running = false; st.lives--; st.shake = 10;
       if (st.lives <= 0) { st.phase = 'over'; shell.gameOver(st.score, `You reached level ${st.level}`); return; }
       pop(W/2, st.by + 200, "Time's up!", N.red, 1.4);
@@ -155,6 +160,9 @@
           else { st.time = Math.max(0, st.time - dt); if (st.time <= 0) timeUp(); }
         }
         if (st.pending != null) { st.pending -= dt; if (st.pending <= 0) { st.pending = null; loadLevel(); st.msg = `Level ${st.level} \u00b7 Tap to start`; } }
+        if (st.done) { st.done.t -= dt; if (st.done.t <= 0) { const d = st.done; st.done = null; const left = st.blocks.filter(b => !b.out).length;
+          if (d.win) shell.levelDone({ win: true, stars: d.stars, score: st.score, summary: `Every jelly escaped with ${d.left} seconds left!` });
+          else shell.levelDone({ win: false, stars: 0, score: st.score, summary: `${left} jelly ${left === 1 ? 'friend' : 'friends'} still stuck. Try again!` }); } }
         if (st.retry != null) { st.retry -= dt; if (st.retry <= 0) { st.retry = null; const keep = st.level; loadLevel(); st.level = keep; st.msg = 'Try again! Tap to start'; } }
       }
       for (const b of st.blocks) {
@@ -164,6 +172,7 @@
         b.vx += (tx - b.vx) * k; b.vy += (ty - b.vy) * k;
       }
       if (st.bump) { st.bump.t -= dt; if (st.bump.t <= 0) st.bump = null; }
+      if (st.boostFlash) { st.boostFlash.t -= dt; if (st.boostFlash.t <= 0) st.boostFlash = null; }
       for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vx *= 0.96; q.vy *= 0.96; q.life -= dt; }
       st.parts = st.parts.filter(q => q.life > 0);
       for (const q of st.pops) { q.y -= 30*dt; q.life -= dt; }
@@ -337,8 +346,8 @@
       E.end(); if (!tile) E.present(ctx, W, H);
     }
     function draw(){
-      if (assets3D()) return drawWith3D();
-      drawFlat();
+      if (assets3D()) drawWith3D(); else { drawFlat(); drawSymbols(); }
+      drawBoosts();
     }
     function drawWith3D(){
       draw3D();
@@ -355,8 +364,8 @@
         }
         ctx.restore(); }
       drawHeader();
-      for (const e of st.exits) for (const g of gateCells(e, bw, cs)) gateArrow(ctx, g, e.side, Math.min(cs * 0.17, 9));
-      drawFooter();
+      if (!(PB.prefs && PB.prefs.symbols)) for (const e of st.exits) for (const g of gateCells(e, bw, cs)) gateArrow(ctx, g, e.side, Math.min(cs * 0.17, 9));
+      drawSymbols(); drawFooter();
     }
     // chunky outlined text, like the big cartoon titles in console games
     function label(text, x, y, size, fill, align){ ctx.font = `${size}px ${DISPLAY}`; ctx.textAlign = align || 'left'; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, size * 0.22); ctx.strokeStyle = 'rgba(30,30,70,.85)'; ctx.strokeText(text, x, y); ctx.fillStyle = fill; ctx.fillText(text, x, y); }
@@ -376,6 +385,58 @@
       const bg2 = ctx.createLinearGradient(0, ty, 0, ty + 12); bg2.addColorStop(0, '#ffffff'); bg2.addColorStop(0.35, tc); bg2.addColorStop(1, tc);
       ctx.fillStyle = bg2; ctx.beginPath(); ctx.roundRect(30, ty, Math.max(12, tw * frac), 12, 6); ctx.fill();
       label(Math.ceil(st.time) + 's', W - 30, 54, 24, '#ffffff', 'right');
+    }
+    // a white shape on every block and its exit gates (one shape per color)
+    function drawSymbols(){
+      if (!PB.prefs || !PB.prefs.symbols) return;
+      const cs = st.cell, bw = cs * st.size, r0 = Math.min(cs * 0.17, 9);
+      for (const e of st.exits) for (const g of gateCells(e, bw, cs)) PB.symbol(ctx, e.color, g.x + g.w / 2, g.y + g.h / 2, 6);
+      for (const b of st.blocks) {
+        let ox = 0, oy = 0; if (b.out) { if (b.out.t >= 0.6) continue; const [dr, dc] = DIRS[b.out.side], d = b.out.t * cs * 3; ox = dc * d; oy = dr * d; }
+        const x0 = st.bx + b.vx * cs + ox, y0 = st.by + b.vy * cs + oy;
+        const ex = st.exits.find(e => e.color === b.color), [er, ec] = ex ? DIRS[ex.side] : [0, 0];
+        let fc = b.cells[0], best = -1e9; for (const cell of b.cells) { const v = cell[0] * er + cell[1] * ec - Math.abs(cell[0] - b.cells[0][0]) * 0.01; if (v > best) { best = v; fc = cell; } }
+        if (b.cells.length === 1) { PB.symbol(ctx, b.color, x0 + cs * 0.83, y0 + cs * 0.18, r0 * 0.68); continue; }
+        let far = b.cells[0], fd = -1; for (const cell of b.cells) { const d = Math.abs(cell[0] - fc[0]) + Math.abs(cell[1] - fc[1]); if (d > fd) { fd = d; far = cell; } }
+        PB.symbol(ctx, b.color, x0 + (far[1] + 0.5) * cs, y0 + (far[0] + 0.5) * cs, r0 * 1.15);
+      }
+    }
+    // power-ups beside the freeze button
+    const boostList = () => (PB.meta && PB.meta.boostsFor && PB.meta.boostsFor('cubes')) || [];
+    const boostN = id => (PB.meta && PB.meta.boostCount) ? PB.meta.boostCount(id) : 0;
+    const BOOST_X = [50, W - 50], BOOST_R = 26;
+    function boostAt(x, y){ const L = boostList(); for (let i=0;i<L.length;i++) if (Math.hypot(x - BOOST_X[i], y - (H - 46)) < BOOST_R + 8) return L[i]; return null; }
+    function pressBoost(b){
+      if (!st.running || st.done) { if (PB.sfx) PB.sfx('nope'); return; }
+      if (st.tool === b.id) { st.tool = null; return; }
+      if (boostN(b.id) <= 0) { pop(W/2, H - 96, 'Get more in the Swag Shop!', N.yellow, 1.6); if (PB.sfx) PB.sfx('nope'); return; }
+      if (b.id === 'hammer') { st.tool = 'hammer'; if (PB.sfx) PB.sfx('pick'); return; }
+      if (!PB.meta.useBoost(b.id)) return;
+      st.boostFlash = { id: b.id, t: 0.6 }; st.time += 20; st.timeMax = Math.max(st.timeMax, st.time); if (PB.sfx) PB.sfx('power'); pop(W/2, H - 96, '+20 seconds!', '#9fe8ff', 1.4);
+    }
+    function hammer(b){
+      st.tool = null; if (!PB.meta.useBoost('hammer')) return;
+      st.boostFlash = { id: 'hammer', t: 0.6 }; st.shake = 8; if (PB.sfx) PB.sfx('bonk');
+      const e = st.exits.find(x => x.color === b.color); exitBlock(b, e ? e.side : 'top'); pop(W/2, st.by - 26, 'Bonk!', N.yellow);
+    }
+    function drawBoosts(){
+      const L = boostList(); if (!L.length || st.phase !== 'play') return;
+      ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      L.forEach((b, i) => {
+        const x = BOOST_X[i], y = H - 46, n = boostN(b.id), on = st.tool === b.id, fl = st.boostFlash && st.boostFlash.id === b.id ? st.boostFlash.t / 0.6 : 0, rr = BOOST_R * (1 + fl * 0.2 + (on ? 0.06 * Math.sin(st.clock * 10) : 0));
+        ctx.globalAlpha = n > 0 || on ? 1 : 0.5;
+        if (on) { ctx.save(); ctx.shadowColor = '#ffe14d'; ctx.shadowBlur = 22; ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.arc(x, y, rr + 4, 0, 7); ctx.fill(); ctx.restore(); }
+        ctx.save(); ctx.shadowColor = 'rgba(20,40,90,.4)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+        const g = ctx.createRadialGradient(x - rr * 0.35, y - rr * 0.4, 2, x, y, rr); g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, b.sw[0]); g.addColorStop(1, b.sw[1]);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill(); ctx.restore();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.stroke();
+        ctx.font = `${Math.round(rr)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillStyle = '#fff'; ctx.fillText(b.ic, x, y + 2);
+        ctx.globalAlpha = 1;
+        const bx = x + rr * 0.75, by = y - rr * 0.72; ctx.fillStyle = n > 0 ? '#ff3d6e' : '#2fb36b'; ctx.beginPath(); ctx.arc(bx, by, 10, 0, 7); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.font = `800 12px sans-serif`; ctx.fillStyle = '#fff'; ctx.fillText(n > 0 ? String(Math.min(n, 99)) : '+', bx, by + 1);
+      });
+      if (st.tool === 'hammer') { const t = 'Tap a jelly to bonk it out!'; ctx.font = `18px ${DISPLAY}`; const w = ctx.measureText(t).width + 30, y = st.by - 30; ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.roundRect(W/2 - w/2, y - 16, w, 32, 16); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#2a3a70'; ctx.stroke(); ctx.fillStyle = '#2a3a70'; ctx.fillText(t, W/2, y + 1); }
+      ctx.restore();
     }
     function drawFooter(){
       const fy = H - 46, on = st.freezes > 0 && st.running;
@@ -507,30 +568,38 @@
     }
 
     return {
-      id:'cubes', music:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless',
-      tile:{ order:5, name:'Cube Escape', kind:'Jelly block puzzle', art: artTile },
-      controls: ['Drag a block to slide it around the box.', 'Push it into the glowing bar of the same color to send it out.', 'The block has to line up with the bar to get through. Slide it level with the bar first!', 'Free every block before the timer runs out.', "If time runs out you lose a heart and try the level again."],
+      id:'cubes', music:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Jellies', maxLives: MAX_LIVES, type:'levels', levels: 100, failTitle: "Time's up!", dailyText: 'Endless run: 3 hearts, how far can you go?',
+      tile:{ order:5, name:'Cube Escape', kind:'Jelly block puzzle \u00b7 100 levels', art: artTile },
+      controls: ['Drag a block to slide it around the box.', 'Push it into the glowing bar of the same color to send it out.', 'The block has to line up with the bar to get through. Slide it level with the bar first!', 'Free every block before the timer runs out. Faster = more stars.', 'Each color has its own white shape on the jelly and its exit.', 'Power-ups: the Hammer bonks a jelly out, and +20 Seconds adds time.'],
       powersTitle: 'Helpers',
       powers: [
         { name:'Freeze time', desc:'Stops the clock for 8 seconds. One per level', icon: g => { g.strokeStyle = '#9fe8ff'; g.lineWidth = 1.5; g.fillStyle = '#0c1828'; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#dff8ff'; g.font = '700 8px Orbitron, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('FREEZE', 23, 14); } },
         { name:'Time bonus', desc:'Seconds left over turn into points', icon: g => { g.fillStyle = '#3dffb5'; g.beginPath(); g.roundRect(4, 11, 38, 7, 3); g.fill(); } },
-        { name:'Bonus life', desc:'Your streak gives extra hearts at the start', icon: g => { g.fillStyle = N.red; g.font = '900 20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u2665', 23, 15); } },
+        { name:'Hammer', desc:'Power-up: tap a jelly to bonk it straight out', icon: g => { g.font = '20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u{1F528}', 23, 15); } },
+        { name:'+20 Seconds', desc:'Power-up: more time on the clock', icon: g => { g.font = '20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u23F1\uFE0F', 23, 15); } },
       ],
-      init(){ assets3D(); },
-      preview(){ fresh('classic', Math.random, 3, 'menu'); },
-      start(mode, rand, lives, msg){ fresh(mode, rand, lives, 'play'); st.msg = msg ? msg + ' Tap to start' : 'Level 1 \u00b7 Tap to start'; },
+      init(){ assets3D();
+        // players who reached a level in the old endless mode start with those levels unlocked
+        if (!PB.store.get('cubes-progress')) { const best = ((PB.store.get('pb-stats') || {}).best || {}).cubeLevel || 1; if (best > 1) PB.store.set('cubes-progress', { unlocked: Math.min(best, 100), stars: {}, best: {} }); }
+      },
+      preview(){ fresh('classic', Math.random, 3, 'menu', 1); },
+      start(mode, rand, lives, msg, level){ fresh(mode, rand, 3, 'play', level === 'daily' ? 1 : level); st.msg = `${st.endless ? 'Daily run' : 'Level ' + st.level} \u00b7 Tap to start`; },
+      reviveText: '+20 seconds', reviveIcon: '\u23F1\uFE0F', reviveTitle: "Time's up!",
+      revive(){ st.done = null; st.time = 20; st.timeMax = Math.max(st.timeMax, 20); st.running = false; st.msg = 'Keep going! Tap to start'; st.phase = 'play'; },
       frame(dt){ update(dt); draw(); },
-      hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
-      debug(){ return { st }; },
-      metrics(){ return { score: st.score, level: st.level }; },
+      hud(){ return { lives: st.endless ? st.lives : null, stat: st.blocks.filter(b => !b.out).length, score: st.score }; },
+      debug(){ return { st }; }, debugBoost(id){ const b = boostList().find(q => q.id === id); if (b) pressBoost(b); }, debugHammer(i){ hammer(st.blocks[i]); },
+      metrics(){ return { score: st.score, level: st.level, won: st.won ? 1 : 0 }; },
       dailyGoals: [
         { text:'Reach level {n}', m:'level', n:[3, 4, 5] },
         { text:'Score {n} points', m:'score', n:[2000, 3000, 4500] },
         { text:'Reach level {n} without losing a life', m:'level', n:[2, 3], noHit:true },
       ],
       pointerDown(x, y){
-        if (st.phase !== 'play' || st.pending != null || st.retry != null) return;
+        if (st.phase !== 'play' || st.pending != null || st.retry != null || st.done) return;
         if (st.msg) { st.msg = null; st.running = true; return; }
+        { const bz = boostAt(x, y); if (bz) { pressBoost(bz); return; } }
+        if (st.tool === 'hammer') { const hb = blockAt(x, y); if (hb && !hb.out) hammer(hb); else st.tool = null; return; }
         if (y > H - 70 && Math.abs(x - W/2) < 84) { if (st.freezes > 0 && st.running) { st.freezes--; st.freezeT = 8; if (PB.sfx) PB.sfx('power'); pop(W/2, H - 90, 'Time frozen!', '#9fe8ff'); } return; }
         const b = blockAt(x, y); if (!b) return;
         st.drag = { id: b.id, ax: x, ay: y, axis: null, br: b.r, bc: b.c };

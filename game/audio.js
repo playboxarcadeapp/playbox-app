@@ -23,15 +23,13 @@
     return true;
   }
   // Phones only allow sound after a tap, so the audio engine starts on the first tap.
-  // On iPhone we also ask for "playback" audio so music still plays when the ring/silent switch is on silent.
+  // Game sound is "ambient": it plays on top of an audiobook, podcast, music or video instead of stopping it.
+  // (On iPhone that means the ring/silent switch mutes game sounds, the same as most games.)
+  try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (e) {}
   let primed = false;
   function prime(){
     if (primed) return; primed = true;
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-    try { // a tiny silent clip played once switches older iPhones to "playback" audio too
-      const a = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAAAA');
-      a.setAttribute('playsinline', ''); a.volume = 0.01; const p = a.play(); if (p && p.catch) p.catch(() => {});
-    } catch (e) {}
+    try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (e) {}
   }
   const unlock = () => {
     prime();
@@ -159,7 +157,10 @@
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol * 2.2, t + 0.015); g.gain.setValueAtTime(vol * 2.2, t + len * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + len + 0.06);
     o.start(t); o.stop(t + len + 0.1);
   }
+  // the phone gives a little buzz for the big moments, even with sound off
+  const BUZZ = { boom: 'heavy', crash: 'heavy', hurt: 'heavy', bonk: 'medium', seal: 'medium', exit: 'light', launch: 'medium', win: 'success', level: 'success', fanfare: 'success', life: 'light', power: 'light', lose: 'medium' };
   PB.sfx = function(name, x){
+    if (BUZZ[name] && PB.buzz) PB.buzz(BUZZ[name]);
     if (!sound.sfx || !ac || ac.state !== 'running' || !SFX[name]) return;
     const now = ac.currentTime;
     if (lastSfx[name] && now - lastSfx[name] < 0.045) return; // don't stack the same sound

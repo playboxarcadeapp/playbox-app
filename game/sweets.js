@@ -195,7 +195,7 @@
       clearSet(cells.concat([a, b]));
     }
     // ---------- Power-ups (bought in the Swag Shop or found in gift boxes) ----------
-    const boostList = () => (PB.meta && PB.meta.BOOSTS) || [];
+    const boostList = () => (PB.meta && PB.meta.boostsFor && PB.meta.boostsFor('sweets')) || [];
     const boostN = id => (PB.meta && PB.meta.boostCount) ? PB.meta.boostCount(id) : 0;
     const boostX = i => W / 2 + (i - 1.5) * 106;
     function boostAt(x, y){ const L = boostList(); for (let i=0;i<L.length;i++) if (Math.hypot(x - boostX(i), y - BAR_Y) < BAR_R + 10) return L[i]; return null; }
@@ -306,10 +306,6 @@
       st.over = true;
       const s = st.spec;
       if (s.type === 'daily') { shell.gameOver(st.score, `You scored ${fmt(st.score)} in ${s.moves} moves`); return; }
-      if (win && typeof s.n === 'number' && s.n % 5 === 0 && PB.meta && PB.meta.addBoost && ((PB.store.get('sweets-progress') || {}).unlocked || 1) <= s.n) {
-        const bz = PB.meta.randomBoost(); PB.meta.addBoost(bz.id, 1);
-        setTimeout(() => PB.meta.banner(`\u{1F381} Reward box! A free ${bz.name} ${bz.ic} for Gem Mine`, true), 1400);
-      }
       const stars = !win ? 0 : st.score >= s.star3 ? 3 : st.score >= s.star2 ? 2 : 1;
       const summary = win ? (stars === 3 ? 'Perfect bake!' : stars === 2 ? 'Great baking!' : 'You did it!') : goalText() + ' still to go';
       shell.levelDone({ win, stars, score: st.score, summary });
@@ -806,7 +802,7 @@
       id:'sweets', sfxScore:false, music:'sweets', title:'GEM MINE', W, H, statLabel:'Moves', type:'levels', levels:100, maxLives: 0,
       failTitle:'Out of moves', dailyText:'Score attack: 25 moves', powersTitle:'Special gems',
       tile:{ order:3, name:'Gem Mine', kind:'Mining match 3 \u00b7 100 levels', art: artTile, isNew: true },
-      controls: ['Swipe a gem into its neighbor to swap them.', 'Line up 3 or more of the same gem to mine them.', 'Every gem has its own shape: hearts, triangles, diamonds and more.', 'Meet the goal at the top before your moves run out.', 'Rock tiles crack open when you match on top of them.', 'Moves you have left at the end turn into bonus points.', 'Tap a power-up under the board to use it. Get more in the Swag Shop, daily gifts and reward boxes every 5 levels.'],
+      controls: ['Swipe a gem into its neighbor to swap them.', 'Line up 3 or more of the same gem to mine them.', 'Every gem has its own shape: hearts, triangles, diamonds and more.', 'Meet the goal at the top before your moves run out.', 'Rock tiles crack open when you match on top of them.', 'Moves you have left at the end turn into bonus points.', 'Tap a power-up under the board to use it. Get more in the Swag Shop, daily gifts, level-map chests and reward boxes every 5 levels.'],
       powers: [
         { name:'Laser gem', desc:'Match 4 in a row. Blasts a whole row or column', icon: g => { const sv = st; st = st || {time:0}; g.fillStyle='#5ce1ff'; g.fillRect(4, 12, 38, 4); pastry(g, 3, 23, 14, 0.55); st = sv; } },
         { name:'Dynamite gem', desc:'Match in an L or T shape. Blows up the 3\u00d73 around it', icon: g => { const sv = st; st = st || {time:0}; g.fillStyle='rgba(255,140,40,.6)'; g.beginPath(); g.arc(23,14,14,0,7); g.fill(); pastry(g, 5, 23, 14, 0.55); st = sv; } },
@@ -814,6 +810,8 @@
         { name:'Combos', desc:'Swap two special gems together for a giant blast', icon: g => { const sv = st; st = st || {time:0}; pastry(g, 6, 15, 14, 0.45); pastry(g, 5, 32, 14, 0.45); st = sv; } },
       ],
       init(){ assets3D(); },
+      reviveText: '+5 moves', reviveIcon: '\u2795', reviveTitle: 'Out of moves!',
+      revive(){ st.over = false; st.busy = false; st.moves = 5; st.tool = null; pop(70, 150, '+5 moves!', '#7dff6a', 1.6); },
       preview(){ fresh('classic', Math.random, 1); st.busy = false; st.phase = 'menu'; },
       start(mode, rand, lives, msg, level){ fresh(mode, rand, level === 'daily' ? 1 : level); },
       frame(dt){ update(dt); draw(); },

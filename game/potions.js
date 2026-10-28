@@ -217,6 +217,7 @@
         if (st.anim.t >= 1) { st.anim = null; checkWin(); }
       }
       if (st.wiggle) { st.wiggle.t -= dt; if (st.wiggle.t <= 0) st.wiggle = null; }
+      if (st.boostFlash) { st.boostFlash.t -= dt; if (st.boostFlash.t <= 0) st.boostFlash = null; }
       if (st.sealFx) { for (const f of st.sealFx) f.t += dt; st.sealFx = st.sealFx.filter(f => f.t < 1.6); }
       if (!reduceMotion) {
         // sealed potions shimmer with rising sparkles
@@ -1087,12 +1088,62 @@
       for (const q of st.glints) { const a = Math.min(1, q.life) * 0.9; ctx.globalAlpha = a; ctx.fillStyle = q.col; star(ctx, q.x, q.y, 3.2, 1.2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(q.x, q.y, 0.9, 0, 7); ctx.fill(); }
       ctx.restore(); ctx.globalAlpha = 1;
       if (!st.over && st.time <= 10 && st.time > 0) { const p = 0.5 + 0.5 * Math.sin(st.clock * 8); const vg = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.72); vg.addColorStop(0, 'rgba(255,40,60,0)'); vg.addColorStop(1, `rgba(255,40,60,${0.18 + p * 0.22})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H); }
-      drawDone();
+      drawSymbols(); drawDone(); drawBoosts();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const q of st.pops) {
         ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.font = `900 20px ${FONT}`;
         ctx.shadowColor = q.color; ctx.shadowBlur = 12; ctx.fillStyle = q.color; ctx.fillText(q.text, Math.min(W - 80, Math.max(80, q.x)), q.y); ctx.restore();
       }
+    }
+    // a white shape on every potion layer (one shape per color) so close shades are easy to tell apart
+    function drawSymbols(){
+      if (!PB.prefs || !PB.prefs.symbols) return;
+      for (let i=0;i<st.bottles.length;i++) {
+        if (st.anim && st.anim.i === i) continue;
+        const b = st.bottles[i], p = st.pos[i]; if (!b.length || !p) continue;
+        let y = p.y; if (st.sel === i) y -= 22;
+        const fx = st.sealFx && st.sealFx.find(f => f.j === i); if (fx && !reduceMotion && fx.t < 0.7) y -= Math.sin(Math.PI * fx.t / 0.7) * 30;
+        const lh = (p.h - 18) / CAP, r = Math.min(p.w * 0.19, lh * 0.28, 10);
+        b.forEach((l, k) => { if (l.hidden) return; PB.symbol(ctx, l.c, p.x + p.w / 2, y + p.h - 4 - (k + 0.5) * lh, r); });
+      }
+    }
+    // power-ups sit in the gap between the level card and the Undo button
+    const boostList = () => (PB.meta && PB.meta.boostsFor && PB.meta.boostsFor('potions')) || [];
+    const boostN = id => (PB.meta && PB.meta.boostCount) ? PB.meta.boostCount(id) : 0;
+    const BOOST_POS = [[256, 55], [318, 55]], BOOST_R = 25;
+    function boostAt(x, y){ const L = boostList(); for (let i=0;i<L.length;i++) if (Math.hypot(x - BOOST_POS[i][0], y - BOOST_POS[i][1]) < BOOST_R + 6) return L[i]; return null; }
+    function useBoost(b){
+      if (st.anim || st.over) return;
+      if (boostN(b.id) <= 0) { pop(W / 2, 128, 'Get more in the Swag Shop!', GOLD, 1.6); if (PB.sfx) PB.sfx('nope'); return; }
+      if (b.id === 'reveal' && !st.bottles.some(t => t.some(l => l.hidden))) { pop(W / 2, 128, 'Nothing hidden right now!', GOLD, 1.4); if (PB.sfx) PB.sfx('nope'); return; }
+      if (b.id === 'flask' && st.bottles.length >= 16) { pop(W / 2, 128, 'The shelf is full!', GOLD, 1.4); if (PB.sfx) PB.sfx('nope'); return; }
+      if (!PB.meta.useBoost(b.id)) return;
+      st.boostFlash = { id: b.id, t: 0.6 }; st.sel = -1; if (PB.sfx) PB.sfx('power');
+      if (b.id === 'flask') {
+        st.bottles.push([]); for (const u of st.undo) u.push([]); layout();
+        const p = st.pos[st.pos.length - 1]; sparkle(p.x + p.w / 2, p.y + p.h / 2, '#d0f4ff', 24); pop(p.x + p.w / 2, p.y - 20, 'Extra flask!', '#d0f4ff', 1.4);
+      } else {
+        st.bottles.forEach((t, i) => t.forEach(l => { if (l.hidden) { l.hidden = false; const p = st.pos[i]; sparkle(p.x + p.w / 2, p.y + p.h / 2, '#e8c8ff', 6); } }));
+        for (const u of st.undo) u.forEach(t => t.forEach(l => { l.hidden = false; }));
+        pop(W / 2, 128, 'Magic Eye! Everything revealed', '#e8c8ff', 1.6);
+      }
+    }
+    function drawBoosts(){
+      const L = boostList(); if (!L.length || st.phase === 'menu') return;
+      ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      L.forEach((b, i) => {
+        const [x, y] = BOOST_POS[i], n = boostN(b.id), fl = st.boostFlash && st.boostFlash.id === b.id ? st.boostFlash.t / 0.6 : 0, rr = BOOST_R * (1 + fl * 0.2);
+        ctx.globalAlpha = n > 0 ? 1 : 0.5;
+        ctx.save(); ctx.shadowColor = 'rgba(20,0,40,.5)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+        const g = ctx.createRadialGradient(x - rr * 0.35, y - rr * 0.4, 2, x, y, rr); g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, b.sw[0]); g.addColorStop(1, b.sw[1]);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill(); ctx.restore();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#ffd86a'; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.stroke();
+        ctx.font = `${Math.round(rr * 1.0)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillStyle = '#fff'; ctx.fillText(b.ic, x, y + 2);
+        ctx.globalAlpha = 1;
+        const bx = x + rr * 0.75, by = y - rr * 0.72; ctx.fillStyle = n > 0 ? '#ff3d6e' : '#2fb36b'; ctx.beginPath(); ctx.arc(bx, by, 10, 0, 7); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.font = `800 12px ${BODY}`; ctx.fillStyle = '#fff'; ctx.fillText(n > 0 ? String(Math.min(n, 99)) : '+', bx, by + 1);
+      });
+      ctx.restore();
     }
     // finished flasks: a burst of light and rings when they fill, then a gold-ringed check badge that stays
     function drawDone(){
@@ -1137,7 +1188,7 @@
       id:'potions', sfxScore:false, music:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:100, maxLives:0,
       failTitle:"Time's up!", dailyText:'One big brew, one try a day', powersTitle:'Magic tips',
       tile:{ order:4, name:'Potion Sort', kind:"Wizard's potion puzzle \u00b7 100 levels", art: artTile },
-      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out. You get 1 minute!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.'],
+      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out. You get 1 minute!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Each color has its own white shape, so you can match shapes too.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: [
         { name:'Undo', desc:'Take back a pour. You get 3 per level', icon: g => { g.fillStyle = '#2a1a4a'; g.strokeStyle = GOLD; g.lineWidth = 1.5; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#fff3d6'; g.font = `800 10px ${BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Undo', 23, 14); } },
         { name:'Corked flask', desc:'A full flask of one color seals itself', icon: g => { g.fillStyle = COLORS[0]; g.fillRect(15, 6, 16, 20); g.fillStyle = '#b07a45'; g.fillRect(16, 1, 14, 6); } },
@@ -1148,7 +1199,9 @@
       start(mode, rand, lives, msg, level){ fresh(mode, level); pop(W / 2, 236, SCENES[st.scene].name, GOLD, 2.4); },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: timeStr(st.time), score: st.score }; },
-      debug(){ return st; },
+      debug(){ return st; }, debugBoost(id){ const b = boostList().find(q => q.id === id); if (b) useBoost(b); },
+      reviveText: '+45 seconds', reviveIcon: '\u23F3', reviveTitle: "Time's up!",
+      revive(){ st.over = false; st.time = 45; st.warned = false; pop(W / 2, 128, '+45 seconds!', GOLD, 1.6); },
       metrics(){ return { score: st.score, won: st.won ? 1 : 0, timeLeft: st.won ? Math.ceil(st.time) : 0, undoUsed: (st.spec.undos || 3) - st.undos, pours: st.pours || 0 }; },
       dailyGoals: [
         { text:'Sort every potion with {n} seconds left', m:'timeLeft', n:[10, 15, 20] },
@@ -1158,6 +1211,7 @@
       pointerDown(x, y){
         if (st.over) return;
         if (x > W - 122 && y < 94) { if (y < 53) doUndo(); else restart(); return; }
+        { const bz = boostAt(x, y); if (bz) { useBoost(bz); return; } }
         for (let i=0;i<st.pos.length;i++) { const p = st.pos[i]; if (x > p.x - 8 && x < p.x + p.w + 8 && y > p.y - 40 && y < p.y + p.h + 14) { tap(i); return; } }
         st.sel = -1;
       },

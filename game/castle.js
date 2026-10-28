@@ -279,6 +279,37 @@
       }
       effects(dt);
     }
+    // power-ups: extra fire pots and boulders, top right under the "castle wrecked" line
+    const boostList = () => (PB.meta && PB.meta.boostsFor && PB.meta.boostsFor('castle')) || [];
+    const boostN = id => (PB.meta && PB.meta.boostCount) ? PB.meta.boostCount(id) : 0;
+    const BOOST_POS = [[W - 102, 74], [W - 44, 74]], BOOST_R = 24, BOOST_AMMO = { firepot: 'fire', boulder: 'boulder' };
+    function boostAt(x, y){ const L = boostList(); for (let i=0;i<L.length;i++) if (Math.hypot(x - BOOST_POS[i][0], y - BOOST_POS[i][1]) < BOOST_R + 6) return L[i]; return null; }
+    function useBoost(b){
+      if (st.over || st.pull) return;
+      if (boostN(b.id) <= 0) { pop([REST.x, REST.y - 60], 'Get more in the Swag Shop!', '#ffe08a', 1.4); if (PB.sfx) PB.sfx('nope'); return; }
+      if (!PB.meta.useBoost(b.id)) return;
+      const k = BOOST_AMMO[b.id]; st.inv[k] = (st.inv[k] || 0) + 1; st.sel = k; st.boostFlash = { id: b.id, t: 0.6 };
+      if (st.loaded && !st.loadAnim) loadBall(k);
+      if (PB.sfx) PB.sfx('power'); pop([REST.x, REST.y - 60], AMMO[k].name + ' added!', '#ffe08a', 1.2);
+    }
+    function drawBoosts(){
+      const L = boostList(); if (!L.length || st.phase === 'menu') return;
+      ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (st.boostFlash) { st.boostFlash.t -= 1 / 60; if (st.boostFlash.t <= 0) st.boostFlash = null; }
+      L.forEach((b, i) => {
+        const [x, y] = BOOST_POS[i], n = boostN(b.id), fl = st.boostFlash && st.boostFlash.id === b.id ? st.boostFlash.t / 0.6 : 0, rr = BOOST_R * (1 + fl * 0.2);
+        ctx.globalAlpha = n > 0 ? 1 : 0.55;
+        ctx.save(); ctx.shadowColor = 'rgba(30,15,0,.45)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+        const g = ctx.createRadialGradient(x - rr * 0.35, y - rr * 0.4, 2, x, y, rr); g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, b.sw[0]); g.addColorStop(1, b.sw[1]);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill(); ctx.restore();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#ffd98a'; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.stroke();
+        ctx.font = `${Math.round(rr)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillStyle = '#fff'; ctx.fillText(b.ic, x, y + 2);
+        ctx.globalAlpha = 1;
+        const bx = x + rr * 0.75, by = y - rr * 0.72; ctx.fillStyle = n > 0 ? '#a8322d' : '#2fb36b'; ctx.beginPath(); ctx.arc(bx, by, 10, 0, 7); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff3d6'; ctx.stroke();
+        ctx.font = `900 12px ${BODY}`; ctx.fillStyle = '#fff'; ctx.fillText(n > 0 ? String(Math.min(n, 99)) : '+', bx, by + 1);
+      });
+      ctx.restore();
+    }
     function castleDone(){ const all = st.blocks.filter(b => b.data.mat !== 'goblin'); return all.length ? all.filter(b => b.data.off).length / all.length : 1; }
     function finish(){
       const left = ammoLeft(), pct = castleDone(), gl = st.goblins - (st.gobs || 0);
@@ -1125,7 +1156,7 @@
         if (hit) { ctx.strokeStyle = '#ff5a3c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 6, y - 5); ctx.lineTo(x + 6, y + 7); ctx.moveTo(x + 6, y - 5); ctx.lineTo(x - 6, y + 7); ctx.stroke(); } }
       ctx.textAlign = 'right'; ctx.font = `800 12px ${BODY}`; ctx.fillStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(40,24,10,.8)'; const wt = `Castle wrecked ${Math.round(castleDone() * 100)}%`; ctx.strokeText(wt, W - 16, 30); ctx.fillText(wt, W - 16, 30);
       // ammo tray: tap a ball to load it next
-      const types = AMMO_ORDER.filter(k => st.spec.ammo[k] > 0), n = types.length, bw = Math.min(88, (W - 28) / n - 6), ty = H - 78, total = n * (bw + 6) - 6, x0 = W / 2 - total / 2;
+      const types = AMMO_ORDER.filter(k => st.spec.ammo[k] > 0 || (st.inv[k] || 0) > 0), n = types.length, bw = Math.min(88, (W - 28) / n - 6), ty = H - 78, total = n * (bw + 6) - 6, x0 = W / 2 - total / 2;
       ctx.save(); ctx.shadowColor = 'rgba(30,15,0,.45)'; ctx.shadowBlur = 12; const tp = ctx.createLinearGradient(0, ty - 8, 0, ty + 70); tp.addColorStop(0, '#9a6a3a'); tp.addColorStop(1, '#5a3418'); ctx.fillStyle = tp; ctx.beginPath(); ctx.roundRect(x0 - 10, ty - 8, total + 20, 78, 18); ctx.fill(); ctx.restore(); ctx.strokeStyle = '#ffe08a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x0 - 10, ty - 8, total + 20, 78, 18); ctx.stroke();
       ctx.save(); ctx.textAlign = 'left'; ctx.font = `900 11px ${BODY}`; ctx.fillStyle = 'rgba(40,24,10,.8)'; ctx.beginPath(); ctx.roundRect(x0 - 10, ty - 30, 118, 20, 10); ctx.fill(); ctx.fillStyle = '#ffd98a'; ctx.fillText('LOAD NEXT SHOT', x0, ty - 16); ctx.restore();
       st.trayRects = [];
@@ -1140,6 +1171,7 @@
         ctx.fillStyle = cnt ? '#a8322d' : '#7a5a3a'; ctx.beginPath(); ctx.arc(x + bw - 9, ty + 9, 10, 0, 7); ctx.fill();
         ctx.fillStyle = '#fff3d6'; ctx.font = `900 12px ${BODY}`; ctx.textBaseline = 'middle'; ctx.fillText(cnt, x + bw - 9, ty + 9.5); ctx.textBaseline = 'alphabetic';
       });
+      drawBoosts();
       // pull-strength meter while aiming
       if (st.pull) { const sp = E.project(P3(REST.x, REST.y)), k = Math.min(1, Math.hypot(st.pull.dx, st.pull.dy) / MAXPULL); ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(sp[0], sp[1], 46, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke(); ctx.strokeStyle = k > 0.9 ? '#ff5a3c' : k > 0.5 ? '#ffd23f' : '#7dff6a'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore(); }
       for (const c of st.comics) {
@@ -1178,9 +1210,11 @@
       id:'castle', sfxScore:false, music:'castle', title:'CASTLE CRASH', W, H, statLabel:'Ammo', type:'levels', levels:100, maxLives:0,
       failTitle:'Out of ammo', dailyText:'One giant fortress a day', powersTitle:'Catapult ammo',
       tile:{ order:7, name:'Castle Crash', kind:'Slingshot siege · 100 levels', art: artTile, isNew: true },
-      controls: ['Bonk every goblin in a helmet to win!', 'Pull the ball back in the slingshot (touch anywhere and drag back), aim with the dotted line, and let go to fire.', 'Pull further for a stronger shot. Slide back toward the start to cancel.', 'Tap a ball in the LOAD NEXT SHOT tray to choose what goes in the sling next. Tap the screen while a triple shot flies to split it.', 'Blocks crack when they are hit hard and smash after enough hits. Wood breaks easily, ice takes more, stone is the toughest.', 'Wreck at least half the castle and keep a shot spare for 3 stars.'],
+      controls: ['Bonk every goblin in a helmet to win!', 'Pull the ball back in the slingshot (touch anywhere and drag back), aim with the dotted line, and let go to fire.', 'Pull further for a stronger shot. Slide back toward the start to cancel.', 'Tap a ball in the LOAD NEXT SHOT tray to choose what goes in the sling next. Tap the screen while a triple shot flies to split it.', 'Blocks crack when they are hit hard and smash after enough hits. Wood breaks easily, ice takes more, stone is the toughest.', 'Wreck at least half the castle and keep a shot spare for 3 stars.', 'Power-ups (top right): an extra Fire Pot or Big Boulder. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: AMMO_ORDER.map(k => ({ name: AMMO[k].name, desc: AMMO[k].desc, icon: g => drawBall2D(g, 23, 14, k, 11) })),
       init(){ loadAssets(); },
+      reviveText: '+2 stones', reviveIcon: '\u{1FAA8}', reviveTitle: 'Out of ammo!',
+      revive(){ st.over = false; st.win = false; st.endTimer = null; st.settle = 0; st.inv.stone = (st.inv.stone || 0) + 2; st.sel = 'stone'; st.loaded = false; st.reload = 99; st.lastFire = st.time; },
       preview(){ fresh('classic', 1); st.phase = 'menu'; },
       start(mode, rand, lives, msg, level){ fresh(mode, level === 'daily' ? 1 : level); },
       frame(dt){ update(dt); updateCam(dt); draw(); },
@@ -1193,6 +1227,7 @@
       ],
       pointerDown(x, y){
         if (st.over || !E || !st.cam) return;
+        { const bz = boostAt(x, y); if (bz) { useBoost(bz); return; } }
         const tr = st.trayRects.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
         if (tr) { if (st.inv[tr.k] > 0 && st.sel !== tr.k && !st.pull) { st.sel = tr.k; if (st.loaded) loadBall(tr.k); else if (PB.sfx) PB.sfx('pick'); pop([REST.x, REST.y - 50], AMMO[tr.k].name + (st.loaded ? ' loaded!' : ' is next!'), '#ffe08a', 0.9); } return; }
         const tri = st.shots.find(s => s.data.type === 'triple' && !s.data.split);
@@ -1215,6 +1250,7 @@
         if (st.pull && Math.hypot(st.pull.dx, st.pull.dy) > 14) { const v = launchV(st.pull); fire(v.vx, v.vy); }
         else { st.pull = null; st.preview = null; }
       },
+      debugBoost(id){ const b = boostList().find(q => q.id === id); if (b) useBoost(b); },
       debug(){ return { st, step(n){ for (let i=0;i<n;i++) { update(1 / 60); updateCam(1 / 60); } }, shoot(dx, dy, type){ if (type) st.sel = type; st.loadAnim = null; st.pull = { dx, dy }; const v = launchV(st.pull); fire(v.vx, v.vy); }, launchV, REST, MAXPULL }; },
       key(e){
         if (!st || st.over) return;

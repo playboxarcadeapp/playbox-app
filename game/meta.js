@@ -5,6 +5,7 @@
   const $ = id => document.getElementById(id);
   const coin = '<svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#ffc21a" stroke="#b77800" stroke-width="2"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#ffe27a" stroke-width="1.5"/></svg>';
   const NAME = { bricks: 'Brick Bash', dash: 'Zoom Dash', sweets: 'Gem Mine', potions: 'Potion Sort', cubes: 'Cube Escape', racer: 'Galaxy Racer', castle: 'Castle Crash', snake: 'Anaconda' };
+  const STK_COL = { bricks: '#ff3ddc', dash: '#ff9f1c', sweets: '#5ce1ff', potions: '#c77dff', cubes: '#3dffb5', racer: '#ff7a2f', castle: '#e0b43c', snake: '#7dd85a' };
   const dayNum = d => Math.floor(new Date(d + 'T12:00:00').getTime() / 86400000);
 
   // ---------------- Swag Shop ----------------
@@ -57,17 +58,25 @@
   ];
   const owned = () => store.get('pb-owned') || [];
   // Gem Mine power-ups: these get used up, so you buy them in packs and they also come in gift boxes
+  // Power-ups get used up, so you buy them in packs; they also come in gift boxes and level-map chests
   const BOOSTS = [
-    { id: 'pickaxe',   name: 'Pickaxe',        desc: 'Tap any gem to smash it',               ic: '\u26CF\uFE0F', price: 120, pack: 3, sw: ['#ffd23f', '#8a5a10'] },
-    { id: 'moves5',    name: '+5 Moves',       desc: 'Five extra moves, right now',           ic: '\u2795',       price: 150, pack: 3, sw: ['#7dff6a', '#1f9a3a'] },
-    { id: 'dynamite',  name: 'Dynamite Drop',  desc: 'Turns 3 gems into dynamite gems',       ic: '\u{1F9E8}',    price: 180, pack: 3, sw: ['#ff5a3a', '#a01818'] },
-    { id: 'lightning', name: 'Lightning Bolt', desc: 'Tap a gem to clear its row and column', ic: '\u26A1',       price: 200, pack: 3, sw: ['#9ae6ff', '#2f6fff'] },
+    { id: 'pickaxe',   game: 'sweets',  name: 'Pickaxe',        desc: 'Tap any gem to smash it',               ic: '\u26CF\uFE0F', price: 120, pack: 3, sw: ['#ffd23f', '#8a5a10'] },
+    { id: 'moves5',    game: 'sweets',  name: '+5 Moves',       desc: 'Five extra moves, right now',           ic: '\u2795',       price: 150, pack: 3, sw: ['#7dff6a', '#1f9a3a'] },
+    { id: 'dynamite',  game: 'sweets',  name: 'Dynamite Drop',  desc: 'Turns 3 gems into dynamite gems',       ic: '\u{1F9E8}',    price: 180, pack: 3, sw: ['#ff5a3a', '#a01818'] },
+    { id: 'lightning', game: 'sweets',  name: 'Lightning Bolt', desc: 'Tap a gem to clear its row and column', ic: '\u26A1',       price: 200, pack: 3, sw: ['#9ae6ff', '#2f6fff'] },
+    { id: 'flask',     game: 'potions', name: 'Extra Flask',    desc: 'An empty flask appears on the shelf',   ic: '\u{1F9EA}',    price: 150, pack: 3, sw: ['#d0f4ff', '#5a8ad8'] },
+    { id: 'reveal',    game: 'potions', name: 'Magic Eye',      desc: 'Shows every hidden ? layer',            ic: '\u{1F441}\uFE0F', price: 120, pack: 3, sw: ['#e8c8ff', '#7a3ac0'] },
+    { id: 'hammer',    game: 'cubes',   name: 'Hammer',         desc: 'Tap a cube to bonk it out',             ic: '\u{1F528}',    price: 150, pack: 3, sw: ['#ffd23f', '#a0602a'] },
+    { id: 'time20',    game: 'cubes',   name: '+20 Seconds',    desc: 'Twenty more seconds on the clock',      ic: '\u23F1\uFE0F', price: 120, pack: 3, sw: ['#9fe8ff', '#2f86ff'] },
+    { id: 'firepot',   game: 'castle',  name: 'Fire Pot',       desc: 'An extra exploding fire pot',           ic: '\u{1F525}',    price: 150, pack: 3, sw: ['#ffb347', '#d8401c'] },
+    { id: 'boulder',   game: 'castle',  name: 'Big Boulder',    desc: 'An extra giant rolling boulder',        ic: '\u{1FAA8}',    price: 150, pack: 3, sw: ['#d8cfc2', '#6a5a48'] },
   ];
   const boostAll = () => store.get('pb-boosts') || {};
   const boostCount = id => boostAll()[id] || 0;
   function addBoost(id, n){ const b = boostAll(); b[id] = (b[id] || 0) + n; store.set('pb-boosts', b); }
   function useBoost(id){ const b = boostAll(); if (!(b[id] > 0)) return false; b[id]--; store.set('pb-boosts', b); return true; }
-  function randomBoost(){ return BOOSTS[Math.floor(Math.random() * BOOSTS.length)]; }
+  function randomBoost(game){ const L = game ? BOOSTS.filter(b => b.game === game) : BOOSTS; const P = L.length ? L : BOOSTS; return P[Math.floor(Math.random() * P.length)]; }
+  const boostsFor = game => BOOSTS.filter(b => b.game === game);
   function buyBoost(it){
     if (!PB.wallet.spend(it.price)) { banner('Not enough coins yet. Keep playing!', false); return false; }
     addBoost(it.id, it.pack); if (PB.sfx) PB.sfx('power'); banner(`${it.ic} +${it.pack} ${it.name}!`, true); return true;
@@ -117,7 +126,7 @@
     { id: 'race',    game: 'racer',   text: 'Win {n} Galaxy Racer races',          n: [1, 2],          add: i => i.win ? 1 : 0 },
     { id: 'gemw',    game: 'sweets',  text: 'Clear {n} Gem Mine levels',           n: [1, 2, 3],       add: i => i.win ? 1 : 0 },
     { id: 'gems',    game: 'sweets',  text: 'Mine {n} gems in Gem Mine',           n: [80, 150],       add: i => i.m.gems || 0 },
-    { id: 'cube',    game: 'cubes',   text: 'Reach level {n} in Cube Escape',      n: [3, 4, 5],       max: i => i.m.level || 0 },
+    { id: 'cube',    game: 'cubes',   text: 'Beat {n} Cube Escape levels',         n: [1, 2, 3],       add: i => i.win ? 1 : 0 },
     { id: 'fruit',   game: 'snake',   text: 'Eat {n} fruit in Anaconda',           n: [20, 35, 50],    add: i => i.m.eaten || 0 },
     { id: 'brick',   game: 'bricks',  text: 'Score {n} in one Brick Bash game',    n: [1500, 3000],    max: i => i.score || 0 },
   ];
@@ -168,7 +177,7 @@
       const st = stats(); st.chests = (st.chests || 0) + 1; saveStats(st);
     } else { PB.wallet.add(r); msg = `Daily gift: +${r} coins!`; }
     const gifts = r === 'chest' ? 2 : (s.day === 3 || s.day === 5) ? 1 : 0;
-    for (let i=0;i<gifts;i++) { const bz = randomBoost(); addBoost(bz.id, 1); msg += ` ${bz.ic} Free Gem Mine ${bz.name}!`; }
+    for (let i=0;i<gifts;i++) { const bz = randomBoost(); addBoost(bz.id, 1); msg += ` ${bz.ic} Free ${NAME[bz.game]} ${bz.name}!`; }
     store.set('pb-gift', { day: s.day, last: today() });
     if (PB.sfx) PB.sfx('life'); banner(msg, true); checkTrophies(); render(); openModal('gift');
   }
@@ -176,7 +185,7 @@
   // ---------------- trophies ----------------
   const prog = id => store.get(id + '-progress') || {};
   const levelWins = id => Math.max(0, (prog(id).unlocked || 1) - 1);
-  const starsAll = () => ['castle', 'potions', 'racer', 'sweets'].reduce((a, id) => a + Object.values(prog(id).stars || {}).reduce((x, y) => x + y, 0), 0);
+  const starsAll = () => ['castle', 'potions', 'racer', 'sweets', 'cubes'].reduce((a, id) => a + Object.values(prog(id).stars || {}).reduce((x, y) => x + y, 0), 0);
   const bestOf = id => (PB.bestOf && PB.bestOf(id)) || 0;
   const streak = () => { const s = store.get('pb-streak') || {}; return Math.max(s.best || 0, s.count || 0); };
   const TROPHIES = [
@@ -191,7 +200,7 @@
     { id: 'shop5',    icon: '\u{1F451}', name: 'Show-off',               desc: 'Own 5 Swag Shop items',                test: () => owned().length >= 5 },
     { id: 'mission1', icon: '✅',    name: 'Mission complete',       desc: 'Finish all 3 daily missions in a day', test: s => (s.missionDays || 0) >= 1 },
     { id: 'mission5', icon: '\u{1F3AF}', name: 'Mission master',         desc: 'Finish all daily missions on 5 days',  test: s => (s.missionDays || 0) >= 5 },
-    { id: 'chest',    icon: '\u{1F381}', name: 'Treasure hunter',        desc: 'Open a day-7 treasure chest',          test: s => (s.chests || 0) >= 1 },
+    { id: 'chest',    icon: '\u{1F381}', name: 'Treasure hunter',        desc: 'Open a treasure chest',          test: s => (s.chests || 0) >= 1 },
     { id: 'dash1k',   icon: '\u{1F99D}', name: 'Long runner',            desc: 'Run 1,000 m in Zoom Dash',             test: () => bestOf('dash') >= 1000 },
     { id: 'dashcity', icon: '\u{1F3D9}️', name: 'Big City',         desc: 'Run all the way to the Big City',      test: s => (s.best.dashDist || 0) >= 1350 },
     { id: 'castle10', icon: '\u{1F3F0}', name: 'Siege master',           desc: 'Beat Castle Crash level 10',           test: () => levelWins('castle') >= 10 },
@@ -200,7 +209,7 @@
     { id: 'pot30',    icon: '\u{1F9D9}', name: 'Grand wizard',           desc: 'Beat Potion Sort level 30',            test: () => levelWins('potions') >= 30 },
     { id: 'gem10',    icon: '\u{1F48E}', name: 'Gem hunter',             desc: 'Beat Gem Mine level 10',               test: () => levelWins('sweets') >= 10 },
     { id: 'race10',   icon: '\u{1F680}', name: 'Star pilot',             desc: 'Win 10 Galaxy Racer races',            test: () => levelWins('racer') >= 10 },
-    { id: 'cube8',    icon: '\u{1F9CA}', name: 'Puzzle box pro',         desc: 'Reach level 8 in Cube Escape',         test: s => (s.best.cubeLevel || 0) >= 8 },
+    { id: 'cube8',    icon: '\u{1F9CA}', name: 'Puzzle box pro',         desc: 'Beat Cube Escape level 8',             test: s => levelWins('cubes') >= 8 || (s.best.cubeLevel || 0) >= 8 },
     { id: 'snake50',  icon: '\u{1F40D}', name: 'Mega anaconda',          desc: 'Grow Anaconda to 50 long',             test: s => (s.best.snakeLen || 0) >= 50 },
     { id: 'brick10k', icon: '\u{1F9F1}', name: 'Brick smasher',          desc: 'Score 10,000 in Brick Bash',           test: () => bestOf('bricks') >= 10000 },
     { id: 'stars50',  icon: '⭐',    name: 'Star collector',         desc: 'Collect 50 level stars',               test: () => starsAll() >= 50 },
@@ -214,6 +223,53 @@
     store.set('pb-trophies', [...have, ...add.map(t => t.id)]);
     for (const t of add) { PB.wallet.add(TROPHY_COINS); later(`${t.icon} Trophy: ${t.name}! +${TROPHY_COINS} coins`); }
     if (PB.sfx) PB.sfx('fanfare');
+    render();
+  }
+
+  // ---------------- sticker album: 3 stickers to collect in every game ----------------
+  const len = () => stats().best.snakeLen || 0, dist = () => stats().best.dashDist || 0;
+  const STICKERS = [
+    { id: 'st_brick1', game: 'bricks',  e: '\u{1F9F1}', name: 'Brick Buster',   desc: 'Score 2,000 in Brick Bash',     test: () => bestOf('bricks') >= 2000 },
+    { id: 'st_brick2', game: 'bricks',  e: '\u{1F3D3}', name: 'Paddle Pro',     desc: 'Score 6,000 in Brick Bash',     test: () => bestOf('bricks') >= 6000 },
+    { id: 'st_brick3', game: 'bricks',  e: '\u{1F308}', name: 'Rainbow Smash',  desc: 'Score 15,000 in Brick Bash',    test: () => bestOf('bricks') >= 15000 },
+    { id: 'st_dash1',  game: 'dash',    e: '\u{1F99D}', name: 'Little Runner',  desc: 'Run 300 m in Zoom Dash',        test: () => dist() >= 300 },
+    { id: 'st_dash2',  game: 'dash',    e: '\u{1F68C}', name: 'Bus Hopper',     desc: 'Run 800 m in Zoom Dash',        test: () => dist() >= 800 },
+    { id: 'st_dash3',  game: 'dash',    e: '\u{1F306}', name: 'City Lights',    desc: 'Reach the Big City in Zoom Dash', test: () => dist() >= 1350 },
+    { id: 'st_gem1',   game: 'sweets',  e: '\u{1F48E}', name: 'Shiny Start',    desc: 'Beat Gem Mine level 5',         test: () => levelWins('sweets') >= 5 },
+    { id: 'st_gem2',   game: 'sweets',  e: '\u{1F451}', name: 'Gem Royalty',    desc: 'Beat Gem Mine level 25',        test: () => levelWins('sweets') >= 25 },
+    { id: 'st_gem3',   game: 'sweets',  e: '\u{1F31F}', name: 'Superstar Miner',desc: 'Beat Gem Mine level 60',        test: () => levelWins('sweets') >= 60 },
+    { id: 'st_pot1',   game: 'potions', e: '\u{1F9EA}', name: 'First Brew',     desc: 'Beat Potion Sort level 5',      test: () => levelWins('potions') >= 5 },
+    { id: 'st_pot2',   game: 'potions', e: '\u{1F9D9}', name: 'Wizard Pal',     desc: 'Beat Potion Sort level 25',     test: () => levelWins('potions') >= 25 },
+    { id: 'st_pot3',   game: 'potions', e: '\u{1F52E}', name: 'Crystal Ball',   desc: 'Beat Potion Sort level 60',     test: () => levelWins('potions') >= 60 },
+    { id: 'st_cube1',  game: 'cubes',   e: '\u{1F9CA}', name: 'Jelly Friend',   desc: 'Beat Cube Escape level 5',      test: () => levelWins('cubes') >= 5 },
+    { id: 'st_cube2',  game: 'cubes',   e: '\u{1F3B2}', name: 'Puzzle Whiz',    desc: 'Beat Cube Escape level 25',     test: () => levelWins('cubes') >= 25 },
+    { id: 'st_cube3',  game: 'cubes',   e: '\u{1FA84}', name: 'Escape Artist',  desc: 'Beat Cube Escape level 60',     test: () => levelWins('cubes') >= 60 },
+    { id: 'st_race1',  game: 'racer',   e: '\u{1F680}', name: 'Blast Off',      desc: 'Win 3 Galaxy Racer races',      test: () => levelWins('racer') >= 3 },
+    { id: 'st_race2',  game: 'racer',   e: '\u{1FA90}', name: 'Ringed Planet',  desc: 'Win 15 Galaxy Racer races',     test: () => levelWins('racer') >= 15 },
+    { id: 'st_race3',  game: 'racer',   e: '\u{1F30C}', name: 'Galaxy Champ',   desc: 'Win 40 Galaxy Racer races',     test: () => levelWins('racer') >= 40 },
+    { id: 'st_cas1',   game: 'castle',  e: '\u{1F3F0}', name: 'Castle Crasher', desc: 'Beat Castle Crash level 5',     test: () => levelWins('castle') >= 5 },
+    { id: 'st_cas2',   game: 'castle',  e: '\u{1F47A}', name: 'Goblin Bonker',  desc: 'Bonk 100 goblins',              test: s => (s.goblins || 0) >= 100 },
+    { id: 'st_cas3',   game: 'castle',  e: '\u{1F409}', name: 'Dragon Knight',  desc: 'Beat Castle Crash level 40',    test: () => levelWins('castle') >= 40 },
+    { id: 'st_snk1',   game: 'snake',   e: '\u{1F40D}', name: 'Wiggly',         desc: 'Grow Anaconda to 15 long',      test: () => len() >= 15 },
+    { id: 'st_snk2',   game: 'snake',   e: '\u{1F34E}', name: 'Fruit Feast',    desc: 'Grow Anaconda to 30 long',      test: () => len() >= 30 },
+    { id: 'st_snk3',   game: 'snake',   e: '\u{1F995}', name: 'Dino Snake',     desc: 'Grow Anaconda to 60 long',      test: () => len() >= 60 },
+  ];
+  const stickers = () => store.get('pb-stickers') || [];
+  function checkStickers(){
+    const s = stats(), have = stickers(), add = [];
+    for (const t of STICKERS) if (!have.includes(t.id)) { try { if (t.test(s)) add.push(t); } catch (e) {} }
+    if (!add.length) return;
+    store.set('pb-stickers', [...have, ...add.map(t => t.id)]);
+    store.set('pb-stickers-new', [...(store.get('pb-stickers-new') || []), ...add.map(t => t.id)]);
+    for (const t of add) later(`${t.e} New sticker: ${t.name}! Check your album`);
+    render();
+  }
+
+  // ---------------- level map chests ----------------
+  function openChest(game){
+    const coins = 50, bz = randomBoost(game); PB.wallet.add(coins); addBoost(bz.id, 1);
+    const st = stats(); st.chests = (st.chests || 0) + 1; saveStats(st);
+    if (PB.sfx) PB.sfx('fanfare'); banner(`\u{1F381} Treasure chest! +${coins} coins and a free ${bz.name} ${bz.ic}`, true); checkTrophies(); render();
   }
 
   // ---------------- run tracking (called by the shell) ----------------
@@ -231,7 +287,7 @@
     if (info.g === 'snake') s.best.snakeLen = Math.max(s.best.snakeLen || 0, info.m.length || 0);
     saveStats(s);
     updateMissions(info);
-    checkTrophies();
+    checkTrophies(); checkStickers();
   }
 
   // ---------------- messages ----------------
@@ -265,6 +321,7 @@
     $('btnGift').querySelector('.dot').hidden = gs.claimed;
     $('btnTrophy').querySelector('.n').textContent = `${earned().length}/${TROPHIES.length}`;
     $('btnShop').querySelector('.n').textContent = `${owned().length}/${SHOP.length}`;
+    if ($('btnStickers')) { $('btnStickers').querySelector('.n').textContent = `${stickers().length}/${STICKERS.length}`; $('btnStickers').querySelector('.dot').hidden = !(store.get('pb-stickers-new') || []).length; }
     // missions
     const M = missions(), list = $('misList'); list.innerHTML = '';
     const mult = ev.missions || 1;
@@ -282,7 +339,7 @@
     const h = document.createElement('h3'); body.appendChild(h);
     if (kind === 'gift') {
       const gs = giftState(); h.textContent = 'Daily gift';
-      const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = gs.claimed ? 'Come back tomorrow for the next gift!' : 'A present every day you play. Days 3 and 5 add a free Gem Mine power-up, and day 7 is a treasure chest!'; body.appendChild(p);
+      const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = gs.claimed ? 'Come back tomorrow for the next gift!' : 'A present every day you play. Days 3 and 5 add a free power-up, and day 7 is a treasure chest!'; body.appendChild(p);
       const row = document.createElement('div'); row.className = 'gifts';
       GIFTS.forEach((r, i) => { const d = i + 1, got = d < gs.day || (d === gs.day && gs.claimed), now = d === gs.day && !gs.claimed;
         const c = document.createElement('div'); c.className = 'gift' + (got ? ' got' : '') + (now ? ' now' : '') + (r === 'chest' ? ' chest' : '');
@@ -302,9 +359,9 @@
           c.onclick = () => { buy(it); openModal('shop'); };
           sec.querySelector('.shopgrid').appendChild(c); }
         body.appendChild(sec);
-        if (gid === 'sweets') {
-          const bs = document.createElement('div'); bs.className = 'shopsec'; bs.innerHTML = `<h4>Gem Mine power-ups</h4><div class="shopgrid"></div>`;
-          for (const it of BOOSTS) { const c = document.createElement('button'); c.className = 'item boost';
+        if (boostsFor(gid).length) {
+          const bs = document.createElement('div'); bs.className = 'shopsec'; bs.innerHTML = `<h4>${NAME[gid]} power-ups</h4><div class="shopgrid"></div>`;
+          for (const it of boostsFor(gid)) { const c = document.createElement('button'); c.className = 'item boost';
             c.innerHTML = `<span class="sw" style="background:linear-gradient(135deg,${it.sw[0]},${it.sw[1]})">${it.ic}${boostCount(it.id) ? `<i class="bn">${boostCount(it.id)}</i>` : ''}</span><b></b><small class="bd"></small><span class="pr">${coin}${fmt(it.price)} for ${it.pack}</span>`;
             c.querySelector('b').textContent = it.name; c.querySelector('.bd').textContent = it.desc;
             c.onclick = () => { buyBoost(it); openModal('shop'); };
@@ -312,6 +369,19 @@
           body.appendChild(bs);
         }
       }
+    } else if (kind === 'stickers') {
+      const have = stickers(), fresh = store.get('pb-stickers-new') || [];
+      h.textContent = `Sticker album ${have.length}/${STICKERS.length}`;
+      const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = 'Every game has 3 stickers to find. Play to fill your album!'; body.appendChild(p);
+      for (const gid of ['dash', 'castle', 'racer', 'potions', 'snake', 'sweets', 'bricks', 'cubes']) {
+        const sec = document.createElement('div'); sec.className = 'stkpage'; sec.innerHTML = '<h4></h4><div class="stkrow"></div>'; sec.querySelector('h4').textContent = NAME[gid];
+        for (const t of STICKERS.filter(x => x.game === gid)) { const got = have.includes(t.id), c = document.createElement('div');
+          c.className = 'stk' + (got ? ' got' : '') + (fresh.includes(t.id) ? ' new' : ''); c.style.setProperty('--sc', STK_COL[gid]);
+          c.innerHTML = `<span class="se">${t.e}</span><b></b><small></small>`; c.querySelector('b').textContent = got ? t.name : '???'; c.querySelector('small').textContent = t.desc;
+          sec.querySelector('.stkrow').appendChild(c); }
+        body.appendChild(sec);
+      }
+      store.set('pb-stickers-new', []);
     } else {
       h.textContent = `Trophies ${earned().length}/${TROPHIES.length}`;
       const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = `Every trophy gives you ${TROPHY_COINS} coins.`; body.appendChild(p);
@@ -323,12 +393,12 @@
   }
   function closeModal(){ $('metaModal').hidden = true; render(); }
   function initUI(){
-    $('btnGift').onclick = () => openModal('gift'); $('btnShop').onclick = () => openModal('shop'); $('btnTrophy').onclick = () => openModal('trophies');
+    $('btnGift').onclick = () => openModal('gift'); if ($('btnStickers')) $('btnStickers').onclick = () => openModal('stickers'); $('btnShop').onclick = () => openModal('shop'); $('btnTrophy').onclick = () => openModal('trophies');
     $('mmClose').onclick = closeModal; $('metaModal').addEventListener('click', e => { if (e.target.id === 'metaModal') closeModal(); });
-    render(); checkTrophies();
+    render(); checkTrophies(); checkStickers();
     // the gift pops up by itself once a day
     if (!giftState().claimed) setTimeout(() => { if (!document.getElementById('hub').hidden) openModal('gift'); }, 900);
   }
 
-  PB.meta = { BOOSTS, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
+  PB.meta = { STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
 })();

@@ -98,7 +98,7 @@
   }
   function progress(g){
     const p = store.get(g.id + '-progress') || {};
-    return { unlocked: p.unlocked || 1, stars: p.stars || {}, best: p.best || {}, last: p.last || 1 };
+    return { unlocked: p.unlocked || 1, stars: p.stars || {}, best: p.best || {}, last: p.last || 1, chests: p.chests || [] };
   }
   const saveProgress = (g, p) => store.set(g.id + '-progress', p);
   const totalStars = p => Object.values(p.stars).reduce((a,b) => a + b, 0);
@@ -113,7 +113,7 @@
   let G = null, mode = 'classic', phase = 'menu', level = 1, raf = null, last = 0, clock = 0;
   let cachedBest = 0, lastEntryId = null, lastScore = 0, overTimer = null;
   const play = $('play'), screen = $('screen');
-  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel'), pause: $('vPause') };
+  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel'), pause: $('vPause'), revive: $('vRevive') };
   function showView(name){ for (const k in views) views[k].hidden = k !== name; }
 
   // ---------- Hub ----------
@@ -265,22 +265,41 @@
     });
     showView('help');
   }
-  function openLevels(){
-    const p = progress(G), box = $('levelGrid'); box.innerHTML = '';
-    $('levelsStars').textContent = `\u2605 ${totalStars(p)} of ${G.levels * 3} stars`;
+  // A winding trail of levels from the bottom up, with a treasure chest after every 10 levels
+  const lockSvg = '<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z"/></svg>';
+  function openLevels(keepScroll){
+    const p = progress(G), box = $('levelGrid'), prevScroll = box.scrollTop;
+    box.className = 'lvlmap'; box.innerHTML = '';
+    $('levelsStars').textContent = `★ ${totalStars(p)} of ${G.levels * 3} stars`;
+    const STEP = 82, PAD = 60, H = G.levels * STEP + PAD * 2, xOf = n => 50 + Math.sin(n * 0.85) * 30, yOf = n => H - PAD - (n - 1) * STEP;
+    const trail = document.createElement('div'); trail.className = 'trail'; trail.style.height = H + 'px';
+    let d = ''; for (let n = 1; n <= G.levels; n++) d += (n === 1 ? 'M' : 'L') + xOf(n).toFixed(2) + ' ' + yOf(n);
+    const done = Math.min(p.unlocked, G.levels); let dd = ''; for (let n = 1; n <= done; n++) dd += (n === 1 ? 'M' : 'L') + xOf(n).toFixed(2) + ' ' + yOf(n);
+    trail.innerHTML = `<svg class="path" viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><path d="${d}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${dd}" fill="none" stroke="#ffd23f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity=".85"/></svg>`;
     for (let n = 1; n <= G.levels; n++) {
       const b = document.createElement('button');
-      b.className = 'lvl'; b.id = 'lvl-' + n;
+      b.className = 'lvl'; b.id = 'lvl-' + n; b.style.left = xOf(n) + '%'; b.style.top = yOf(n) + 'px';
       const locked = n > p.unlocked, st = p.stars[n] || 0;
       b.disabled = locked;
-      if (n === Math.min(p.unlocked, G.levels)) b.classList.add('current');
-      b.innerHTML = locked ? `<span class="num">${n}</span><svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z"/></svg>` : `<span class="num">${n}</span><span class="stars">${'\u2605'.repeat(st)}<i>${'\u2605'.repeat(3 - st)}</i></span>`;
+      if (n === done) b.classList.add('current');
+      b.innerHTML = locked ? `<span class="num">${n}</span>${lockSvg}` : `<span class="num">${n}</span><span class="stars">${'★'.repeat(st)}<i>${'★'.repeat(3 - st)}</i></span>`;
       b.setAttribute('aria-label', locked ? `Level ${n}, locked` : `Level ${n}, ${st} stars`);
       if (!locked) b.addEventListener('click', () => startGame('classic', n));
-      box.appendChild(b);
+      trail.appendChild(b);
+      if (n % 10 === 0 && n < G.levels + 1) {
+        const c = document.createElement('button'), open = p.chests.includes(n), ready = !open && p.unlocked > n;
+        c.className = 'chest' + (ready ? ' ready' : '') + (open ? ' open' : ''); c.disabled = !ready;
+        c.style.left = (xOf(n + 0.5) > 50 ? xOf(n + 0.5) - 26 : xOf(n + 0.5) + 26) + '%'; c.style.top = (yOf(n) - STEP / 2) + 'px';
+        c.textContent = open ? '\u{1F4E6}' : '\u{1F381}';
+        c.setAttribute('aria-label', open ? `Chest for level ${n}, opened` : ready ? `Open the chest for beating level ${n}` : `Chest: beat level ${n} to open it`);
+        if (ready) c.addEventListener('click', () => { const q = progress(G); if (q.chests.includes(n)) return; q.chests.push(n); saveProgress(G, q); if (PB.meta) PB.meta.openChest(G.id); openLevels(true); });
+        trail.appendChild(c);
+      }
     }
+    box.appendChild(trail);
     showView('levels');
-    const cur = box.querySelector('.current'); if (cur) cur.scrollIntoView({ block:'center' });
+    const place = () => { if (keepScroll === true) box.scrollTop = prevScroll; else { const cur = box.querySelector('.current'); if (cur) box.scrollTop = Math.max(0, cur.offsetTop - box.clientHeight / 2); } };
+    place(); requestAnimationFrame(place); setTimeout(place, 60);
   }
   function startGame(m, lvl){
     clearTimeout(overTimer);
@@ -299,7 +318,7 @@
       G.start(m, rand, Math.min(3 + bonus, G.maxLives), bonus ? `+${bonus} streak life!` : null);
       cachedBest = bestFor(G, m);
     }
-    lastEntryId = null; prevHud = null;
+    lastEntryId = null; prevHud = null; revives = 0;
     if (PB.meta) PB.meta.onPlay(G.id, m, level);
     chal = m === 'daily' ? challengeFor(G) : null;
     if (chal) { chal.lives0 = G.hud().lives; chal.value = 0; setTimeout(() => { if (chal && phase === 'play') toast('Goal: ' + chal.label, false); }, 900); }
@@ -366,15 +385,35 @@
     if (boards.length > 1) for (const b of boards) { const t = document.createElement('button'); t.setAttribute('role', 'tab'); t.textContent = BOARD_NAME[b]; t.setAttribute('aria-selected', String(b === pick)); t.addEventListener('click', () => overBoards(boards, b, lastEntryId)); tabs.appendChild(t); }
     renderList($('oList'), pick, highlight);
   }
+  // A gentler way to fail: one free "keep going" per level, then one more for coins
+  let revives = 0;
+  const REVIVE_COST = 60;
+  function offerRevive(proceed){
+    if (mode !== 'classic' || !G.revive || revives >= 2 || (G.canRevive && !G.canRevive())) return false;
+    const free = revives === 0, rich = wallet.get() >= REVIVE_COST;
+    if (!free && !rich) return false;
+    phase = 'revive'; hideCoach();
+    $('rTitle').textContent = G.reviveTitle || 'So close!'; $('rIcon').textContent = G.reviveIcon || '⏳';
+    $('rText').textContent = `Keep going with ${G.reviveText}?`;
+    $('rBtn').textContent = 'Keep going: ' + G.reviveText;
+    $('rCost').innerHTML = free ? 'Free this time!' : coinSvg + ` ${REVIVE_COST} coins (you have ${fmt(wallet.get())})`;
+    $('btnRevive').onclick = () => { if (!free && !wallet.spend(REVIVE_COST)) return; revives++; G.revive(); phase = 'play'; showView(null); if (PB.sfx) PB.sfx('power'); if (PB.music) PB.music.duck(false); };
+    $('btnNoRevive').onclick = () => { proceed(); };
+    if (PB.sfx) PB.sfx('lose'); if (PB.music) PB.music.duck(true);
+    clearTimeout(overTimer); overTimer = setTimeout(() => showView('revive'), 700);
+    return true;
+  }
   // Level games end here
-  shell.levelDone = function({ win, stars, score, summary }){
+  shell.levelDone = function(info){
+    const { win, stars, score, summary } = info;
     if (mode === 'daily') { shell.gameOver(score, summary); return; }
+    if (!win && !info.final && offerRevive(() => shell.levelDone({ ...info, final: true }))) return;
     phase = 'over'; lastScore = Math.floor(score);
     const firstClear = win && !(progress(G).stars[level] > 0);
     const mult = PB.meta ? PB.meta.coinMult(G.id) : 1, earned = (win ? 5 + stars * 3 + (firstClear ? 10 : 0) : 1) * mult; wallet.add(earned);
     $('lCoins').innerHTML = coinSvg + `<span>+${earned} coin${earned === 1 ? '' : 's'}${firstClear ? ' (first clear bonus!)' : ''}${mult > 1 ? ` (\u00d7${mult} event)` : ''}</span>`;
     const prevStars = progress(G).stars[level] || 0;
-    if (PB.sfx) PB.sfx(win ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
+    if (PB.sfx && !info.final) PB.sfx(win ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
     const p = progress(G);
     let newBest = false, lBestText = 'New best for this level!';
     if (win) {
@@ -382,6 +421,11 @@
       if (lastScore > (p.best[level] || 0)) { newBest = !!p.best[level]; p.best[level] = lastScore; }
       if (level >= p.unlocked) p.unlocked = Math.min(level + 1, G.levels + 1);
       saveProgress(G, p);
+      // a reward box with a free power-up the first time you beat every 5th level
+      if (firstClear && level % 5 === 0 && PB.meta && PB.meta.boostsFor(G.id).length) {
+        const bz = PB.meta.randomBoost(G.id); PB.meta.addBoost(bz.id, 1);
+        setTimeout(() => PB.meta.banner(`\u{1F381} Reward box! A free ${bz.name} ${bz.ic}`, true), 1300);
+      }
       // a won level also counts on today / this week / all time
       const bs = boardsOf(G), sc = G.boardScore ? G.boardScore(lastScore, level) : lastScore;
       const beatB = bs.filter(b => sc > bestFor(G, b));
@@ -503,6 +547,14 @@
     $('muteBtn').addEventListener('click', () => { const on = !(PB.sound.music || PB.sound.sfx); PB.sound.setSfx(on); PB.sound.setMusic(on); if (on) PB.music.play(G.music || G.id); paintSound(); });
     paintSound(); PB.music.play('hub');
   } else { $('tglMusic').hidden = true; $('tglSfx').hidden = true; $('muteBtn').hidden = true; }
+  // Symbols on colors, and phone buzz: both on unless turned off
+  function paintPrefs(){
+    $('tglSym').textContent = PB.prefs.symbols ? '\u2605 Symbols' : 'Symbols off'; $('tglSym').setAttribute('aria-pressed', String(PB.prefs.symbols));
+    $('tglBuzz').textContent = PB.prefs.buzz ? '\u{1F4F3} Buzz' : 'Buzz off'; $('tglBuzz').setAttribute('aria-pressed', String(PB.prefs.buzz));
+  }
+  $('tglSym').addEventListener('click', () => { PB.setPref('symbols', !PB.prefs.symbols); paintPrefs(); });
+  $('tglBuzz').addEventListener('click', () => { PB.setPref('buzz', !PB.prefs.buzz); paintPrefs(); if (PB.prefs.buzz) PB.buzz('medium'); });
+  paintPrefs();
   // a little click for every button
   document.addEventListener('click', e => { if (PB.sfx && e.target.closest && e.target.closest('button')) PB.sfx('click'); }, true);
   window.addEventListener('resize', () => { if (!play.hidden) fit(); });
