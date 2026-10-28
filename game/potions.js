@@ -155,8 +155,11 @@
       if (s.length) s[s.length-1].hidden = false;
       if (isSealed(st.bottles[j]) && !st.sealed.has(j)) {
         st.sealed.add(j); st.score += 100;
-        sparkle(st.pos[j].x + st.pos[j].w/2, st.pos[j].y + 6, COLORS[st.bottles[j][0].c], 22);
-        if (PB.sfx) PB.sfx('seal'); pop(st.pos[j].x + st.pos[j].w/2, st.pos[j].y - 22, NAMES[st.bottles[j][0].c] + '!', COLORS[st.bottles[j][0].c]);
+        const col = COLORS[st.bottles[j][0].c], p = st.pos[j];
+        sparkle(p.x + p.w/2, p.y + 6, col, 30); sparkle(p.x + p.w/2, p.y + p.h * 0.5, '#fff3a0', 14);
+        st.sealFx = st.sealFx || []; st.sealFx.push({ j, t: 0, col });
+        if (PB.sfx) { PB.sfx('seal'); PB.sfx('brewed'); }
+        pop(p.x + p.w/2, p.y - 30, NAMES[st.bottles[j][0].c] + '!', col, 1.6);
       }
     }
     function checkWin(){
@@ -179,7 +182,7 @@
     }
     function doUndo(){
       if (st.anim || st.over || !st.undo.length || st.undos <= 0) return;
-      st.bottles = st.undo.pop(); st.undos--; st.sel = -1;
+      st.bottles = st.undo.pop(); st.undos--; st.sel = -1; st.sealFx = [];
       st.sealed = new Set(st.bottles.map((b, i) => isSealed(b) ? i : -1).filter(i => i >= 0));
     }
     function restart(){
@@ -214,6 +217,7 @@
         if (st.anim.t >= 1) { st.anim = null; checkWin(); }
       }
       if (st.wiggle) { st.wiggle.t -= dt; if (st.wiggle.t <= 0) st.wiggle = null; }
+      if (st.sealFx) { for (const f of st.sealFx) f.t += dt; st.sealFx = st.sealFx.filter(f => f.t < 1.6); }
       if (!reduceMotion) {
         // sealed potions shimmer with rising sparkles
         for (const j of st.sealed) { const p = st.pos[j]; if (p && Math.random() < dt * 5) st.glints.push({ x: p.x + 6 + Math.random() * (p.w - 12), y: p.y + 20 + Math.random() * (p.h - 40), vy: -18 - Math.random() * 20, life: 1.2, col: COLORS[st.bottles[j][0].c] }); }
@@ -864,13 +868,15 @@
         if (top < bot - 0.2) { if (last && !last.hidden && last.col === col && Math.abs(last.top - bot) < 0.5) last.top = top; else blocks.push({ col, bot, top }); } }
       return blocks;
     }
+    let sealFlash = 0;
     function bottle3D(i, x, y, w, h, rot, front){
+      const done = st.sealed.has(i) && !(st.anim && st.anim.i === i);
       const E = E3, M = E.M, cx = x + w / 2, r = w / 2 - 3.2, Bm = M.trs([cx, -y, 34 + (front || 0)], [0, 0, -rot]);
       const part = (mesh, l, sc, mat, rr) => E.draw(mesh, M.mul(Bm, M.trs(l, rr || [0, 0, 0], sc)), mat);
       const ly = sy => -(sy - y), yc = y + h - w / 2;
       const blocks = potionBlocks(i, y, h);
       blocks.forEach((B, bi) => {
-        const c = hex3(B.col), mat = B.hidden ? { color: [0.3, 0.22, 0.44], spec: 1, shine: 50 } : { color: c.map(v => Math.pow(v, 1.15)), emissive: c.map(v => v * 0.16), spec: 1.8, shine: 100, rim: 0.3 };
+        const c = hex3(B.col), mat = B.hidden ? { color: [0.3, 0.22, 0.44], spec: 1, shine: 50 } : { color: c.map(v => Math.pow(v, 1.15)), emissive: c.map(v => v * (done ? 0.24 + sealFlash * 0.7 : 0.16)), spec: 1.8, shine: 100, rim: done ? 0.7 : 0.3 };
         if (B.bot > yc + 0.5) {
           const top = Math.min(B.top, yc);
           if (B.top < yc) part(A3.cyl, [0, (ly(top) + ly(yc)) / 2, 0], [r, ly(top) - ly(yc), r], mat);
@@ -944,7 +950,13 @@
         const p = st.pos[i]; let y = p.y, x = p.x;
         if (st.sel === i) { y -= 22; E.sprite(P3(x + p.w / 2, y + p.h * 0.55, 10), p.w * 2.6, [1, 0.8, 0.3], 0.35, true); }
         if (st.wiggle && st.wiggle.i === i) x += Math.sin(st.clock * 60) * 4;
-        bottle3D(i, x, y, p.w, p.h, 0);
+        const fx = st.sealFx && st.sealFx.find(f => f.j === i);
+        if (fx && !reduceMotion && fx.t < 0.7) y -= Math.sin(Math.PI * fx.t / 0.7) * 30;
+        if (st.sealed.has(i)) { const c = hex3(COLORS[st.bottles[i][0] ? st.bottles[i][0].c : 0]), pul = 0.5 + 0.5 * Math.sin(st.clock * 3 + i);
+          // a finished potion glows from behind in its own colour
+          E.sprite(P3(x + p.w / 2, y + p.h * 0.55, 6), p.w * (3 + pul * 0.4 + (fx ? Math.max(0, 1 - fx.t) * 3 : 0)), c, 0.4 + pul * 0.12 + (fx ? Math.max(0, 1 - fx.t) * 0.5 : 0), true); }
+        sealFlash = fx ? Math.max(0, 1 - fx.t / 1.2) : 0;
+        bottle3D(i, x, y, p.w, p.h, 0); sealFlash = 0;
       }
       if (st.anim) { const ap = animPose(); bottle3D(ap.a.i, ap.x, ap.y, ap.s.w, ap.s.h, ap.rot, 60); }
       E.end(); if (!tile) E.present(ctx, W, H);
@@ -1075,11 +1087,29 @@
       for (const q of st.glints) { const a = Math.min(1, q.life) * 0.9; ctx.globalAlpha = a; ctx.fillStyle = q.col; star(ctx, q.x, q.y, 3.2, 1.2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(q.x, q.y, 0.9, 0, 7); ctx.fill(); }
       ctx.restore(); ctx.globalAlpha = 1;
       if (!st.over && st.time <= 10 && st.time > 0) { const p = 0.5 + 0.5 * Math.sin(st.clock * 8); const vg = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.72); vg.addColorStop(0, 'rgba(255,40,60,0)'); vg.addColorStop(1, `rgba(255,40,60,${0.18 + p * 0.22})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H); }
+      drawDone();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const q of st.pops) {
         ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.font = `900 20px ${FONT}`;
         ctx.shadowColor = q.color; ctx.shadowBlur = 12; ctx.fillStyle = q.color; ctx.fillText(q.text, Math.min(W - 80, Math.max(80, q.x)), q.y); ctx.restore();
       }
+    }
+    // finished flasks: a burst of light and rings when they fill, then a gold-ringed check badge that stays
+    function drawDone(){
+      for (const f of st.sealFx || []) { const p = st.pos[f.j]; if (!p) continue; const cx = p.x + p.w / 2, cy = p.y + p.h * 0.5, n = parseInt(f.col.slice(1), 16), rgb = `${n >> 16},${(n >> 8) & 255},${n & 255}`;
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        if (!reduceMotion) for (const d of [0, 0.18]) { const k = (f.t - d) / 0.8; if (k <= 0 || k >= 1) continue; ctx.strokeStyle = `rgba(${rgb},${1 - k})`; ctx.lineWidth = 7 * (1 - k) + 1; ctx.beginPath(); ctx.ellipse(cx, cy, 20 + k * 90, (20 + k * 90) * 1.25, 0, 0, 7); ctx.stroke(); }
+        const rk = Math.max(0, 1 - f.t / 1.1); if (rk > 0 && !reduceMotion) { ctx.translate(cx, cy); ctx.rotate(f.t * 1.5); for (let i=0;i<12;i++) { ctx.rotate(Math.PI / 6); const g = ctx.createLinearGradient(0, 0, 0, -120); g.addColorStop(0, `rgba(255,250,210,${0.5 * rk})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(0, -120 * (0.6 + 0.4 * rk)); ctx.lineTo(5, 0); ctx.closePath(); ctx.fill(); } }
+        ctx.restore(); }
+      for (const j of st.sealed) { const p = st.pos[j]; if (!p || (st.anim && st.anim.i === j)) continue;
+        const fx = st.sealFx && st.sealFx.find(f => f.j === j), k = fx ? Math.min(1, Math.max(0, (fx.t - 0.45) / 0.3)) : 1; if (k <= 0) continue;
+        const sc = k < 1 ? k * (1.3 - 0.3 * k) : 1, bx = p.x + p.w / 2, by = p.y + p.h + 6;
+        ctx.save(); ctx.translate(bx, by); ctx.scale(sc * 1.1, sc * 1.1);
+        ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+        ctx.fillStyle = GOLD; ctx.beginPath(); ctx.arc(0, 0, 13, 0, 7); ctx.fill(); ctx.shadowColor = 'transparent';
+        const g = ctx.createLinearGradient(0, -10, 0, 10); g.addColorStop(0, '#6dff7a'); g.addColorStop(1, '#14a83a'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(-5, 0.5); ctx.lineTo(-1.5, 4); ctx.lineTo(5.5, -4); ctx.stroke();
+        ctx.restore(); }
     }
     const timeStr = t => { const s = Math.ceil(t); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 

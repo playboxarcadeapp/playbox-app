@@ -142,6 +142,9 @@
       if (k === 0) critter(t + 0.03, 900, 520, 0.3, 0.15, 7); else if (k === 1) { critter(t + 0.03, 700, 1050, 0.08, 0.14); critter(t + 0.13, 1000, 1320, 0.2, 0.14, 8); }
       else if (k === 2) { critter(t + 0.03, 460, 780, 0.1, 0.15); critter(t + 0.15, 820, 1120, 0.2, 0.15, 7); } else critter(t + 0.03, 640, 1200, 0.18, 0.15, 9); },
     popout: t => { voice(sfxBus, t, 900, { type: 'sine', slide: 0.35, slideT: 0.06, vol: 0.2, d: 0.08, s: 0.01, len: 0.01 }); twinkle(t + 0.04); },
+    // Potion Sort: a magic shimmer that rises up into a happy chord when a flask is finished
+    brewed: t => { for (let i=0;i<8;i++) voice(sfxBus, t + i * 0.035, 900 * Math.pow(2, i / 6), { type: 'sine', vol: 0.05, d: 0.12, s: 0.01, len: 0.01 });
+      [784, 988, 1175, 1568].forEach(f => voice(sfxBus, t + 0.3, f, { type: ['triangle', 'sine'], mult: [1, 2], vol: 0.07, d: 0.4, s: 0.2, len: 0.15, r: 0.35 })); twinkle(t + 0.5); },
     lose: t => [392, 370, 349, 294].forEach((f, i) => voice(sfxBus, t + i * 0.2, f, { type: 'triangle', vol: 0.16, d: 0.2, s: 0.4, len: i === 3 ? 0.5 : 0.12, r: 0.25, vib: i === 3 ? 6 : 0 })),
   };
   function twinkle(t){ [2093, 2637, 3136].forEach((f, i) => voice(sfxBus, t + i * 0.045, f, { type: 'sine', vol: 0.035, d: 0.18, s: 0.01, len: 0.01 })); }
