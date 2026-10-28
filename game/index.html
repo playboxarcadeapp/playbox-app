@@ -486,7 +486,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 .item { appearance: none; font: inherit; color: inherit; cursor: pointer; display: grid; justify-items: center; gap: 4px; padding: 10px 6px; border-radius: 14px; background: var(--panel-2); border: 2px solid var(--line); text-align: center; }
 .item .sw { display: grid; place-items: center; font-size: 22px; line-height: 1; width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(255,255,255,.8); box-shadow: 0 3px 10px rgba(0,0,0,.4); }
 .item b { font-size: .82rem; font-weight: 900; line-height: 1.15; } .item .pr { display: inline-flex; align-items: center; gap: 3px; font-weight: 900; font-size: .82rem; color: #ffc21a; }
-.item.have .pr { color: var(--cyan); } .item.on { border-color: var(--lime); } .item.on .pr { color: var(--lime); }
+.item .sw { position: relative; } .item .bn { position: absolute; right: -8px; top: -6px; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px; background: #ff3d6e; color: #fff; font-size: 12px; font-weight: 900; line-height: 16px; font-style: normal; border: 2px solid #fff; } .item .bd { font-size: .7rem; opacity: .8; line-height: 1.2; } .item.have .pr { color: var(--cyan); } .item.on { border-color: var(--lime); } .item.on .pr { color: var(--lime); }
 .trophies { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .trophy { display: grid; justify-items: center; text-align: center; gap: 2px; padding: 10px 6px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); opacity: .5; }
 .trophy.got { opacity: 1; border-color: var(--yellow); background: linear-gradient(180deg, rgba(255,210,63,.16), var(--panel-2)); }

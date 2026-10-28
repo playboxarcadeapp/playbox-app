@@ -3,7 +3,7 @@
   const { fmt, reduceMotion, ctx, mulberry, seedFrom, shuffle, shade } = PB;
 
   function createSweets(shell){
-    const W = 480, H = 660, N = 8, CELL = 54, BX = (W - N*CELL)/2, BY = 178;
+    const W = 480, H = 724, N = 8, CELL = 54, BX = (W - N*CELL)/2, BY = 178, BAR_Y = BY + N*CELL + 62, BAR_R = 29;
     const FONT = '"Fredoka", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif';
     const CHOC = '#2a1a10';
     const NAMES = ['Ruby','Topaz','Emerald','Sapphire','Amethyst','Amber'];
@@ -48,7 +48,7 @@
 
     // ---------- Board ----------
     const T = (r,c) => (r >= 0 && r < N && c >= 0 && c < N && st.grid[r][c] && !st.grid[r][c].dying) ? st.grid[r][c] : null;
-    const kind = t => t && t.sp !== 'c' ? t.t : -1;
+    const kind = t => t && t.sp !== 'c' && t.t < 6 ? t.t : -1;
     function newTile(t, r, c, y){ return { t, sp:null, x:c, y: y == null ? r : y, sc:1, id: uid++, dying:false, clearT:0 }; }
     function randType(){ return Math.floor(st.rand() * st.spec.colors); }
     function fillBoard(){
@@ -114,7 +114,7 @@
         t.dying = true; t.clearT = 0.25; n++;
         damage(r, c);
         if (t.sp !== 'c' && st.collect && st.collect[t.t] > 0) st.collect[t.t]--;
-        burst(r, c, t.sp === 'c' ? '#fff' : COLS[t.t], t.sp ? 12 : 6);
+        burst(r, c, t.t >= 6 ? '#fff' : COLS[t.t], t.sp ? 12 : 6);
         if (t.sp === 'h') { for (let i=0;i<N;i++) queue.push([r,i]); beam(r, c, 'h'); }
         else if (t.sp === 'v') { for (let i=0;i<N;i++) queue.push([i,c]); beam(r, c, 'v'); }
         else if (t.sp === 'b') { for (let dr=-1;dr<=1;dr++) for (let dc=-1;dc<=1;dc++) queue.push([r+dr,c+dc]); st.shake = 8; }
@@ -180,7 +180,7 @@
       if (A.sp === 'c' && B.sp === 'c') { const all = []; for (let r=0;r<N;r++) for (let c=0;c<N;c++) all.push([r,c]); pop(W/2, BY + 200, 'Gem storm!', '#ffd23f'); clearSet(all); return; }
       if (A.sp === 'c' || B.sp === 'c') {
         const bombCell = A.sp === 'c' ? a : b, other = A.sp === 'c' ? B : A, k = other.t;
-        const cells = [bombCell]; const bombTile = T(...bombCell); if (bombTile) bombTile.sp = null;
+        const cells = [bombCell]; const bombTile = T(...bombCell); if (bombTile) bombTile.sp = 'spent';
         for (let r=0;r<N;r++) for (let c=0;c<N;c++) { const t = T(r,c); if (t && t.t === k && t.sp !== 'c') { if (other.sp === 'h' || other.sp === 'v') t.sp = Math.random() < .5 ? 'h' : 'v'; else if (other.sp === 'b') t.sp = 'b'; cells.push([r,c]); } }
         pop(W/2, BY + 200, 'Mega dig!', '#ffd23f');
         clearSet(cells); return;
@@ -193,6 +193,61 @@
       A.sp = B.sp = null;
       pop(W/2, BY + 200, 'Kaboom!', '#ff8a1f');
       clearSet(cells.concat([a, b]));
+    }
+    // ---------- Power-ups (bought in the Swag Shop or found in gift boxes) ----------
+    const boostList = () => (PB.meta && PB.meta.BOOSTS) || [];
+    const boostN = id => (PB.meta && PB.meta.boostCount) ? PB.meta.boostCount(id) : 0;
+    const boostX = i => W / 2 + (i - 1.5) * 106;
+    function boostAt(x, y){ const L = boostList(); for (let i=0;i<L.length;i++) if (Math.hypot(x - boostX(i), y - BAR_Y) < BAR_R + 10) return L[i]; return null; }
+    function pressBoost(b){
+      if (st.busy || st.over || st.finishing) return;
+      if (st.tool === b.id) { st.tool = null; if (PB.sfx) PB.sfx('tap'); return; }
+      if (boostN(b.id) <= 0) { pop(W/2, BAR_Y - 46, 'Get more in the Swag Shop!', '#ffd23f', 1.6); if (PB.sfx) PB.sfx('nope'); return; }
+      st.sel = null; st.hint = null; st.idle = 0;
+      if (b.id === 'pickaxe' || b.id === 'lightning') { st.tool = b.id; if (PB.sfx) PB.sfx('pick'); return; }
+      if (!PB.meta.useBoost(b.id)) return;
+      st.boostFlash = { id: b.id, t: 0.6 };
+      if (b.id === 'moves5') { st.moves += 5; pop(70, 150, '+5 moves!', '#7dff6a', 1.6); if (PB.sfx) PB.sfx('power'); }
+      else if (b.id === 'dynamite') {
+        const cand = []; for (let r=0;r<N;r++) for (let c=0;c<N;c++) { const t = T(r,c); if (t && !t.sp && t.t < 6) cand.push([r,c]); }
+        shuffle(cand, Math.random); cand.slice(0, 3).forEach(([r,c]) => { const t = st.grid[r][c]; t.sp = 'b'; t.sc = 1.6; burst(r, c, '#ff8a1f', 10); });
+        pop(W/2, BY + 200, 'Dynamite!', '#ff8a1f'); if (PB.sfx) PB.sfx('power');
+      }
+    }
+    function useTool(r, c){
+      const id = st.tool; st.tool = null;
+      if (!PB.meta.useBoost(id)) return;
+      st.boostFlash = { id, t: 0.6 }; st.chain = 0; st.busy = true; st.sel = null; st.hint = null;
+      if (id === 'pickaxe') { st.shake = 7; pop(BX + c*CELL + CELL/2, BY + r*CELL, 'Smash!', '#ffd23f'); if (PB.sfx) PB.sfx('crash'); clearSet([[r, c]]); }
+      else { const cells = []; for (let i=0;i<N;i++) { cells.push([r, i]); cells.push([i, c]); } beam(r, c, 'h'); beam(r, c, 'v'); st.shake = 10; pop(W/2, BY + 200, 'Zap!', '#9ae6ff'); if (PB.sfx) PB.sfx('boom'); clearSet(cells); }
+    }
+    function drawBoosts(){
+      const L = boostList(); if (!L.length) return;
+      ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      // a little shelf the buttons sit on
+      ctx.fillStyle = 'rgba(40,10,80,.55)'; ctx.beginPath(); ctx.roundRect(22, BAR_Y - BAR_R - 9, W - 44, BAR_R * 2 + 18, 24); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,216,106,.8)'; ctx.lineWidth = 2.5; ctx.stroke();
+      L.forEach((b, i) => {
+        const x = boostX(i), y = BAR_Y, n = boostN(b.id), on = st.tool === b.id, fl = st.boostFlash && st.boostFlash.id === b.id ? st.boostFlash.t / 0.6 : 0;
+        const rr = BAR_R * (1 + fl * 0.18 + (on ? 0.06 * Math.sin(st.time * 10) : 0));
+        if (on || fl) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(x, y, 4, x, y, rr * 1.9); gg.addColorStop(0, 'rgba(255,240,150,.9)'); gg.addColorStop(1, 'rgba(255,200,60,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, y, rr * 1.9, 0, 7); ctx.fill(); ctx.restore(); }
+        const g = ctx.createRadialGradient(x - rr * 0.35, y - rr * 0.4, 2, x, y, rr); g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, b.sw[0]); g.addColorStop(1, b.sw[1]);
+        ctx.globalAlpha = n > 0 || on ? 1 : 0.45;
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill();
+        ctx.lineWidth = 3.5; ctx.strokeStyle = on ? '#fff36a' : '#ffffff'; ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = CHOC; ctx.beginPath(); ctx.arc(x, y, rr + 2.5, 0, 7); ctx.stroke();
+        ctx.font = `${Math.round(rr * 1.05)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillStyle = '#fff'; ctx.fillText(b.ic, x, y + 2);
+        ctx.globalAlpha = 1;
+        // count badge (a green plus when you have none)
+        const bx = x + rr * 0.78, by = y - rr * 0.72; ctx.fillStyle = n > 0 ? '#ff3d6e' : '#2fb36b'; ctx.beginPath(); ctx.arc(bx, by, 11, 0, 7); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.font = `700 13px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(n > 0 ? String(Math.min(n, 99)) : '+', bx, by + 1);
+      });
+      if (st.tool) {
+        const txt = st.tool === 'pickaxe' ? 'Tap a gem to smash it!' : 'Tap a gem to zap its row and column!';
+        ctx.font = `700 17px ${FONT}`; const w = ctx.measureText(txt).width + 28, y = BY - 2;
+        ctx.fillStyle = '#fff36a'; ctx.beginPath(); ctx.roundRect(W/2 - w/2, y - 15, w, 30, 15); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = CHOC; ctx.stroke();
+        ctx.fillStyle = CHOC; ctx.fillText(txt, W/2, y + 1);
+      }
+      ctx.restore();
     }
     function goalsMet(){
       const s = st.spec;
@@ -251,6 +306,10 @@
       st.over = true;
       const s = st.spec;
       if (s.type === 'daily') { shell.gameOver(st.score, `You scored ${fmt(st.score)} in ${s.moves} moves`); return; }
+      if (win && typeof s.n === 'number' && s.n % 5 === 0 && PB.meta && PB.meta.addBoost && ((PB.store.get('sweets-progress') || {}).unlocked || 1) <= s.n) {
+        const bz = PB.meta.randomBoost(); PB.meta.addBoost(bz.id, 1);
+        setTimeout(() => PB.meta.banner(`\u{1F381} Reward box! A free ${bz.name} ${bz.ic} for Gem Mine`, true), 1400);
+      }
       const stars = !win ? 0 : st.score >= s.star3 ? 3 : st.score >= s.star2 ? 2 : 1;
       const summary = win ? (stars === 3 ? 'Perfect bake!' : stars === 2 ? 'Great baking!' : 'You did it!') : goalText() + ' still to go';
       shell.levelDone({ win, stars, score: st.score, summary });
@@ -309,6 +368,7 @@
         if (st.idle > 5 && !st.hint) st.hint = findMove();
       }
       if (st.wiggle) { st.wiggle.t -= dt; if (st.wiggle.t <= 0) st.wiggle = null; }
+      if (st.boostFlash) { st.boostFlash.t -= dt; if (st.boostFlash.t <= 0) st.boostFlash = null; }
       for (const q of st.parts) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 520*dt; q.life -= dt; }
       if (st.sparks) { for (const q of st.sparks) { q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 260*dt; q.vx *= 0.97; q.life -= dt; } st.sparks = st.sparks.filter(q => q.life > 0); }
       st.parts = st.parts.filter(q => q.life > 0);
@@ -364,7 +424,7 @@
     }
     function star(g, cx, cy, ro, ri){ g.beginPath(); for (let i=0;i<10;i++){ const a = -Math.PI/2 + i*Math.PI/5, r = i%2 ? ri : ro; g.lineTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r); } g.closePath(); }
     function drawTile(t, cx, cy, s){
-      if (!t.sp) { pastry(ctx, t.t, cx, cy, s); return; }
+      if (!t.sp || t.sp === 'spent') { pastry(ctx, t.t, cx, cy, s); return; }
       const time = st.time || 0, pulse = 1 + Math.sin(time * 5 + cx * 0.05) * 0.06;
       const auraCol = t.sp === 'c' ? '220,170,255' : t.sp === 'b' ? '255,140,40' : '90,225,255';
       ctx.fillStyle = `rgba(${auraCol},.28)`; ctx.beginPath(); ctx.roundRect(cx - 21 * s, cy - 21 * s, 42 * s, 42 * s, 10 * s); ctx.fill();
@@ -407,11 +467,11 @@
       else pastry(ctx, kind, x, y, s);
     }
     function rockTile(x, y, w, f){
-      const g = ctx, rg = g.createLinearGradient(x, y, x + w, y + w); rg.addColorStop(0, f > 1 ? '#8a7a6c' : '#b5a493'); rg.addColorStop(1, f > 1 ? '#4e4238' : '#7d6d5e');
+      const g = ctx, rg = g.createLinearGradient(x, y, x + w, y + w); rg.addColorStop(0, f > 1 ? '#3a3f4c' : '#5a4434'); rg.addColorStop(1, f > 1 ? '#101218' : '#22170f');
       g.fillStyle = rg; g.beginPath(); g.moveTo(x + w * 0.15, y); g.lineTo(x + w * 0.8, y + w * 0.04); g.lineTo(x + w, y + w * 0.35); g.lineTo(x + w * 0.94, y + w * 0.9); g.lineTo(x + w * 0.3, y + w); g.lineTo(x, y + w * 0.7); g.lineTo(x + w * 0.04, y + w * 0.2); g.closePath(); g.fill();
       g.strokeStyle = '#2a1a10'; g.lineWidth = 2; g.stroke();
       g.strokeStyle = 'rgba(30,18,10,.6)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + w * 0.3, y + w * 0.2); g.lineTo(x + w * 0.5, y + w * 0.5); g.lineTo(x + w * 0.4, y + w * 0.8); g.moveTo(x + w * 0.5, y + w * 0.5); g.lineTo(x + w * 0.8, y + w * 0.6); if (f > 1) { g.moveTo(x + w * 0.7, y + w * 0.15); g.lineTo(x + w * 0.62, y + w * 0.4); } g.stroke();
-      g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(x + w * 0.3, y + w * 0.2, w * 0.12, w * 0.05, -0.4, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.14)'; g.beginPath(); g.ellipse(x + w * 0.3, y + w * 0.2, w * 0.12, w * 0.05, -0.4, 0, 7); g.fill();
     }
     let caveC = null;
     // A bright, sparkly crystal cavern (candy-colored, so the gems really pop)
@@ -440,13 +500,13 @@
     let rockTex = null;
     function rockTileCanvas(f){
       const [c, g] = PB.layer(64, 64), R = mulberry(f * 31);
-      const base = f > 1 ? ['#7f8aa0', '#3f4860'] : ['#b8997a', '#7a5f45'];
+      const base = f > 1 ? ['#3a3f4c', '#101218'] : ['#5a4434', '#22170f'];
       const gr = g.createLinearGradient(0, 0, 64, 64); gr.addColorStop(0, base[0]); gr.addColorStop(1, base[1]); g.fillStyle = gr; g.beginPath(); g.roundRect(1, 1, 62, 62, 10); g.fill();
       // cobbles
-      for (let i=0;i<7;i++) { const x = 10 + R() * 44, y = 10 + R() * 44, r = 8 + R() * 6; g.fillStyle = `rgba(${f > 1 ? '40,48,64' : '90,70,50'},.16)`; g.beginPath(); g.ellipse(x, y, r, r * 0.75, R(), 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(x - 2, y - 3, r * 0.5, r * 0.25, R(), 0, 7); g.fill(); }
-      g.strokeStyle = 'rgba(255,255,255,.65)'; g.lineWidth = 3; g.beginPath(); g.roundRect(3, 3, 58, 58, 9); g.stroke();
-      g.strokeStyle = f > 1 ? 'rgba(20,24,40,.6)' : 'rgba(80,60,40,.45)'; g.lineWidth = 2; g.beginPath(); g.moveTo(12, 16); g.lineTo(26, 30); g.lineTo(20, 46); g.moveTo(26, 30); g.lineTo(46, 36); if (f > 1) { g.moveTo(44, 10); g.lineTo(40, 24); } g.stroke();
-      if (f > 1) { g.fillStyle = '#4a5060'; g.fillRect(1, 20, 62, 6); g.fillRect(1, 40, 62, 6); g.fillStyle = '#c8ccd6'; for (const y of [23, 43]) for (const x of [8, 32, 56]) { g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); } }
+      for (let i=0;i<7;i++) { const x = 10 + R() * 44, y = 10 + R() * 44, r = 8 + R() * 6; g.fillStyle = `rgba(${f > 1 ? '0,0,0' : '10,5,0'},.3)`; g.beginPath(); g.ellipse(x, y, r, r * 0.75, R(), 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.ellipse(x - 2, y - 3, r * 0.5, r * 0.25, R(), 0, 7); g.fill(); }
+      g.strokeStyle = 'rgba(0,0,0,.85)'; g.lineWidth = 3; g.beginPath(); g.roundRect(2.5, 2.5, 59, 59, 9.5); g.stroke(); g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(5, 5, 54, 54, 8); g.stroke();
+      g.strokeStyle = 'rgba(0,0,0,.75)'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(12, 16); g.lineTo(26, 30); g.lineTo(20, 46); g.moveTo(26, 30); g.lineTo(46, 36); if (f > 1) { g.moveTo(44, 10); g.lineTo(40, 24); } g.stroke();
+      if (f > 1) { g.fillStyle = '#1c1f26'; g.fillRect(1, 20, 62, 6); g.fillRect(1, 40, 62, 6); g.fillStyle = '#9aa0ac'; for (const y of [23, 43]) for (const x of [8, 32, 56]) { g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); } }
       return c;
     }
     function lantern(x, y){
@@ -530,7 +590,7 @@
       const time = st.time || 0;
       for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
         const f = st.frost ? st.frost[r][c] : 0;
-        if (f > 0) { const x = BX + c * CELL + CELL / 2, y = BY + r * CELL + CELL / 2; if (!rockTex) rockTex = [null, E.texture(rockTileCanvas(1), { repeat: false }), E.texture(rockTileCanvas(2), { repeat: false })]; E.draw(A3.tile, M.trs(P3(x, y, 2), [0, 0, 0], [CELL - 4, CELL - 4, 6]), { tex: rockTex[Math.min(2, f)], color: [1, 1, 1], spec: 0.3, shine: 20 }); }
+        if (f > 0) { const x = BX + c * CELL + CELL / 2, y = BY + r * CELL + CELL / 2; if (!rockTex) rockTex = [null, E.texture(rockTileCanvas(1), { repeat: false }), E.texture(rockTileCanvas(2), { repeat: false })]; E.draw(A3.tile, M.trs(P3(x, y, 2), [0, 0, 0], [CELL - 4, CELL - 4, 6]), { tex: rockTex[Math.min(2, f)], color: [0.85, 0.85, 0.85], spec: 0.15, shine: 20 }); }
       }
       for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
         const t = st.grid[r][c]; if (!t) continue;
@@ -543,9 +603,10 @@
         if (sc <= 0.02) continue;
         const frozen = st.frost && st.frost[r][c] > 0 && !t.dying;
         const k = sc * 1.3 * (t.sp === 'b' ? 0.85 : 1), sway = Math.sin(time * 1.7 + t.id * 1.3) * 0.16, tilt = Math.cos(time * 1.3 + t.id) * 0.08;
-        const z = 16 + lift + (frozen ? 4 : 0), type = t.sp === 'c' ? 6 : t.t, col = type === 6 ? [1, 1, 1] : hex3(COLS[type]);
+        const z = 16 + lift + (frozen ? 4 : 0), type = t.sp === 'c' || t.t >= 6 ? 6 : t.t, col = type === 6 ? [1, 1, 1] : hex3(COLS[type]);
         E.draw(A3.gems[type], M.trs(P3(x, y, z - 8), [tilt, sway + spin, 0], [k * 1.13, k * 1.13, k * 0.5]), { color: type === 6 ? [0.3, 0.25, 0.4] : col.map(v => v * 0.32), unlit: true, noShadow: true });
-        E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * 0.2), spec: 2.6, shine: 150, rim: 0.85 });
+        const spGlow = t.sp && !t.dying ? (type === 6 ? 0.12 : 0.3 + 0.1 * Math.sin(time * 6 + t.id)) : 0.2;
+        E.draw(A3.gems[type], M.trs(P3(x, y, z), [tilt, sway + spin, 0], [k, k, k * 1.1]), { color: col, emissive: col.map(v => v * spGlow), spec: 2.6, shine: 150, rim: t.sp ? 1.3 : 0.85 });
         if (!t.dying) E.sprite(P3(x - CELL * 0.14 * sc, y - CELL * 0.16 * sc, z + 16), CELL * 0.3 * sc, [1, 1, 1], 0.55, true);
         // little star twinkles that come and go on random gems
         if (!t.dying && !reduceMotion) { const tw = Math.sin(time * 1.7 + t.id * 2.71) * Math.sin(time * 0.9 + t.id * 1.3); if (tw > 0.75) { const a = (tw - 0.75) / 0.25; E.sprite(P3(x + CELL * 0.2, y - CELL * 0.22, z + 22), CELL * 0.62 * a, [1, 1, 1], a, true); E.sprite(P3(x + CELL * 0.2, y - CELL * 0.22, z + 21), CELL * 1.0 * a, col, a * 0.45, true); } }
@@ -555,11 +616,13 @@
         // a shimmer sweeps diagonally across the board every few seconds and makes each gem flash
         if (!t.dying && !reduceMotion) { const sw = ((time * 0.32) % 1.6) * (N * 2 + 6) - 3 - (t.x + t.y); if (sw > 0 && sw < 1.2) { const a = Math.sin(sw / 1.2 * Math.PI); E.sprite(P3(x + CELL * 0.12, y - CELL * 0.14, z + 22), CELL * 0.7 * a * sc, [1, 1, 1], a, true); E.sprite(P3(x, y, z + 18), CELL * 1.3 * a * sc, col, a * 0.35, true); } }
         if (t.sp && !t.dying) {
-          const pulse = 1 + Math.sin(time * 6 + t.id) * 0.5, hc = t.sp === 'c' ? [0.9, 0.7, 1] : t.sp === 'b' ? [1, 0.62, 0.2] : col;
-          // big pulsing halo behind every special so it pops out of the board
-          E.draw(A3.tile, M.trs(P3(x, y, 5), [0, 0, 0], [CELL - 5, CELL - 5, 5]), { color: hc.map(v => v * 0.9 + 0.05), emissive: hc.map(v => v * (0.35 + pulse * 0.3)), spec: 1.4, shine: 80, noShadow: true });
-          E.sprite(P3(x, y, z - 12), CELL * (1.55 + pulse * 0.15) * sc, hc, 0.55 + pulse * 0.15, true);
-          E.sprite(P3(x, y, z - 11), CELL * 0.95 * sc, [1, 1, 1], 0.25 + pulse * 0.1, true);
+          const pulse = 0.5 + 0.5 * Math.sin(time * 6 + t.id), hc = t.sp === 'c' ? [0.42, 0.12, 0.75] : t.sp === 'b' ? [1, 0.42, 0.05] : col;
+          // a solid glowing tile in the gem's colour, ringed in gold, so specials jump off the board
+          E.draw(A3.tile, M.trs(P3(x, y, 4), [0, 0, 0], [CELL - 2, CELL - 2, 5]), { color: [1, 0.82, 0.25], emissive: [0.75, 0.55, 0.12], spec: 1.6, shine: 90, noShadow: true });
+          E.draw(A3.tile, M.trs(P3(x, y, 6), [0, 0, 0], [CELL - 12, CELL - 12, 5]), { color: [0.55, 0.12, 0.95], emissive: [0.22 + pulse * 0.12, 0.04, 0.4 + pulse * 0.2], spec: 1.2, shine: 70, noShadow: true });
+          E.sprite(P3(x, y, z - 12), CELL * (1.45 + pulse * 0.25) * sc, hc, 0.35 + pulse * 0.2, true);
+          // four sparkles that circle the special
+          if (!reduceMotion) for (let q=0;q<4;q++) { const a = time * 2.2 + q * Math.PI / 2 + t.id, rr = CELL * 0.52; E.sprite(P3(x + Math.cos(a) * rr, y + Math.sin(a) * rr, z + 24), CELL * 0.26 * (0.6 + 0.4 * Math.sin(time * 7 + q)), [1, 1, 0.8], 0.9, true); }
         }
         if ((t.sp === 'h' || t.sp === 'v') && !t.dying) {
           const rot = t.sp === 'v' ? Math.PI / 2 : 0, bm = M.trs(P3(x, y, z + 12), [0, 0, rot], [1, 1, 1]);
@@ -588,8 +651,8 @@
       E.end(); if (!tile) E.present(ctx, W, H);
     }
     function draw(){
-      if (assets3D()) return drawWith3D();
-      drawFlat();
+      if (assets3D()) drawWith3D(); else drawFlat();
+      if (st.phase !== 'menu') drawBoosts();
     }
     // 3D board with the goal card, lanterns and effects drawn over it in 2D
     function drawWith3D(){
@@ -743,7 +806,7 @@
       id:'sweets', sfxScore:false, music:'sweets', title:'GEM MINE', W, H, statLabel:'Moves', type:'levels', levels:100, maxLives: 0,
       failTitle:'Out of moves', dailyText:'Score attack: 25 moves', powersTitle:'Special gems',
       tile:{ order:3, name:'Gem Mine', kind:'Mining match 3 \u00b7 100 levels', art: artTile, isNew: true },
-      controls: ['Swipe a gem into its neighbor to swap them.', 'Line up 3 or more of the same gem to mine them.', 'Every gem has its own shape: hearts, triangles, diamonds and more.', 'Meet the goal at the top before your moves run out.', 'Rock tiles crack open when you match on top of them.', 'Moves you have left at the end turn into bonus points.'],
+      controls: ['Swipe a gem into its neighbor to swap them.', 'Line up 3 or more of the same gem to mine them.', 'Every gem has its own shape: hearts, triangles, diamonds and more.', 'Meet the goal at the top before your moves run out.', 'Rock tiles crack open when you match on top of them.', 'Moves you have left at the end turn into bonus points.', 'Tap a power-up under the board to use it. Get more in the Swag Shop, daily gifts and reward boxes every 5 levels.'],
       powers: [
         { name:'Laser gem', desc:'Match 4 in a row. Blasts a whole row or column', icon: g => { const sv = st; st = st || {time:0}; g.fillStyle='#5ce1ff'; g.fillRect(4, 12, 38, 4); pastry(g, 3, 23, 14, 0.55); st = sv; } },
         { name:'Dynamite gem', desc:'Match in an L or T shape. Blows up the 3\u00d73 around it', icon: g => { const sv = st; st = st || {time:0}; g.fillStyle='rgba(255,140,40,.6)'; g.beginPath(); g.arc(23,14,14,0,7); g.fill(); pastry(g, 5, 23, 14, 0.55); st = sv; } },
@@ -763,7 +826,10 @@
       ],
       pointerDown(x, y){
         if (st.busy || st.over) return;
-        const cell = cellAt(x, y); st.drag = cell ? { cell, x, y } : null;
+        const bz = boostAt(x, y); if (bz) { st.drag = null; pressBoost(bz); return; }
+        const cell = cellAt(x, y);
+        if (st.tool) { st.drag = null; if (cell) useTool(cell[0], cell[1]); else st.tool = null; return; }
+        st.drag = cell ? { cell, x, y } : null;
       },
       pointerMove(x, y){
         if (!st.drag || st.busy) return;
@@ -781,7 +847,7 @@
         if (st.sel && Math.abs(st.sel[0] - cell[0]) + Math.abs(st.sel[1] - cell[1]) === 1) trySwap(st.sel, cell);
         else st.sel = (st.sel && st.sel[0] === cell[0] && st.sel[1] === cell[1]) ? null : cell;
       },
-      key(){}, debug(){ return st; }, debugStep(n){ for (let i=0;i<n;i++) update(1 / 60); }, debugMove(){ const m = findMove(); if (m) trySwap(m[0], m[1]); return m; },
+      key(){}, debug(){ return st; }, debugStep(n){ for (let i=0;i<n;i++) update(1 / 60); }, debugMove(){ const m = findMove(); if (m) trySwap(m[0], m[1]); return m; }, debugBoost(id, r, c){ const b = boostList().find(q => q.id === id); pressBoost(b); if (st.tool && r != null) useTool(r, c); },
     };
   }
   PB.register(createSweets);

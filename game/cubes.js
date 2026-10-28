@@ -5,7 +5,7 @@
   function createCubes(shell){
     const W = 480, H = 690, MAX_LIVES = 5;
     const DISPLAY = '"Lilita One", "Arial Rounded MT Bold", "Arial Black", sans-serif';
-    const COLS = ['#0a5cff', '#ff1a1a', '#00c832', '#ffd800', '#ff7b00', '#9a1eff'];
+    const COLS = ['#0a5cff', '#ff1a1a', '#00c832', '#ffd800', '#ff7b00', '#7a1fff'];
     const SHAPES = [
       [[0,0]], [[0,0],[0,1]], [[0,0],[1,0]], [[0,0],[0,1],[0,2]], [[0,0],[1,0],[2,0]],
       [[0,0],[0,1],[1,0],[1,1]], [[0,0],[1,0],[1,1]], [[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,1]],
@@ -88,7 +88,7 @@
       else { ctx.moveTo(cx - dc * sz * 0.45, cy - sz); ctx.lineTo(cx - dc * sz * 0.45, cy + sz); ctx.lineTo(cx + dc * sz * 0.65, cy); }
       ctx.closePath(); ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fill();
     }
-    const COLS0 = COLS.slice(), PALS = { cols_candy: ['#ff0f8f', '#00b4ff', '#3ce000', '#ffe600', '#ff5500', '#b300ff'], cols_jewel: ['#2f5bff', '#e0103f', '#10b860', '#ffb000', '#ff5a10', '#8a3aff'] };
+    const COLS0 = COLS.slice(), PALS = { cols_candy: ['#ff1f1f', '#00b4ff', '#3ce000', '#ffe600', '#ff7a00', '#7a1fff'], cols_jewel: ['#2f5bff', '#e0103f', '#10b860', '#ffb000', '#ff5a10', '#8a3aff'] };
     function loadLevel(){
       COLS.splice(0, COLS.length, ...(PALS[PB.meta && PB.meta.look('cubes', 'colors')] || COLS0));
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.rand;
@@ -119,7 +119,7 @@
       st.bump = { id: b.id, t: 0.2 }; return 'blocked';
     }
     function exitBlock(b, side){
-      b.out = { side, t: 0 }; st.drag = null; if (PB.sfx) PB.sfx('exit');
+      b.out = { side, t: 0 }; st.drag = null; if (PB.sfx) { PB.sfx('exit'); PB.sfx('escape'); }
       st.score += 50 * st.level;
       const [dr, dc] = DIRS[side];
       const cx = st.bx + (b.c + 0.5) * st.cell, cy = st.by + (b.r + 0.5) * st.cell;
@@ -158,7 +158,7 @@
         if (st.retry != null) { st.retry -= dt; if (st.retry <= 0) { st.retry = null; const keep = st.level; loadLevel(); st.level = keep; st.msg = 'Try again! Tap to start'; } }
       }
       for (const b of st.blocks) {
-        if (b.out) { b.out.t += dt / 0.35; continue; }
+        if (b.out) { const was = b.out.t; b.out.t += dt / 0.35; if (was < 1 && b.out.t >= 1 && PB.sfx) PB.sfx('popout'); continue; }
         // while dragged the block glides right under your finger; let go and it settles into its square
         const tx = b.fc != null ? b.fc : b.c, ty = b.fr != null ? b.fr : b.r, k = Math.min(1, dt * (b.fc != null || b.fr != null ? 36 : 22));
         b.vx += (tx - b.vx) * k; b.vy += (ty - b.vy) * k;

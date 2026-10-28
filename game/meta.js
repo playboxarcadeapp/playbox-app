@@ -52,10 +52,26 @@
     { id: 'ball_pink',    game: 'bricks',  slot: 'ball',   name: 'Hot pink ball',    price: 150, sw: ['#ff5fbf', '#a0206a'] },
     { id: 'ball_gold',    game: 'bricks',  slot: 'ball',   name: 'Gold ball',        price: 300, sw: ['#ffd23f', '#c78a00'] },
     { id: 'ball_rainbow', game: 'bricks',  slot: 'ball',   name: 'Rainbow ball',     price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
-    { id: 'cols_candy',   game: 'cubes',   slot: 'colors', name: 'Neon cubes',       price: 300, sw: ['#ff0f8f', '#00b4ff', '#3ce000', '#ffe600'] },
+    { id: 'cols_candy',   game: 'cubes',   slot: 'colors', name: 'Neon cubes',       price: 300, sw: ['#ff1f1f', '#00b4ff', '#3ce000', '#ffe600'] },
     { id: 'cols_jewel',   game: 'cubes',   slot: 'colors', name: 'Jewel cubes',      price: 400, ic: '\u{1F48E}', sw: ['#00d0b0', '#ff2a72', '#ffc400', '#9a5aff'] },
   ];
   const owned = () => store.get('pb-owned') || [];
+  // Gem Mine power-ups: these get used up, so you buy them in packs and they also come in gift boxes
+  const BOOSTS = [
+    { id: 'pickaxe',   name: 'Pickaxe',        desc: 'Tap any gem to smash it',               ic: '\u26CF\uFE0F', price: 120, pack: 3, sw: ['#ffd23f', '#8a5a10'] },
+    { id: 'moves5',    name: '+5 Moves',       desc: 'Five extra moves, right now',           ic: '\u2795',       price: 150, pack: 3, sw: ['#7dff6a', '#1f9a3a'] },
+    { id: 'dynamite',  name: 'Dynamite Drop',  desc: 'Turns 3 gems into dynamite gems',       ic: '\u{1F9E8}',    price: 180, pack: 3, sw: ['#ff5a3a', '#a01818'] },
+    { id: 'lightning', name: 'Lightning Bolt', desc: 'Tap a gem to clear its row and column', ic: '\u26A1',       price: 200, pack: 3, sw: ['#9ae6ff', '#2f6fff'] },
+  ];
+  const boostAll = () => store.get('pb-boosts') || {};
+  const boostCount = id => boostAll()[id] || 0;
+  function addBoost(id, n){ const b = boostAll(); b[id] = (b[id] || 0) + n; store.set('pb-boosts', b); }
+  function useBoost(id){ const b = boostAll(); if (!(b[id] > 0)) return false; b[id]--; store.set('pb-boosts', b); return true; }
+  function randomBoost(){ return BOOSTS[Math.floor(Math.random() * BOOSTS.length)]; }
+  function buyBoost(it){
+    if (!PB.wallet.spend(it.price)) { banner('Not enough coins yet. Keep playing!', false); return false; }
+    addBoost(it.id, it.pack); if (PB.sfx) PB.sfx('power'); banner(`${it.ic} +${it.pack} ${it.name}!`, true); return true;
+  }
   const equippedAll = () => store.get('pb-equip') || {};
   // what a game should draw: the equipped item id for a slot, or null for the normal look
   function look(game, slot){ const e = equippedAll()[game + '.' + slot]; return e && owned().includes(e) ? e : null; }
@@ -151,6 +167,8 @@
       else msg = `Treasure chest! +${coins} coins`;
       const st = stats(); st.chests = (st.chests || 0) + 1; saveStats(st);
     } else { PB.wallet.add(r); msg = `Daily gift: +${r} coins!`; }
+    const gifts = r === 'chest' ? 2 : (s.day === 3 || s.day === 5) ? 1 : 0;
+    for (let i=0;i<gifts;i++) { const bz = randomBoost(); addBoost(bz.id, 1); msg += ` ${bz.ic} Free Gem Mine ${bz.name}!`; }
     store.set('pb-gift', { day: s.day, last: today() });
     if (PB.sfx) PB.sfx('life'); banner(msg, true); checkTrophies(); render(); openModal('gift');
   }
@@ -264,11 +282,11 @@
     const h = document.createElement('h3'); body.appendChild(h);
     if (kind === 'gift') {
       const gs = giftState(); h.textContent = 'Daily gift';
-      const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = gs.claimed ? 'Come back tomorrow for the next gift!' : 'A present every day you play. Day 7 is a treasure chest!'; body.appendChild(p);
+      const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = gs.claimed ? 'Come back tomorrow for the next gift!' : 'A present every day you play. Days 3 and 5 add a free Gem Mine power-up, and day 7 is a treasure chest!'; body.appendChild(p);
       const row = document.createElement('div'); row.className = 'gifts';
       GIFTS.forEach((r, i) => { const d = i + 1, got = d < gs.day || (d === gs.day && gs.claimed), now = d === gs.day && !gs.claimed;
         const c = document.createElement('div'); c.className = 'gift' + (got ? ' got' : '') + (now ? ' now' : '') + (r === 'chest' ? ' chest' : '');
-        c.innerHTML = `<small>Day ${d}</small><span class="gi">${r === 'chest' ? '\u{1F381}' : coin}</span><b>${r === 'chest' ? 'Chest' : '+' + r}</b>${got ? '<i>✓</i>' : ''}`; row.appendChild(c); });
+        c.innerHTML = `<small>Day ${d}</small><span class="gi">${r === 'chest' ? '\u{1F381}' : coin}</span><b>${r === 'chest' ? 'Chest' : '+' + r}${d === 3 || d === 5 ? ' \u26A1' : ''}</b>${got ? '<i>✓</i>' : ''}`; row.appendChild(c); });
       body.appendChild(row);
       if (!gs.claimed) { const b = document.createElement('button'); b.className = 'mmbtn'; b.textContent = 'Open today’s gift'; b.onclick = claimGift; body.appendChild(b); }
     } else if (kind === 'shop') {
@@ -284,6 +302,15 @@
           c.onclick = () => { buy(it); openModal('shop'); };
           sec.querySelector('.shopgrid').appendChild(c); }
         body.appendChild(sec);
+        if (gid === 'sweets') {
+          const bs = document.createElement('div'); bs.className = 'shopsec'; bs.innerHTML = `<h4>Gem Mine power-ups</h4><div class="shopgrid"></div>`;
+          for (const it of BOOSTS) { const c = document.createElement('button'); c.className = 'item boost';
+            c.innerHTML = `<span class="sw" style="background:linear-gradient(135deg,${it.sw[0]},${it.sw[1]})">${it.ic}${boostCount(it.id) ? `<i class="bn">${boostCount(it.id)}</i>` : ''}</span><b></b><small class="bd"></small><span class="pr">${coin}${fmt(it.price)} for ${it.pack}</span>`;
+            c.querySelector('b').textContent = it.name; c.querySelector('.bd').textContent = it.desc;
+            c.onclick = () => { buyBoost(it); openModal('shop'); };
+            bs.querySelector('.shopgrid').appendChild(c); }
+          body.appendChild(bs);
+        }
       }
     } else {
       h.textContent = `Trophies ${earned().length}/${TROPHIES.length}`;
@@ -303,5 +330,5 @@
     if (!giftState().claimed) setTimeout(() => { if (!document.getElementById('hub').hidden) openModal('gift'); }, 900);
   }
 
-  PB.meta = { look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
+  PB.meta = { BOOSTS, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
 })();
