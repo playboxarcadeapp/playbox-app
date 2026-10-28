@@ -8,8 +8,18 @@
     const FONT = '"Cinzel Decorative", Georgia, serif';
     const BODY = '"Nunito", "Segoe UI", sans-serif';
     const GOLD = '#f5c84c';
-    const COLORS = ['#ff4d6d','#ff9f1c','#ffe14d','#b5e655','#2fbf71','#2ec4b6','#5ad1ff','#4361ee','#9d4edd','#f72585','#a0673a','#f2f2f2','#ffb3c6','#8c1c3a'];
-    const NAMES = ['Dragon fire','Pumpkin brew','Sunbeam','Frog juice','Forest tonic','Mermaid tears','Sky elixir','Midnight ink','Wizard mist','Pixie punch','Troll tea','Unicorn milk','Fairy blush','Vampire wine'];
+    // Bold, easy-to-tell-apart colors, in the order they join the shelf (a new one every 3 levels).
+    const BASE = [['#ff1f2d','Dragon fire'],['#1f5fff','Midnight ink'],['#ffe600','Sunbeam'],['#18b83a','Frog juice'],['#8a2be2','Wizard mist'],['#ff8c00','Pumpkin brew'],
+                  ['#f4f4f4','Unicorn milk'],['#ff7ac8','Fairy blush'],['#7a3f12','Troll tea'],['#00e0ff','Mermaid tears'],['#a8ff1a','Goblin slime'],['#8a93a6','Ghost smoke']];
+    // From level 75 the last colors are swapped, one at a time, for shades close to a color already on the shelf.
+    const CLOSE = [[11, '#b0102a', 'Vampire wine'], [10, '#0f8a5f', 'Forest tonic'], [9, '#4aa8ff', 'Sky elixir'], [8, '#ffb000', 'Honey glow'], [7, '#c77dff', 'Pixie punch'], [6, '#ff5520', 'Lava soup']];
+    const COLORS = BASE.map(c => c[0]), NAMES = BASE.map(c => c[1]);
+    function usePalette(n){
+      BASE.forEach(([c, nm], i) => { COLORS[i] = c; NAMES[i] = nm; });
+      if (typeof n !== 'number' || n < 75) return;
+      const swaps = Math.min(CLOSE.length, 1 + Math.floor((n - 75) / 4));
+      for (let i=0;i<swaps;i++) { const [k, c, nm] = CLOSE[i]; COLORS[k] = c; NAMES[k] = nm; }
+    }
     let st = null;
 
     // ---------- Level design ----------
@@ -103,6 +113,7 @@
 
     function fresh(mode, level){
       const spec = mode === 'daily' ? dailySpec() : levelSpec(level);
+      usePalette(spec.n);
       st = { mode, spec, bottles: makeBottles(spec), sel: -1, anim: null, undo: [], undos: spec.undos || 3, time: spec.time, clock: 0,
         score: 0, over: false, parts: [], pops: [], glints: [], sealed: new Set(), shake: 0, bubbles: [], phase:'play', bats: [], batIn: 3, bolt: 0, boltIn: 6 + Math.random() * 8, warned: false,
         motes: Array.from({ length: 26 }, () => ({ x: 160 + Math.random() * 220, y: 160 + Math.random() * 440, v: 4 + Math.random() * 8, r: 0.8 + Math.random() * 1.4, ph: Math.random() * 6 })) };
