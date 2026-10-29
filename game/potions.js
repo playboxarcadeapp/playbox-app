@@ -1088,23 +1088,11 @@
       for (const q of st.glints) { const a = Math.min(1, q.life) * 0.9; ctx.globalAlpha = a; ctx.fillStyle = q.col; star(ctx, q.x, q.y, 3.2, 1.2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(q.x, q.y, 0.9, 0, 7); ctx.fill(); }
       ctx.restore(); ctx.globalAlpha = 1;
       if (!st.over && st.time <= 10 && st.time > 0) { const p = 0.5 + 0.5 * Math.sin(st.clock * 8); const vg = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.72); vg.addColorStop(0, 'rgba(255,40,60,0)'); vg.addColorStop(1, `rgba(255,40,60,${0.18 + p * 0.22})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H); }
-      drawSymbols(); drawDone(); drawBoosts();
+      drawDone(); drawBoosts();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const q of st.pops) {
         ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.font = `900 20px ${FONT}`;
         ctx.shadowColor = q.color; ctx.shadowBlur = 12; ctx.fillStyle = q.color; ctx.fillText(q.text, Math.min(W - 80, Math.max(80, q.x)), q.y); ctx.restore();
-      }
-    }
-    // a white shape on every potion layer (one shape per color) so close shades are easy to tell apart
-    function drawSymbols(){
-      if (!PB.prefs || !PB.prefs.symbols) return;
-      for (let i=0;i<st.bottles.length;i++) {
-        if (st.anim && st.anim.i === i) continue;
-        const b = st.bottles[i], p = st.pos[i]; if (!b.length || !p) continue;
-        let y = p.y; if (st.sel === i) y -= 22;
-        const fx = st.sealFx && st.sealFx.find(f => f.j === i); if (fx && !reduceMotion && fx.t < 0.7) y -= Math.sin(Math.PI * fx.t / 0.7) * 30;
-        const lh = (p.h - 18) / CAP, r = Math.min(p.w * 0.19, lh * 0.28, 10);
-        b.forEach((l, k) => { if (l.hidden) return; PB.symbol(ctx, l.c, p.x + p.w / 2, y + p.h - 4 - (k + 0.5) * lh, r); });
       }
     }
     // power-ups sit in the gap between the level card and the Undo button
@@ -1188,7 +1176,7 @@
       id:'potions', sfxScore:false, music:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:100, maxLives:0,
       failTitle:"Time's up!", dailyText:'One big brew, one try a day', powersTitle:'Magic tips',
       tile:{ order:4, name:'Potion Sort', kind:"Wizard's potion puzzle \u00b7 100 levels", art: artTile },
-      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out. You get 1 minute!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Each color has its own white shape, so you can match shapes too.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
+      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out. You get 1 minute!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: [
         { name:'Undo', desc:'Take back a pour. You get 3 per level', icon: g => { g.fillStyle = '#2a1a4a'; g.strokeStyle = GOLD; g.lineWidth = 1.5; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#fff3d6'; g.font = `800 10px ${BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Undo', 23, 14); } },
         { name:'Corked flask', desc:'A full flask of one color seals itself', icon: g => { g.fillStyle = COLORS[0]; g.fillRect(15, 6, 16, 20); g.fillStyle = '#b07a45'; g.fillRect(16, 1, 14, 6); } },

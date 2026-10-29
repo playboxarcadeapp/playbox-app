@@ -135,9 +135,14 @@
       const pods = G.merge([ T(G.cylinder(0.24, 0.26, 1.5, 16), [0.62, -0.1, 0.75], [Math.PI / 2, 0, 0]), T(G.cylinder(0.24, 0.26, 1.5, 16), [-0.62, -0.1, 0.75], [Math.PI / 2, 0, 0]) ]);
       const nozzles = G.merge([ T(G.cylinder(0.19, 0.19, 0.06, 16), [0.62, -0.1, 1.52], [Math.PI / 2, 0, 0]), T(G.cylinder(0.19, 0.19, 0.06, 16), [-0.62, -0.1, 1.52], [Math.PI / 2, 0, 0]) ]);
       const canopy = T(G.sphere(0.5, 24, 16), [0, 0.28, -0.55], [0, 0, 0], [0.55, 0.42, 1.25]);
+      // wingtip cannons and glowing light strips along the wing edges
+      const cannons = G.merge([ T(G.cylinder(0.07, 0.07, 1.4, 10), [2.62, -0.1, 0.3], [Math.PI / 2, 0, 0]), T(G.cylinder(0.07, 0.07, 1.4, 10), [-2.62, -0.1, 0.3], [Math.PI / 2, 0, 0]),
+        T(G.cylinder(0.11, 0.11, 0.35, 10), [2.62, -0.1, 0.85], [Math.PI / 2, 0, 0]), T(G.cylinder(0.11, 0.11, 0.35, 10), [-2.62, -0.1, 0.85], [Math.PI / 2, 0, 0]) ]);
+      const edges = G.merge([ T(G.box(2.75, 0.05, 0.09), [1.5, -0.02, 0.02], [0, -0.544, 0]), T(G.box(2.75, 0.05, 0.09), [-1.5, -0.02, 0.02], [0, 0.544, 0]), T(G.box(0.08, 0.06, 2.2), [0, 0.36, 0.55]) ]);
+      const spine = T(G.box(0.12, 0.18, 1.1), [0, 0.3, 0.85]);
       A = {
         rocks, tRock: E.texture(rockTexture()), tHull: E.texture(hullTexture()),
-        hull: E.mesh(hull), wings: E.mesh(wings), fins: E.mesh(fins), stripe: E.mesh(stripe), pods: E.mesh(pods), nozzles: E.mesh(nozzles), canopy: E.mesh(canopy),
+        hull: E.mesh(hull), wings: E.mesh(wings), fins: E.mesh(fins), stripe: E.mesh(stripe), pods: E.mesh(pods), nozzles: E.mesh(nozzles), canopy: E.mesh(canopy), cannons: E.mesh(cannons), edges: E.mesh(edges), spine: E.mesh(spine),
         sphere: E.mesh(G.sphere(1, 48, 32)), ring: E.mesh(G.torus(2.6, 0.16, 48, 12)),
         planetRing: E.mesh(G.transform(G.torus(1.9, 0.35, 96, 4), M.trs([0,0,0], [0,0,0], [1, 0.02, 1]))),
         star: E.mesh(G.extrude((() => { const p = []; for (let i=0;i<10;i++) { const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.26 : 0.6; p.push([Math.cos(a) * r, Math.sin(a) * r]); } return p; })(), 0.18)),
@@ -170,7 +175,7 @@
       st.objs = []; st.bolts = []; st.nextSpawn = 70; st.powIn = 5;
       st.fx = { turbo:0, shield:0, magnet:0, blaster:0, mini:0 }; st.boost = 0; st.hitSlow = 0; st.inv = 0; st.fireCD = 0;
       st.p = { x: 0, y: 0, tx: 0, ty: 0, bank: 0 };
-      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([0.94, 0.965, 0.985][i], [0.87, 0.91, 0.94][i] + (st.level - 1) * 0.003), ph: R() * 6 }));
+      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([1.02, 1.06, 1.1][i], [0.92, 0.95, 0.98][i] + (st.level - 1) * 0.004), ph: R() * 6, boostT: 0, boostIn: 3 + i * 1.5 + R() * 4 }));
       st.count = 2.6; st.finished = false; st.place = 4; st.raceStars = 0; st.planetSpin = R() * 6;
       st.drag = null;
       st.dust = Array.from({ length: 90 }, () => ({ x: (Math.random() - .5) * 40, y: (Math.random() - .5) * 26, z: -Math.random() * 160 }));
@@ -268,9 +273,15 @@
       p.x += (p.tx - p.x) * Math.min(1, dt * 9); p.y += (p.ty - p.y) * Math.min(1, dt * 9);
       p.bank += (Math.max(-1, Math.min(1, (p.x - px0) / Math.max(dt, 0.001) * -0.09)) - p.bank) * Math.min(1, dt * 8);
       for (const r of st.rivals) {
-        const gap = r.d - st.d, band = gap > 200 ? 0.9 : gap < -200 ? 1.12 : 1;
-        r.d += st.base * r.skill * band * (1 + 0.06 * Math.sin(st.t * 0.7 + r.ph)) * dt;
-        if (Math.hypot(r.x - r.tx, r.y - r.ty) < 0.3) { r.tx = (Math.random() - .5) * XR * 1.6; r.ty = (Math.random() - .5) * YR * 1.4; }
+        // rivals fly through boost rings too (better pilots find them more often) and never fall too far behind
+        const gap = r.d - st.d, band = gap > 260 ? 0.9 : gap < -200 ? 1.2 : gap < -80 ? 1.08 : 1;
+        r.boostT = Math.max(0, r.boostT - dt); r.boostIn -= dt;
+        if (r.boostIn <= 0) { r.boostT = 1.3; r.boostIn = 9 - r.skill * 3 + Math.random() * 4; }
+        r.d += st.base * r.skill * band * (r.boostT > 0 ? 1.35 : 1) * (1 + 0.05 * Math.sin(st.t * 0.7 + r.ph)) * dt;
+        if (Math.hypot(r.x - r.tx, r.y - r.ty) < 0.3) {
+          const ring = st.objs.find(o => o.kind === 'gate' && o.d > r.d + 20 && o.d < r.d + 140);
+          if (ring) { r.tx = ring.x; r.ty = ring.y; } else { r.tx = (Math.random() - .5) * XR * 1.6; r.ty = (Math.random() - .5) * YR * 1.4; }
+        }
         r.x += (r.tx - r.x) * Math.min(1, dt * 0.8); r.y += (r.ty - r.y) * Math.min(1, dt * 0.8);
       }
       if (st.d >= st.nextSpawn && st.d < st.length - 160) spawn();
@@ -308,6 +319,7 @@
       for (const q of st.pops) { q.rise += 40 * dt; q.life -= dt; }
       st.pops = st.pops.filter(q => q.life > 0);
       st.shake = Math.max(0, st.shake - dt * 30);
+      if (st.boostFlash) { st.boostFlash.t -= dt; if (st.boostFlash.t <= 0) st.boostFlash = null; }
       if (st.flash) st.flash = Math.max(0, st.flash - dt);
     }
 
@@ -351,21 +363,31 @@
     function drawShip(M, pos, rot, scale, paint, engine, hot){
       const m = M.trs(pos, rot, [scale, scale, scale]);
       const INK = { color: [0.06, 0.04, 0.14], unlit: true, outline: 0.045, noShadow: true };
-      const part = (mesh, mat) => { E.draw(mesh, m, mat); if (mesh !== A.nozzles && mesh !== A.stripe && mesh !== A.canopy) E.draw(mesh, m, INK); };
+      const part = (mesh, mat) => { E.draw(mesh, m, mat); if (mesh !== A.nozzles && mesh !== A.stripe && mesh !== A.canopy && mesh !== A.edges) E.draw(mesh, m, INK); };
       part(A.hull, { tex: A.tHull, color: [0.8, 0.83, 0.9], spec: 1.3, shine: 110, rim: 0.35 });
       part(A.wings, { color: paint, emissive: paint.map(v => v * 0.08), spec: 1.6, shine: 100, rim: 0.5 });
       part(A.fins, { color: paint, spec: 1.5, shine: 90, rim: 0.4 });
       part(A.stripe, { color: paint.map(v => v * 0.5 + 0.5), emissive: paint.map(v => v * 0.9 + 0.1), spec: 0.6 });
       part(A.pods, { color: [0.32, 0.34, 0.38], spec: 0.9, shine: 60 });
       part(A.nozzles, { color: [0.3, 0.6, 1], emissive: [engine * 1.2, engine * 2.2, engine * 4], noShadow: true });
-      part(A.canopy, { color: [0.05, 0.12, 0.25], spec: 1.5, shine: 120, rim: 0.6 });
+      part(A.canopy, { color: [0.08, 0.3, 0.6], emissive: [0.02, 0.12, 0.3], spec: 2.2, shine: 140, rim: 1.1 });
+      part(A.cannons, { color: [0.22, 0.24, 0.3], spec: 1.4, shine: 90, rim: 0.4 });
+      part(A.spine, { color: paint, spec: 1.4, shine: 90 });
+      part(A.edges, { color: paint.map(v => v * 0.4 + 0.6), emissive: paint.map(v => v * 1.6 + 0.3), noShadow: true });
+      // engines: a hot core plus a long flame that grows with speed
       for (const sx of [-0.62, 0.62]) {
         const wp = M.xform(m, [sx, -0.1, 1.62]);
-        E.sprite(wp, (0.55 + engine * 0.55) * scale, [0.45, 0.7, 1], 0.85, true);
-        E.sprite(wp, (0.28 + engine * 0.15) * scale, [1, 1, 1], 0.85, true);
+        E.sprite(wp, (0.6 + engine * 0.6) * scale, [0.45, 0.7, 1], 0.9, true);
+        E.sprite(wp, (0.3 + engine * 0.15) * scale, [1, 1, 1], 0.9, true);
+        E.sprite([wp[0], wp[1], wp[2] + (0.7 + engine * 0.6) * scale], (0.32 + engine * 0.1) * scale, hot ? [1, 0.6, 0.25] : [0.4, 0.65, 1], 0.75, true, 0, null, [0, 0, (0.7 + engine * 1.1) * scale]);
         if (hot) E.sprite([wp[0], wp[1], wp[2] + 0.6 * scale], (1.2 + engine) * scale, [1, 0.55, 0.2], 0.5 * engine, true);
       }
+      // blinking nav lights on the wingtips (red left, green right) and the cannon muzzles
+      const blink = 0.55 + 0.45 * Math.sin(st.clock * 7 + pos[0]);
+      E.sprite(M.xform(m, [-2.62, -0.1, -0.42]), 0.55 * scale, [1, 0.25, 0.3], 0.8 * blink, true);
+      E.sprite(M.xform(m, [2.62, -0.1, -0.42]), 0.55 * scale, [0.3, 1, 0.45], 0.8 * blink, true);
     }
+    const ROCK_INK = { color: [0.12, 0.03, 0.02], unlit: true, outline: 0.07, noShadow: true };
     function render(w, h){
       const M = E.M, gal = st.gal, gi = st.gi, p = st.p;
       ensureGalaxy(gi);
@@ -397,7 +419,14 @@
       }
       for (const o of st.objs) {
         const z = -rel(o); if (z < -VIEW || z > 12) continue;
-        if (o.kind === 'rock') E.draw(A.rocks[o.m], M.trs([o.x, o.y, z], o.rot, o.r), { tex: A.tRock, color: [1, 0.95, 0.9], spec: 0.15, shine: 12, uvScale: [2, 2] });
+        if (o.kind === 'rock') {
+          // bright, outlined rocks with a hot orange warning glow behind them, so they pop out of the busy sky
+          const rm = M.trs([o.x, o.y, z], o.rot, o.r);
+          E.draw(A.rocks[o.m], rm, { tex: A.tRock, color: [1.25, 1.05, 0.85], emissive: [0.16, 0.07, 0.03], spec: 0.35, shine: 18, rim: 1.2, uvScale: [2, 2] });
+          E.draw(A.rocks[o.m], rm, ROCK_INK);
+          const near = Math.max(0, Math.min(1, (z + 200) / 160));
+          E.sprite([o.x, o.y, z - o.r * 0.9], o.r * (3.2 + near * 0.8), [1, 0.38, 0.12], 0.22 + near * 0.18, true);
+        }
         else if (o.kind === 'star') {
           E.draw(A.star, M.trs([o.x, o.y, z], [0, st.clock * 3 + o.d, 0], 1), { color: [1, 0.78, 0.2], emissive: [0.9, 0.6, 0.1], spec: 1.2, shine: 80 });
           E.sprite([o.x, o.y, z], 2.6, [1, 0.8, 0.3], 0.5, true);
@@ -412,7 +441,7 @@
           if (!o.used) E.sprite([o.x, o.y, z], 7, [0.35, 0.85, 1], 0.35, true);
         }
       }
-      for (const r of st.rivals) { const z = -(r.d - st.d); if (z < -VIEW || z > 1.5) continue; drawShip(M, [r.x, r.y, z], [0, 0, (r.tx - r.x) * 0.05], 0.95, hex(r.color), 0.7, false); }
+      for (const r of st.rivals) { const z = -(r.d - st.d); if (z < -VIEW || z > 1.5) continue; drawShip(M, [r.x, r.y, z], [0, 0, (r.tx - r.x) * 0.05], 0.95, hex(r.color), r.boostT > 0 ? 1.4 : 0.7, r.boostT > 0); }
       for (const b of st.bolts) E.sprite([b.x, b.y, b.z], 0.35, [1, 0.35, 0.45], 1, true, 0, null, [0, 0, 2.2]);
       const inv = st.inv > 0 && Math.floor(st.inv * 12) % 2;
       const sc = st.fx.mini > 0 ? 0.55 : 1;
@@ -429,6 +458,44 @@
       g.fillStyle = grd; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.restore();
       g.fillStyle = '#fff'; g.font = `${Math.round(r * 0.75)}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText({ turbo:'\u00bb', shield:'\u25ef', magnet:'\u2605', blaster:'\u205e', mini:'m', life:'\u2665' }[type], x, y + 1);
+    }
+    // ---------- power-ups from the Swag Shop (buttons along the bottom) ----------
+    const SHOP_FX = { r_turbo: 'turbo', r_shield: 'shield', r_blaster: 'blaster' };
+    const boostList = () => (PB.meta && PB.meta.boostsFor && PB.meta.boostsFor('racer')) || [];
+    const boostN = id => (PB.meta && PB.meta.boostCount) ? PB.meta.boostCount(id) : 0;
+    const BAR_Y = H - 52, BAR_R = 25, boostX = i => W / 2 - 10 + (i - 1.5) * 72;
+    const racing = () => st.phase === 'play' && !st.msg && st.count <= 0 && st.between == null && !st.finished;
+    function boostAt(x, y){ const L = boostList(); for (let i=0;i<L.length;i++) if (Math.hypot(x - boostX(i), y - BAR_Y) < BAR_R + 8) return L[i]; return null; }
+    function pressBoost(b){
+      const say = (t, c) => pop([st.p.x, st.p.y + 1.5, -3], t, c, 1.3);
+      if (boostN(b.id) <= 0) { say('Get more in the Swag Shop!', '#ffd23f'); if (PB.sfx) PB.sfx('nope'); return; }
+      const fx = SHOP_FX[b.id];
+      if (b.id === 'r_heart' && st.lives >= MAX_LIVES) { say('Hearts are full!', '#ff8fc4'); if (PB.sfx) PB.sfx('nope'); return; }
+      if (fx && st.fx[fx] > 1) { say('Already on!', POWERS[fx].color); if (PB.sfx) PB.sfx('nope'); return; }
+      if (!PB.meta.useBoost(b.id)) return;
+      if (b.id === 'r_heart') { st.lives++; say('+1 heart!', '#ff3d6e'); }
+      else { st.fx[fx] = POWERS[fx].time; say(POWERS[fx].name + '!', POWERS[fx].color); }
+      st.boostFlash = { id: b.id, t: 0.6 }; if (PB.sfx) PB.sfx('power');
+    }
+    function drawBoosts(){
+      const L = boostList(); if (!L.length || st.phase !== 'play') return;
+      ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const x0 = boostX(0) - BAR_R - 12, x1 = boostX(L.length - 1) + BAR_R + 12;
+      ctx.fillStyle = 'rgba(20,12,70,.6)'; ctx.beginPath(); ctx.roundRect(x0, BAR_Y - BAR_R - 9, x1 - x0, BAR_R * 2 + 18, 24); ctx.fill();
+      ctx.strokeStyle = 'rgba(127,232,255,.8)'; ctx.lineWidth = 2.5; ctx.stroke();
+      const live = racing();
+      L.forEach((b, i) => {
+        const x = boostX(i), y = BAR_Y, n = boostN(b.id), fl = st.boostFlash && st.boostFlash.id === b.id ? st.boostFlash.t / 0.6 : 0, rr = BAR_R * (1 + fl * 0.2);
+        if (fl) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gg = ctx.createRadialGradient(x, y, 4, x, y, rr * 1.9); gg.addColorStop(0, 'rgba(150,230,255,.9)'); gg.addColorStop(1, 'rgba(80,160,255,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(x, y, rr * 1.9, 0, 7); ctx.fill(); ctx.restore(); }
+        const g = ctx.createRadialGradient(x - rr * 0.35, y - rr * 0.4, 2, x, y, rr); g.addColorStop(0, '#ffffff'); g.addColorStop(0.25, b.sw[0]); g.addColorStop(1, b.sw[1]);
+        ctx.globalAlpha = n > 0 && live ? 1 : 0.5;
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.font = `${Math.round(rr * 1.0)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.fillStyle = '#fff'; ctx.fillText(b.ic, x, y + 2);
+        ctx.globalAlpha = 1;
+        const bx = x + rr * 0.78, by = y - rr * 0.72; ctx.fillStyle = n > 0 ? '#ff3d6e' : '#2fb36b'; ctx.beginPath(); ctx.arc(bx, by, 10, 0, 7); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.font = `12px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(n > 0 ? String(Math.min(n, 99)) : '+', bx, by + 1);
+      });
+      ctx.restore();
     }
     function drawHUD(){
       const g = st.gal;
@@ -469,6 +536,7 @@
         ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.fillStyle = q.color; ctx.shadowColor = q.color; ctx.shadowBlur = 14; ctx.font = `italic 30px ${FONT}`;
         ctx.fillText(q.text, Math.max(90, Math.min(W - 90, sp[0])), sp[1] - 70 - q.rise); ctx.restore();
       }
+      drawBoosts();
       if (st.msg && st.phase === 'play') {
         ctx.font = `18px ${FONT}`;
         const tw = Math.min(ctx.measureText(st.msg).width + 44, W - 30), y = H/2 + 40;
@@ -498,7 +566,7 @@
       id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Place', maxLives: MAX_LIVES, type:'levels', levels:100, scoreLabel:'Races won', boardScore: (s, lvl) => lvl, boardFmt: n => `${fmt(n)} race${n === 1 ? '' : 's'} won`, levelScoreText: (s, win) => win ? `Race ${s} won!` : `Race ${s}`,
       get failTitle(){ return (st && st.failTitle) || 'Race lost'; }, dailyText:'Race as far as you can, one try a day',
       tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing \u00b7 100 levels', art: artTile },
-      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race. Finish without crashing for 3 stars.'],
+      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race. Finish without crashing for 3 stars.', 'Tap the buttons at the bottom to use Turbo, Force Field, Blasters or an Extra Heart. Get more in the Swag Shop!'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => drawOrb2D(g, k, 23, 14, 12) })),
       init(){ loadAssets(); },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
@@ -514,6 +582,7 @@
       pointerDown(x, y){
         if (st.phase !== 'play') return;
         if (st.msg) { st.msg = null; st.count = st.count > 0 ? st.count : 2.6; return; }
+        const bz = boostAt(x, y); if (bz) { st.drag = null; if (racing()) pressBoost(bz); return; }
         st.drag = { x, y, px: st.p.tx, py: st.p.ty };
       },
       pointerMove(x, y){

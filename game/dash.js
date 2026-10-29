@@ -715,7 +715,8 @@
     function startTally(label){
       st.phase = 'tally'; st.speed = 0;
       st.tally = { t: 0, base: Math.floor(st.dist), coins: st.coins || 0, left: st.coins || 0, bonus: 0, done: 0, tick: 0, label: label || 'Run over!', best: st.bestDist || 0, fly: [], pops: [], conf: [], bump: 0, spawn: 0 };
-      if (PB.wallet && st.coins) PB.wallet.add(st.coins * (PB.meta ? PB.meta.coinMult('dash') : 1));
+      // every 5 coins grabbed on the run = 1 Swag Shop coin, so the shop stays something to save up for
+      if (PB.wallet && st.coins) PB.wallet.add(Math.floor(st.coins / 5) * (PB.meta ? PB.meta.coinMult('dash') : 1));
       if (PB.sfx) PB.sfx('lose');
     }
     // Results card timeline: banner + card (0-1 s), "Coin bonus!" strip (1-1.9 s), coins pour into the distance, then the total

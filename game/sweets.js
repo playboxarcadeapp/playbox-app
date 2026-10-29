@@ -298,6 +298,18 @@
         st.queueClear = [[r,c]];
         return;
       }
+      // Then every special gem still on the board blows up for extra points.
+      const left = [];
+      for (let r=0;r<N;r++) for (let c=0;c<N;c++) { const t = T(r,c); if (t && (t.sp === 'h' || t.sp === 'v' || t.sp === 'b' || t.sp === 'c')) left.push([r,c]); }
+      if (left.length && (st.blastRounds || 0) < 12) {
+        if (!st.blastRounds) { pop(W/2, BY + 200, 'Special gem blast!', '#ff8a1f', 1.8); if (PB.sfx) PB.sfx('boom'); }
+        st.blastRounds = (st.blastRounds || 0) + 1;
+        addScore(left.length * 100);
+        left.forEach(([r,c]) => { const t = T(r,c); if (t) t.sc = 1.5; });
+        st.shake = 10; st.busy = true; st.bonusDelay = 0.4;
+        st.queueClear = left;
+        return;
+      }
       st.finishing = false;
       endLevel(true);
     }

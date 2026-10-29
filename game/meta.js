@@ -11,65 +11,69 @@
   // ---------------- Swag Shop ----------------
   // Every item shows up in its game. sw = colors for the little preview swatch.
   const SHOP = [
-    { id: 'hat_cap',      game: 'dash',    slot: 'hat',    name: 'Baseball cap',     price: 150, sw: ['#2e6fb7', '#ffffff'] },
-    { id: 'hat_party',    game: 'dash',    slot: 'hat',    name: 'Party hat',        price: 200, sw: ['#ff4f8b', '#ffd23f'] },
-    { id: 'hat_crown',    game: 'dash',    slot: 'hat',    name: 'Gold crown',       price: 400, sw: ['#ffd23f', '#e8a20f'] },
-    { id: 'scarf_blue',   game: 'dash',    slot: 'scarf',  name: 'Blue scarf',       price: 100, sw: ['#3fa9ff', '#1f5fa8'] },
-    { id: 'scarf_rainbow',game: 'dash',    slot: 'scarf',  name: 'Rainbow scarf',    price: 250, sw: ['#ff3d6e', '#ffd23f', '#3fa9ff'] },
-    { id: 'ship_red',     game: 'racer',   slot: 'paint',  name: 'Red rocket paint', price: 200, sw: ['#ff3b3b', '#a01818'] },
-    { id: 'ship_blue',    game: 'racer',   slot: 'paint',  name: 'Ice blue paint',   price: 200, sw: ['#5ec8ff', '#1f6fa8'] },
-    { id: 'ship_gold',    game: 'racer',   slot: 'paint',  name: 'Gold paint',       price: 500, sw: ['#ffd23f', '#c78a00'] },
-    { id: 'sling_candy',  game: 'castle',  slot: 'sling',  name: 'Candy slingshot',  price: 250, sw: ['#ff5fa2', '#ffffff'] },
-    { id: 'sling_gold',   game: 'castle',  slot: 'sling',  name: 'Golden slingshot', price: 400, sw: ['#ffd23f', '#c78a00'] },
-    { id: 'brew_pink',    game: 'potions', slot: 'brew',   name: 'Pink potion brew', price: 150, sw: ['#ff8fd0', '#d63a9a'] },
-    { id: 'brew_blue',    game: 'potions', slot: 'brew',   name: 'Blue potion brew', price: 150, sw: ['#9ae6ff', '#2f86ff'] },
-    { id: 'brew_gold',    game: 'potions', slot: 'brew',   name: 'Gold potion brew', price: 300, sw: ['#fff1a0', '#e8b21f'] },
-    { id: 'skin_coral',   game: 'snake',   slot: 'skin',   name: 'Coral snake skin', price: 200, sw: ['#ff6a4a', '#ffd23f', '#1a1a1a'] },
-    { id: 'skin_ocean',   game: 'snake',   slot: 'skin',   name: 'Ocean snake skin', price: 250, sw: ['#2f86ff', '#7fe0ff'] },
-    { id: 'skin_gold',    game: 'snake',   slot: 'skin',   name: 'Golden snake skin',price: 400, sw: ['#ffd23f', '#c78a00'] },
-    { id: 'frame_candy',  game: 'sweets',  slot: 'frame',  name: 'Candy board frame',price: 200, sw: ['#ff8fc4', '#ffffff'] },
-    { id: 'frame_ice',    game: 'sweets',  slot: 'frame',  name: 'Ice board frame',  price: 200, sw: ['#bfefff', '#5ec8ff'] },
-    { id: 'paddle_lava',  game: 'bricks',  slot: 'paddle', name: 'Lava paddle',      price: 150, sw: ['#ff7a2a', '#ff3b3b'] },
-    { id: 'paddle_neon',  game: 'bricks',  slot: 'paddle', name: 'Neon green paddle',price: 150, sw: ['#7dff6a', '#22e4ff'] },
-    { id: 'box_gold',     game: 'cubes',   slot: 'box',    name: 'Gold puzzle box',  price: 200, sw: ['#ffd23f', '#8a5a10'] },
-    { id: 'box_pink',     game: 'cubes',   slot: 'box',    name: 'Pink puzzle box',  price: 200, sw: ['#ff8fd0', '#7a2a6a'] },
+    { id: 'hat_cap',      game: 'dash',    slot: 'hat',    name: 'Baseball cap',     price: 400, sw: ['#2e6fb7', '#ffffff'] },
+    { id: 'hat_party',    game: 'dash',    slot: 'hat',    name: 'Party hat',        price: 500, sw: ['#ff4f8b', '#ffd23f'] },
+    { id: 'hat_crown',    game: 'dash',    slot: 'hat',    name: 'Gold crown',       price: 1000, sw: ['#ffd23f', '#e8a20f'] },
+    { id: 'scarf_blue',   game: 'dash',    slot: 'scarf',  name: 'Blue scarf',       price: 250, sw: ['#3fa9ff', '#1f5fa8'] },
+    { id: 'scarf_rainbow',game: 'dash',    slot: 'scarf',  name: 'Rainbow scarf',    price: 600, sw: ['#ff3d6e', '#ffd23f', '#3fa9ff'] },
+    { id: 'ship_red',     game: 'racer',   slot: 'paint',  name: 'Red rocket paint', price: 500, sw: ['#ff3b3b', '#a01818'] },
+    { id: 'ship_blue',    game: 'racer',   slot: 'paint',  name: 'Ice blue paint',   price: 500, sw: ['#5ec8ff', '#1f6fa8'] },
+    { id: 'ship_gold',    game: 'racer',   slot: 'paint',  name: 'Gold paint',       price: 1250, sw: ['#ffd23f', '#c78a00'] },
+    { id: 'sling_candy',  game: 'castle',  slot: 'sling',  name: 'Candy slingshot',  price: 600, sw: ['#ff5fa2', '#ffffff'] },
+    { id: 'sling_gold',   game: 'castle',  slot: 'sling',  name: 'Golden slingshot', price: 1000, sw: ['#ffd23f', '#c78a00'] },
+    { id: 'brew_pink',    game: 'potions', slot: 'brew',   name: 'Pink potion brew', price: 400, sw: ['#ff8fd0', '#d63a9a'] },
+    { id: 'brew_blue',    game: 'potions', slot: 'brew',   name: 'Blue potion brew', price: 400, sw: ['#9ae6ff', '#2f86ff'] },
+    { id: 'brew_gold',    game: 'potions', slot: 'brew',   name: 'Gold potion brew', price: 750, sw: ['#fff1a0', '#e8b21f'] },
+    { id: 'skin_coral',   game: 'snake',   slot: 'skin',   name: 'Coral snake skin', price: 500, sw: ['#ff6a4a', '#ffd23f', '#1a1a1a'] },
+    { id: 'skin_ocean',   game: 'snake',   slot: 'skin',   name: 'Ocean snake skin', price: 600, sw: ['#2f86ff', '#7fe0ff'] },
+    { id: 'skin_gold',    game: 'snake',   slot: 'skin',   name: 'Golden snake skin',price: 1000, sw: ['#ffd23f', '#c78a00'] },
+    { id: 'frame_candy',  game: 'sweets',  slot: 'frame',  name: 'Candy board frame',price: 500, sw: ['#ff8fc4', '#ffffff'] },
+    { id: 'frame_ice',    game: 'sweets',  slot: 'frame',  name: 'Ice board frame',  price: 500, sw: ['#bfefff', '#5ec8ff'] },
+    { id: 'paddle_lava',  game: 'bricks',  slot: 'paddle', name: 'Lava paddle',      price: 400, sw: ['#ff7a2a', '#ff3b3b'] },
+    { id: 'paddle_neon',  game: 'bricks',  slot: 'paddle', name: 'Neon green paddle',price: 400, sw: ['#7dff6a', '#22e4ff'] },
+    { id: 'box_gold',     game: 'cubes',   slot: 'box',    name: 'Gold puzzle box',  price: 500, sw: ['#ffd23f', '#8a5a10'] },
+    { id: 'box_pink',     game: 'cubes',   slot: 'box',    name: 'Pink puzzle box',  price: 500, sw: ['#ff8fd0', '#7a2a6a'] },
     // big-ticket items: whole new ships, costumes and effects
-    { id: 'model_saucer', game: 'racer',   slot: 'ship',   name: 'Flying saucer',    price: 600, ic: '\u{1F6F8}', sw: ['#9fb4c8', '#5ec8ff'] },
-    { id: 'model_rocket', game: 'racer',   slot: 'ship',   name: 'Retro rocket',     price: 700, ic: '\u{1F680}', sw: ['#ffffff', '#ff3b3b'] },
-    { id: 'model_shark',  game: 'racer',   slot: 'ship',   name: 'Space shark',      price: 800, ic: '\u{1F988}', sw: ['#5f7fa8', '#d8e4f0'] },
-    { id: 'fur_fox',      game: 'dash',    slot: 'fur',    name: 'Fox costume',      price: 500, ic: '\u{1F98A}', sw: ['#ffa24a', '#ff6a1a'] },
-    { id: 'fur_snow',     game: 'dash',    slot: 'fur',    name: 'Snow raccoon',     price: 500, ic: '\u2744\uFE0F', sw: ['#eaf4ff', '#4a6aa8'] },
-    { id: 'fur_gold',     game: 'dash',    slot: 'fur',    name: 'Golden raccoon',   price: 900, ic: '\u2728', sw: ['#ffd23f', '#8a5a10'] },
-    { id: 'trail_stars',  game: 'castle',  slot: 'trail',  name: 'Star trail',       price: 300, ic: '\u2B50', sw: ['#fff1a0', '#ffb81f'] },
-    { id: 'trail_hearts', game: 'castle',  slot: 'trail',  name: 'Heart trail',      price: 300, ic: '\u{1F496}', sw: ['#ff8fc4', '#ff3d6e'] },
-    { id: 'trail_rainbow',game: 'castle',  slot: 'trail',  name: 'Rainbow trail',    price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
-    { id: 'magic_glow',   game: 'potions', slot: 'magic',  name: 'Potion sparkles',  price: 250, ic: '\u2728', sw: ['#d4ff9a', '#4fbf3a'] },
-    { id: 'magic_stars',  game: 'potions', slot: 'magic',  name: 'Wizard stars',     price: 350, ic: '\u2B50', sw: ['#fff1a0', '#6a3ac0'] },
-    { id: 'magic_rainbow',game: 'potions', slot: 'magic',  name: 'Rainbow magic',    price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
-    { id: 'skin_candy',   game: 'snake',   slot: 'skin',   name: 'Candy snake skin', price: 350, sw: ['#ff9ccf', '#ffffff', '#7fe0ff'] },
-    { id: 'skin_galaxy',  game: 'snake',   slot: 'skin',   name: 'Galaxy snake skin',price: 500, ic: '\u{1F30C}', sw: ['#4a2a9a', '#ff8ff0'] },
-    { id: 'shine_sparkle',game: 'sweets',  slot: 'shine',  name: 'Twinkle gems',     price: 300, ic: '\u2728', sw: ['#ffffff', '#ff5fa2'] },
-    { id: 'shine_glow',   game: 'sweets',  slot: 'shine',  name: 'Glowing gems',     price: 400, ic: '\u{1F48E}', sw: ['#9ae6ff', '#c76bff'] },
-    { id: 'ball_pink',    game: 'bricks',  slot: 'ball',   name: 'Hot pink ball',    price: 150, sw: ['#ff5fbf', '#a0206a'] },
-    { id: 'ball_gold',    game: 'bricks',  slot: 'ball',   name: 'Gold ball',        price: 300, sw: ['#ffd23f', '#c78a00'] },
-    { id: 'ball_rainbow', game: 'bricks',  slot: 'ball',   name: 'Rainbow ball',     price: 500, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
-    { id: 'cols_candy',   game: 'cubes',   slot: 'colors', name: 'Neon cubes',       price: 300, sw: ['#ff1f1f', '#00b4ff', '#3ce000', '#ffe600'] },
-    { id: 'cols_jewel',   game: 'cubes',   slot: 'colors', name: 'Jewel cubes',      price: 400, ic: '\u{1F48E}', sw: ['#00d0b0', '#ff2a72', '#ffc400', '#9a5aff'] },
+    { id: 'model_saucer', game: 'racer',   slot: 'ship',   name: 'Flying saucer',    price: 1500, ic: '\u{1F6F8}', sw: ['#9fb4c8', '#5ec8ff'] },
+    { id: 'model_rocket', game: 'racer',   slot: 'ship',   name: 'Retro rocket',     price: 1750, ic: '\u{1F680}', sw: ['#ffffff', '#ff3b3b'] },
+    { id: 'model_shark',  game: 'racer',   slot: 'ship',   name: 'Space shark',      price: 2000, ic: '\u{1F988}', sw: ['#5f7fa8', '#d8e4f0'] },
+    { id: 'fur_fox',      game: 'dash',    slot: 'fur',    name: 'Fox costume',      price: 1250, ic: '\u{1F98A}', sw: ['#ffa24a', '#ff6a1a'] },
+    { id: 'fur_snow',     game: 'dash',    slot: 'fur',    name: 'Snow raccoon',     price: 1250, ic: '\u2744\uFE0F', sw: ['#eaf4ff', '#4a6aa8'] },
+    { id: 'fur_gold',     game: 'dash',    slot: 'fur',    name: 'Golden raccoon',   price: 2250, ic: '\u2728', sw: ['#ffd23f', '#8a5a10'] },
+    { id: 'trail_stars',  game: 'castle',  slot: 'trail',  name: 'Star trail',       price: 750, ic: '\u2B50', sw: ['#fff1a0', '#ffb81f'] },
+    { id: 'trail_hearts', game: 'castle',  slot: 'trail',  name: 'Heart trail',      price: 750, ic: '\u{1F496}', sw: ['#ff8fc4', '#ff3d6e'] },
+    { id: 'trail_rainbow',game: 'castle',  slot: 'trail',  name: 'Rainbow trail',    price: 1250, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
+    { id: 'magic_glow',   game: 'potions', slot: 'magic',  name: 'Potion sparkles',  price: 600, ic: '\u2728', sw: ['#d4ff9a', '#4fbf3a'] },
+    { id: 'magic_stars',  game: 'potions', slot: 'magic',  name: 'Wizard stars',     price: 900, ic: '\u2B50', sw: ['#fff1a0', '#6a3ac0'] },
+    { id: 'magic_rainbow',game: 'potions', slot: 'magic',  name: 'Rainbow magic',    price: 1250, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
+    { id: 'skin_candy',   game: 'snake',   slot: 'skin',   name: 'Candy snake skin', price: 900, sw: ['#ff9ccf', '#ffffff', '#7fe0ff'] },
+    { id: 'skin_galaxy',  game: 'snake',   slot: 'skin',   name: 'Galaxy snake skin',price: 1250, ic: '\u{1F30C}', sw: ['#4a2a9a', '#ff8ff0'] },
+    { id: 'shine_sparkle',game: 'sweets',  slot: 'shine',  name: 'Twinkle gems',     price: 750, ic: '\u2728', sw: ['#ffffff', '#ff5fa2'] },
+    { id: 'shine_glow',   game: 'sweets',  slot: 'shine',  name: 'Glowing gems',     price: 1000, ic: '\u{1F48E}', sw: ['#9ae6ff', '#c76bff'] },
+    { id: 'ball_pink',    game: 'bricks',  slot: 'ball',   name: 'Hot pink ball',    price: 400, sw: ['#ff5fbf', '#a0206a'] },
+    { id: 'ball_gold',    game: 'bricks',  slot: 'ball',   name: 'Gold ball',        price: 750, sw: ['#ffd23f', '#c78a00'] },
+    { id: 'ball_rainbow', game: 'bricks',  slot: 'ball',   name: 'Rainbow ball',     price: 1250, ic: '\u{1F308}', sw: ['#ff3d6e', '#ffd23f', '#7dff6a', '#3fa9ff'] },
+    { id: 'cols_candy',   game: 'cubes',   slot: 'colors', name: 'Neon cubes',       price: 750, sw: ['#ff1f1f', '#00b4ff', '#3ce000', '#ffe600'] },
+    { id: 'cols_jewel',   game: 'cubes',   slot: 'colors', name: 'Jewel cubes',      price: 1000, ic: '\u{1F48E}', sw: ['#00d0b0', '#ff2a72', '#ffc400', '#9a5aff'] },
   ];
   const owned = () => store.get('pb-owned') || [];
   // Gem Mine power-ups: these get used up, so you buy them in packs and they also come in gift boxes
   // Power-ups get used up, so you buy them in packs; they also come in gift boxes and level-map chests
   const BOOSTS = [
-    { id: 'pickaxe',   game: 'sweets',  name: 'Pickaxe',        desc: 'Tap any gem to smash it',               ic: '\u26CF\uFE0F', price: 120, pack: 3, sw: ['#ffd23f', '#8a5a10'] },
-    { id: 'moves5',    game: 'sweets',  name: '+5 Moves',       desc: 'Five extra moves, right now',           ic: '\u2795',       price: 150, pack: 3, sw: ['#7dff6a', '#1f9a3a'] },
-    { id: 'dynamite',  game: 'sweets',  name: 'Dynamite Drop',  desc: 'Turns 3 gems into dynamite gems',       ic: '\u{1F9E8}',    price: 180, pack: 3, sw: ['#ff5a3a', '#a01818'] },
-    { id: 'lightning', game: 'sweets',  name: 'Lightning Bolt', desc: 'Tap a gem to clear its row and column', ic: '\u26A1',       price: 200, pack: 3, sw: ['#9ae6ff', '#2f6fff'] },
-    { id: 'flask',     game: 'potions', name: 'Extra Flask',    desc: 'An empty flask appears on the shelf',   ic: '\u{1F9EA}',    price: 150, pack: 3, sw: ['#d0f4ff', '#5a8ad8'] },
-    { id: 'reveal',    game: 'potions', name: 'Magic Eye',      desc: 'Shows every hidden ? layer',            ic: '\u{1F441}\uFE0F', price: 120, pack: 3, sw: ['#e8c8ff', '#7a3ac0'] },
-    { id: 'hammer',    game: 'cubes',   name: 'Hammer',         desc: 'Tap a cube to bonk it out',             ic: '\u{1F528}',    price: 150, pack: 3, sw: ['#ffd23f', '#a0602a'] },
-    { id: 'time20',    game: 'cubes',   name: '+20 Seconds',    desc: 'Twenty more seconds on the clock',      ic: '\u23F1\uFE0F', price: 120, pack: 3, sw: ['#9fe8ff', '#2f86ff'] },
-    { id: 'firepot',   game: 'castle',  name: 'Fire Pot',       desc: 'An extra exploding fire pot',           ic: '\u{1F525}',    price: 150, pack: 3, sw: ['#ffb347', '#d8401c'] },
-    { id: 'boulder',   game: 'castle',  name: 'Big Boulder',    desc: 'An extra giant rolling boulder',        ic: '\u{1FAA8}',    price: 150, pack: 3, sw: ['#d8cfc2', '#6a5a48'] },
+    { id: 'pickaxe',   game: 'sweets',  name: 'Pickaxe',        desc: 'Tap any gem to smash it',               ic: '\u26CF\uFE0F', price: 240, pack: 3, sw: ['#ffd23f', '#8a5a10'] },
+    { id: 'moves5',    game: 'sweets',  name: '+5 Moves',       desc: 'Five extra moves, right now',           ic: '\u2795',       price: 300, pack: 3, sw: ['#7dff6a', '#1f9a3a'] },
+    { id: 'dynamite',  game: 'sweets',  name: 'Dynamite Drop',  desc: 'Turns 3 gems into dynamite gems',       ic: '\u{1F9E8}',    price: 360, pack: 3, sw: ['#ff5a3a', '#a01818'] },
+    { id: 'lightning', game: 'sweets',  name: 'Lightning Bolt', desc: 'Tap a gem to clear its row and column', ic: '\u26A1',       price: 400, pack: 3, sw: ['#9ae6ff', '#2f6fff'] },
+    { id: 'flask',     game: 'potions', name: 'Extra Flask',    desc: 'An empty flask appears on the shelf',   ic: '\u{1F9EA}',    price: 300, pack: 3, sw: ['#d0f4ff', '#5a8ad8'] },
+    { id: 'reveal',    game: 'potions', name: 'Magic Eye',      desc: 'Shows every hidden ? layer',            ic: '\u{1F441}\uFE0F', price: 240, pack: 3, sw: ['#e8c8ff', '#7a3ac0'] },
+    { id: 'hammer',    game: 'cubes',   name: 'Hammer',         desc: 'Tap a cube to bonk it out',             ic: '\u{1F528}',    price: 300, pack: 3, sw: ['#ffd23f', '#a0602a'] },
+    { id: 'time20',    game: 'cubes',   name: '+20 Seconds',    desc: 'Twenty more seconds on the clock',      ic: '\u23F1\uFE0F', price: 240, pack: 3, sw: ['#9fe8ff', '#2f86ff'] },
+    { id: 'firepot',   game: 'castle',  name: 'Fire Pot',       desc: 'An extra exploding fire pot',           ic: '\u{1F525}',    price: 300, pack: 3, sw: ['#ffb347', '#d8401c'] },
+    { id: 'boulder',   game: 'castle',  name: 'Big Boulder',    desc: 'An extra giant rolling boulder',        ic: '\u{1FAA8}',    price: 300, pack: 3, sw: ['#d8cfc2', '#6a5a48'] },
+    { id: 'r_turbo',   game: 'racer',   name: 'Turbo',          desc: 'Blast ahead and smash through rocks',   ic: '\u{1F525}',    price: 300, pack: 3, sw: ['#ffb347', '#d8401c'] },
+    { id: 'r_shield',  game: 'racer',   name: 'Force Field',    desc: 'Bounces you off one crash',             ic: '\u{1F6E1}\uFE0F', price: 300, pack: 3, sw: ['#9ae6ff', '#2f6fff'] },
+    { id: 'r_blaster', game: 'racer',   name: 'Blasters',       desc: 'Lasers that break asteroids',           ic: '\u{1F4A5}',    price: 360, pack: 3, sw: ['#ff8fa0', '#c0203a'] },
+    { id: 'r_heart',   game: 'racer',   name: 'Extra Heart',    desc: 'One more heart, right now',             ic: '\u2764\uFE0F', price: 240, pack: 3, sw: ['#ff8fc4', '#d01f5a'] },
   ];
   const boostAll = () => store.get('pb-boosts') || {};
   const boostCount = id => boostAll()[id] || 0;
@@ -130,7 +134,7 @@
     { id: 'fruit',   game: 'snake',   text: 'Eat {n} fruit in Anaconda',           n: [20, 35, 50],    add: i => i.m.eaten || 0 },
     { id: 'brick',   game: 'bricks',  text: 'Score {n} in one Brick Bash game',    n: [1500, 3000],    max: i => i.score || 0 },
   ];
-  const MISSION_COINS = 30, MISSION_BONUS = 50;
+  const MISSION_COINS = 15, MISSION_BONUS = 30;
   function missions(){
     let M = store.get('pb-missions');
     if (!M || M.date !== today()) {
@@ -170,8 +174,8 @@
     const s = giftState(); if (s.claimed) return;
     const r = GIFTS[s.day - 1]; let msg;
     if (r === 'chest') {
-      const coins = 60; PB.wallet.add(coins);
-      const cheap = SHOP.filter(it => !owned().includes(it.id) && it.price <= 250);
+      const coins = 40; PB.wallet.add(coins);
+      const cheap = SHOP.filter(it => !owned().includes(it.id) && it.price <= 650);
       if (cheap.length) { const it = cheap[Math.floor(Math.random() * cheap.length)]; store.set('pb-owned', [...owned(), it.id]); msg = `Treasure chest! +${coins} coins and a free ${it.name}!`; }
       else msg = `Treasure chest! +${coins} coins`;
       const st = stats(); st.chests = (st.chests || 0) + 1; saveStats(st);
@@ -214,7 +218,7 @@
     { id: 'brick10k', icon: '\u{1F9F1}', name: 'Brick smasher',          desc: 'Score 10,000 in Brick Bash',           test: () => bestOf('bricks') >= 10000 },
     { id: 'stars50',  icon: '⭐',    name: 'Star collector',         desc: 'Collect 50 level stars',               test: () => starsAll() >= 50 },
   ];
-  const TROPHY_COINS = 25;
+  const TROPHY_COINS = 20;
   const earned = () => store.get('pb-trophies') || [];
   function checkTrophies(){
     const s = stats(), have = earned(), add = [];
@@ -267,7 +271,7 @@
 
   // ---------------- level map chests ----------------
   function openChest(game){
-    const coins = 50, bz = randomBoost(game); PB.wallet.add(coins); addBoost(bz.id, 1);
+    const coins = 30, bz = randomBoost(game); PB.wallet.add(coins); addBoost(bz.id, 1);
     const st = stats(); st.chests = (st.chests || 0) + 1; saveStats(st);
     if (PB.sfx) PB.sfx('fanfare'); banner(`\u{1F381} Treasure chest! +${coins} coins and a free ${bz.name} ${bz.ic}`, true); checkTrophies(); render();
   }

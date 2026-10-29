@@ -46,7 +46,7 @@
   function markPlayed(){
     const s = streakInfo(); if (s.playedToday) return false;
     store.set('pb-streak', { last: today(), count: s.count + 1, best: Math.max(s.best, s.count + 1) });
-    return 10 + Math.min(s.count + 1, 7) * 2;   // a few coins for coming back each day
+    return 5 + Math.min(s.count + 1, 7);   // a few coins for coming back each day
   }
   const streakBonus = c => c >= 7 ? 2 : c >= 3 ? 1 : 0;
 
@@ -59,7 +59,7 @@
   };
   PB.wallet = wallet;
   function paintCoins(){ const c = fmt(wallet.get()); $('hubCoins').innerHTML = coinSvg + `<b>${c}</b> coins`; $('hCoins').textContent = c; }
-  const coinsForScore = score => Math.max(1, Math.min(60, Math.round(Math.sqrt(Math.max(0, score)) / 2.5)));
+  const coinsForScore = score => Math.max(1, Math.min(25, Math.round(Math.sqrt(Math.max(0, score)) / 4)));
 
   // ---------- Daily challenges: one real goal per game per day ----------
   function challengeFor(g, day = today()){
@@ -72,7 +72,7 @@
   }
   const dailyLog = () => { const d = store.get('pb-daily-done') || {}; return d.date === today() ? d : { date: today(), games: {} }; };
   const challengeDone = g => !!dailyLog().games[g.id];
-  const CHALLENGE_COINS = 50;
+  const CHALLENGE_COINS = 20;
   let chal = null;  // the challenge being played right now
   function checkChallenge(){
     if (!chal || chal.done || chal.failed || !G.metrics) return;
@@ -387,7 +387,7 @@
   }
   // A gentler way to fail: one free "keep going" per level, then one more for coins
   let revives = 0;
-  const REVIVE_COST = 60;
+  const REVIVE_COST = 40;
   function offerRevive(proceed){
     if (mode !== 'classic' || !G.revive || revives >= 2 || (G.canRevive && !G.canRevive())) return false;
     const free = revives === 0, rich = wallet.get() >= REVIVE_COST;
@@ -410,7 +410,7 @@
     if (!win && !info.final && offerRevive(() => shell.levelDone({ ...info, final: true }))) return;
     phase = 'over'; lastScore = Math.floor(score);
     const firstClear = win && !(progress(G).stars[level] > 0);
-    const mult = PB.meta ? PB.meta.coinMult(G.id) : 1, earned = (win ? 5 + stars * 3 + (firstClear ? 10 : 0) : 1) * mult; wallet.add(earned);
+    const mult = PB.meta ? PB.meta.coinMult(G.id) : 1, earned = (win ? 2 + stars + (firstClear ? 5 : 0) : 1) * mult; wallet.add(earned);
     $('lCoins').innerHTML = coinSvg + `<span>+${earned} coin${earned === 1 ? '' : 's'}${firstClear ? ' (first clear bonus!)' : ''}${mult > 1 ? ` (\u00d7${mult} event)` : ''}</span>`;
     const prevStars = progress(G).stars[level] || 0;
     if (PB.sfx && !info.final) PB.sfx(win ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
