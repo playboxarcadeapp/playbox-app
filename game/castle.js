@@ -15,6 +15,8 @@
       dark: { d: 4.2, hp: 270, base: '#b9bec8', name:'Stone', look:'stone' },
       wood: { d: 1.1, hp: 75,  base: '#d98f4a', name:'Oak', look:'wood' },
       goblin: { d: 1.0, hp: 115, base: '#7ccf4a', name:'Goblin', look:'goblin' },
+      tnt:    { d: 1.3, hp: 45,  base: '#d8402a', name:'TNT', look:'tnt' },
+      chest:  { d: 2.2, hp: 70,  base: '#e0a83a', name:'Chest', look:'chest' },
     };
     const AMMO = {
       stone:  { name:'Stone',       r: 13, d: 11, hit: 1.15, color:'#8d8a86', desc:'A trusty round rock. Good all-rounder' },
@@ -90,6 +92,25 @@
         const near = [...blocks, ...statics].filter(o => Math.abs(o.x - xs[g]) < 75), right = Math.max(xs[g] + 30, ...near.map(o => o.x + o.w / 2)), gx = right + 21;
         if (g === groups - 1 && gx > xs[g] + 108) continue;
         if (!blocks.some(o => Math.abs(o.x - gx) < (o.w + 40) / 2 && o.y + o.h / 2 > GROUND - 50) && !statics.some(o => Math.abs(o.x - gx) < (o.w + 40) / 2)) { goblin(gx, GROUND); extra--; hidden++; } }
+      // the Goblin King rules every 10th castle: the highest goblin with headroom becomes the big boss
+      if (n % 10 === 0) {
+        const open = b => !blocks.some(o => o !== b && Math.abs(o.x - b.x) < (o.w + 54) / 2 && o.y + o.h / 2 <= b.y - b.h / 2 + 2 && o.y + o.h / 2 > b.y - b.h / 2 - 30);
+        const gl = blocks.filter(b => b.type === 'goblin' && open(b));
+        if (gl.length) { const k = gl.reduce((a, b) => b.y < a.y ? b : a), yb = k.y + k.h / 2; Object.assign(k, { w: 50, h: 68, y: yb - 34, king: true }); }
+      }
+      // TNT barrels (from level 5) and a treasure chest (from level 3) sit on free ledges, or by a castle wall
+      // find a gap on top of any ledge (beside goblins is fine) with clear air above, or a patch of open ground
+      const clear = (x, yb, w, h) => !blocks.some(o => Math.abs(o.x - x) < (o.w + w) / 2 + 2 && o.y - o.h / 2 < yb - 1 && o.y + o.h / 2 > yb - h - 12) && !statics.some(o => Math.abs(o.x - x) < (o.w + w) / 2 + 2 && o.y - o.h / 2 < yb - 1);
+      const place = (type, w, h) => {
+        const cand = [];
+        for (const b of blocks) { if (['goblin', 'post', 'tnt', 'chest'].includes(b.type) || b.w < w) continue; const yb = b.y - b.h / 2;
+          for (let k = 0; k < 5; k++) { const x = b.x + (k / 4 - 0.5) * (b.w - w); if (clear(x, yb, w, h)) cand.push([x, yb]); } }
+        if (!cand.length) for (let x = xs[0] - 130; x <= xs[xs.length - 1] + 90; x += 12) if (clear(x, GROUND, w, h)) cand.push([x, GROUND]);
+        if (!cand.length) return;
+        const [x, yb] = cand[Math.floor(R() * cand.length)]; blocks.push({ x, y: yb - h / 2, w, h, type, mat: type });
+      };
+      if (n >= 5) for (let i = 0, nt = Math.min(3, 1 + Math.floor((n - 5) / 12)); i < nt; i++) place('tnt', 30, 34);
+      if (n >= 3 && R() < 0.65) place('chest', 34, 26);
       const gobs = blocks.filter(b => b.type === 'goblin').length;
       const spare = n >= 25 ? 3 : 2;
       const total = Math.min(15, gobs + spare + hidden + Math.floor(blocks.length / 18));
@@ -99,6 +120,7 @@
       if (n >= 6) ammo.fire = 1 + (n >= 30 ? 1 : 0);
       if (n >= 9) ammo.boulder = 1;
       ammo.stone = Math.max(1, total - (ammo.triple + ammo.iron + ammo.fire + ammo.boulder));
+      if (blocks.some(b => b.king)) ammo.iron++;   // a spare heavy ball for the boss
       return { n, blocks, statics, ammo, maxX: xs[xs.length - 1] + 110 };
     }
 
@@ -115,9 +137,10 @@
         if (!shot) return;
         if (shot.data.type === 'fire' && !shot.data.burst && other.data && (other.data.block || other.data.ground || other.data.rock)) st.pendingBurst.push(shot);
         if (other.data && other.data.block && !shot.data.thud) {
-          shot.data.thud = true; st.shake = Math.max(st.shake, Math.min(18, 6 + vn / 50));
+          shot.data.thud = true; st.shake = Math.max(st.shake, Math.min(22, 8 + vn / 40)); if (st.impactX == null) st.impactX = shot.x;
+          if (vn > 300) st.kick = Math.max(st.kick || 0, Math.min(0.07, vn / 6000));
           const p = [shot.x, shot.y]; dust(p, MAT[other.data.mat].base, 10); chunks(p, MAT[other.data.mat].base, 8);
-          if (vn > 220 && !reduceMotion) { if (!shot.data.slowed && shot.data.main) { shot.data.slowed = true; st.slow = 0.4; } st.comics.push({ p, t: 0, text: ['POW!', 'BAM!', 'CRASH!', 'WHAM!', 'KA-BOOM!'][Math.floor(Math.random() * 5)], col: ['#ffd23f', '#ff7a2a', '#5ee0ff', '#ff4f8b'][Math.floor(Math.random() * 4)], big: vn > 380 }); }
+          if (vn > 220 && !reduceMotion) { if (!shot.data.slowed && shot.data.main) { shot.data.slowed = true; st.slow = vn > 380 ? 0.6 : 0.4; } comic(p, ['POW!', 'BAM!', 'CRASH!', 'WHAM!', 'KA-BOOM!'][Math.floor(Math.random() * 5)], ['#ffd23f', '#ff7a2a', '#5ee0ff', '#ff4f8b'][Math.floor(Math.random() * 4)], vn > 380); }
           if (!reduceMotion) st.waves.push({ p, t: 0, big: vn > 320 });
           if (PB.sfx) PB.sfx('crash');
         }
@@ -132,7 +155,7 @@
       if (dmg <= 0) return;
       d.hp -= dmg; d.hitT = 0.3; d.wob = 1;
       if (d.hp <= 0) d.broken = true;
-      else if (d.mat === 'goblin' && dmg > 20 && !d.ouch) { d.ouch = 0.6; pop([body.x, body.y - 30], 'Ouch! Hit him again!', '#ffe08a', 1.1); }
+      else if (d.mat === 'goblin' && dmg > 20 && !d.ouch) { d.ouch = 0.6; pop([body.x, body.y - 30], d.king ? 'The king is wobbling!' : 'Ouch! Hit him again!', '#ffe08a', 1.1, 20); }
     }
     function ammoLeft(){ return AMMO_ORDER.reduce((n, k) => n + (st.inv[k] || 0), 0); }
     function pickAmmo(){ if (st.inv[st.sel] > 0) return; st.sel = AMMO_ORDER.find(k => st.inv[k] > 0) || st.sel; }
@@ -141,13 +164,13 @@
       const spec = levelSpec(mode === 'daily' ? 35 : level, R), P = PB.physics;
       st = { mode, level, spec, blocks: [], inv: { ...spec.ammo }, sel: 'stone', shots: [], score: 0, knocked: 0, broken: 0, phase: 'play', armed: false,
         loaded: true, reload: 0, parts: [], pops: [], waves: [], comics: [], helmets: [], debris: [], time: 0, shake: 0, settle: 0, over: false, endTimer: null, pendingBurst: [], lastFire: 0,
-        pull: null, drag: null, band: 0, bandV: 0, slow: 0, loadAnim: null, fwIn: 0, trayRects: [], preview: null, cam: null, camShot: null, camHold: 0, flash: 0, flyGobs: [], watch: null, hello: false };
+        pull: null, drag: null, band: 0, bandV: 0, slow: 0, kick: 0, intro: 2.4, impactX: null, combo: { n: 0, t: 9, pulse: 0, said: 0 }, callout: null, loadAnim: null, fwIn: 0, trayRects: [], preview: null, cam: null, camShot: null, camHold: 0, flash: 0, flyGobs: [], watch: null, hello: false };
       st.world = makeWorld(spec); st.world.iters = 16;
-      st.blocks = spec.blocks.map(b => { const hp = MAT[b.mat].hp * (b.type === 'wall' ? 1.15 : 1); const body = P.makeBox(b.x, b.y, b.w, b.h, MAT[b.mat].d, { friction: 0.95, data: { block: true, ...b, hp, maxHp: hp } }); st.world.add(body); return body; });
+      st.blocks = spec.blocks.map(b => { const hp = MAT[b.mat].hp * (b.type === 'wall' ? 1.15 : 1) * (b.king ? 3 : 1); const body = P.makeBox(b.x, b.y, b.w, b.h, MAT[b.mat].d * (b.king ? 1.8 : 1), { friction: 0.95, data: { block: true, ...b, hp, maxHp: hp } }); st.world.add(body); return body; });
       for (let i=0;i<300;i++) st.world.step(1 / 120);
       for (const b of st.blocks) { b.vx = b.vy = b.w = 0; b.data.y0 = b.y; b.data.a0 = b.a; b.data.x0 = b.x; }
       st.armed = true; pickAmmo();
-      st.goblins = st.blocks.filter(b => b.data.mat === 'goblin').length;
+      st.goblins = st.blocks.filter(b => b.data.mat === 'goblin').length; st.hasKing = st.blocks.some(b => b.data.king);
       if (A && A.lumps) for (const sp of spec.statics) outcrop(sp);
     }
     function fire(vx, vy){ if (PB.sfx) { PB.sfx('launch'); PB.sfx('whoosh'); }
@@ -157,7 +180,7 @@
       const ball = P.makeCircle(REST.x + st.pull.dx, REST.y + st.pull.dy, Am.r, Am.d * 1.1, { friction: 0.6, data: { shot: true, type, main: true } });
       ball.vx = vx; ball.vy = vy; ball.age = 0;
       st.world.add(ball); st.shots.push(ball); st.camShot = ball;
-      st.loaded = false; st.reload = 0; st.lastFire = st.time; st.watch = { gobs: st.gobs || 0 }; st.preview = null; st.loadAnim = null;
+      st.loaded = false; st.reload = 0; st.lastFire = st.time; st.impactX = null; st.intro = 0; st.combo = { n: 0, t: 0, pulse: 0, said: 0 }; st.watch = { gobs: st.gobs || 0 }; st.preview = null; st.loadAnim = null;
       st.bandV = -14; st.band = 1; st.pull = null;
       if (!reduceMotion) for (let i=0;i<10;i++) st.parts.push({ p: [REST.x, REST.y, 0], v: [(Math.random() - .5) * 60, (Math.random() - .5) * 60, (Math.random() - .5) * 30], life: 0.5, max: 0.5, color: [1, 0.95, 0.75], size: 0.05, add: true, g: 0 });
     }
@@ -182,31 +205,67 @@
       for (let i=0;i<12;i++) st.parts.push({ p: [ball.x, ball.y, 0], v: [(Math.random() - .5) * 200, (Math.random() - .5) * 200, (Math.random() - .5) * 80], life: .4, max: .4, color: [1, 0.95, 0.75], size: 0.06, add: true, g: 0 });
       if (PB.sfx) PB.sfx('pick');
     }
-    function explode(shot){ if (PB.sfx) PB.sfx('boom');
-      shot.data.burst = true; shot.dead = true;
-      for (const b of st.blocks) { const dx = b.x - shot.x, dy = b.y - shot.y, d = Math.hypot(dx, dy);
-        if (d < 120 && d > 0 && !b.data.off) { const k = (1 - d / 120) * 520; b.vx += dx / d * k; b.vy += dy / d * k - 160 * (1 - d / 120); b.w += (Math.random() - .5) * 6; b.data.hp -= 150 * (1 - d / 120); b.data.hitT = 0.3; if (b.data.hp <= 0) b.data.broken = true; } }
-      st.shake = 16; st.flash = 0.25;
-      const p = [shot.x, shot.y];
+    function explode(shot){ shot.data.burst = true; shot.dead = true; blast(shot.x, shot.y, 1); }
+    function blast(x, y, pw, tnt){ if (PB.sfx) PB.sfx('boom');
+      const RR = 120 * pw;
+      for (const b of st.blocks) { const dx = b.x - x, dy = b.y - y, d = Math.hypot(dx, dy);
+        if (d < RR && d > 0 && !b.data.off) { const k = (1 - d / RR) * 520 * pw; b.vx += dx / d * k; b.vy += dy / d * k - 160 * (1 - d / RR); b.w += (Math.random() - .5) * 6; b.data.hp -= 150 * pw * (1 - d / RR); b.data.hitT = 0.3; if (b.data.hp <= 0) b.data.broken = true; } }
+      st.shake = 16 * pw; st.flash = 0.25; st.kick = Math.max(st.kick || 0, 0.08); if (st.impactX == null) st.impactX = x; if (!reduceMotion) st.slow = Math.max(st.slow, tnt ? 0.45 : 0.3);
+      const p = [x, y];
       if (!reduceMotion) for (let i=0;i<46;i++) { const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 260; st.parts.push({ p: [p[0], p[1], 0], v: [Math.cos(a) * s, Math.sin(a) * s, (Math.random() - .5) * 120], life: 0.8, max: 0.8, color: [[1, 0.7, 0.15], [1, 0.35, 0.1], [1, 0.9, 0.5]][i % 3], size: 0.13 + Math.random() * 0.14, add: true, g: 300 }); }
       for (let i=0;i<14;i++) st.parts.push({ p: [p[0] + (Math.random() - .5) * 30, p[1], 0], v: [(Math.random() - .5) * 60, -60 - Math.random() * 60, 0], life: 1.6, max: 1.6, color: [0.35, 0.33, 0.32], size: 0.3 + Math.random() * 0.3, grow: 0.5, g: 0 });
       chunks(p, '#6b4a2a', 14, 1.6); st.boomLight = { p, t: 0.35 }; if (!reduceMotion) st.waves.push({ p, t: 0, big: true, fire: true });
-      st.comics.push({ p, t: 0, text: 'BOOM!', col: '#ff7a1f', big: true });
+      comic(p, tnt ? 'KABOOM!' : 'BOOM!', '#ff7a1f', true, true);
+      if (tnt && !reduceMotion) for (let i=0;i<24;i++) { const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 220; st.parts.push({ p: [x, y, 0], v: [Math.cos(a) * sp, Math.sin(a) * sp - 120, (Math.random() - .5) * 100], life: 1.0, max: 1.0, color: [1, 0.85, 0.3], size: 0.06, add: true, g: 500 }); }
     }
-    function pop(p, text, color, life){ st.pops.push({ p, text, color, life: life || 1.1, rise: 0 }); }
+    // one comic burst at a time (the big ones always show)
+    function comic(p, text, col, big, force){ if (!force && st.comics.some(c => c.t < 0.4)) return; if (force) st.comics = st.comics.filter(c => c.t > 0.5); st.comics.push({ p, t: 0, text, col, big }); }
+    // every block, goblin, barrel and chest a single shot knocks over adds to the combo
+    const COMBOS = [[4, 'NICE COMBO!', '#7dff6a'], [8, 'SUPER SMASH!', '#5ee0ff'], [14, 'MEGA CRASH!', '#ffd23f'], [22, 'CASTLE QUAKE!', '#ff7a2a'], [32, 'UNSTOPPABLE!', '#ff4f8b']];
+    function comboHit(){
+      if (!st.lastFire || st.over && !st.win) return;
+      const c = st.combo; c.n++; c.t = 0; c.pulse = 1;
+      const hit = COMBOS.filter(q => q[0] <= c.n).pop();
+      if (hit && hit[0] > c.said) { c.said = hit[0]; const bonus = c.n * 25; st.score += bonus;
+        st.callout = { text: hit[1], sub: `${c.n} hits in one shot! +${bonus}`, col: hit[2], t: 0, life: 1.6 };
+        if (PB.sfx) PB.sfx('combo', COMBOS.indexOf(hit)); st.kick = Math.max(st.kick || 0, 0.05); st.shake = Math.max(st.shake, 10); }
+    }
+    // treasure chests pay coins the first time you crack each level's chest
+    function openChest(b){
+      const d = b.data; d.off = true; d.gone = true; st.knocked++; st.world.remove(b);
+      const key = st.mode === 'daily' ? 'd' + PB.today() : String(st.level), got = PB.store.get('castle-chests') || [];
+      let coins = 0;
+      if (!got.includes(key)) { coins = Math.min(12, 5 + Math.floor((st.level || 1) / 10)); PB.store.set('castle-chests', [...got, key].slice(-300)); if (PB.wallet) PB.wallet.add(coins); }
+      st.score += 300; comboHit();
+      comic([b.x, b.y], 'TREASURE!', '#ffd23f', true, true);
+      pop([b.x, b.y - 30], coins ? `+${coins} coins!` : '+300', '#ffd23f', 1.8, coins ? 26 : 20);
+      chunks([b.x, b.y], '#8a5520', 10, 1.2);
+      if (!reduceMotion) for (let i=0;i<34;i++) { const a = -Math.PI / 2 + (Math.random() - .5) * 2.2, sp = 160 + Math.random() * 240; st.parts.push({ p: [b.x, b.y, 10], v: [Math.cos(a) * sp, Math.sin(a) * sp, (Math.random() - .5) * 80], life: 1.4, max: 1.4, color: [1, 0.82, 0.2], size: 0.09 + Math.random() * 0.05, add: true, g: 700 }); }
+      if (PB.sfx) { PB.sfx('coin'); PB.sfx('life'); }
+    }
+    // floating text: nearby pop-ups stack instead of piling on top of each other, and only a few at a time
+    function pop(p, text, color, life, size){
+      const near = st.pops.filter(q => Math.abs(q.p[0] - p[0]) < 90 && Math.abs(q.p[1] - p[1]) < 70 && q.rise < 30).length;
+      st.pops.push({ p: [p[0], p[1] - near * (size || 24) * 1.1], text, color, life: life || 1.1, rise: 0, size: size || 24 });
+      if (st.pops.length > 6) st.pops.shift();
+    }
     // debris and dust live in world units (x, y like the physics; z in front/behind)
     function chunks(p, col, n, power = 1){ if (reduceMotion) return; const c = hex(col); for (let i=0;i<n;i++) st.debris.push({ p: [p[0] + (Math.random() - .5) * 14, p[1] + (Math.random() - .5) * 14, (Math.random() - .5) * 30], v: [(Math.random() - .5) * 260 * power, (-80 - Math.random() * 200) * power, (Math.random() - .5) * 120], r: [Math.random() * 6, Math.random() * 6, Math.random() * 6], vr: [(Math.random() - .5) * 12, (Math.random() - .5) * 12, (Math.random() - .5) * 12], s: 4 + Math.random() * 5, col: c.map(v => v * (0.75 + Math.random() * 0.3)), life: 2.2 }); }
     function dust(p, col, n){ if (reduceMotion) return; const c = hex(col).map(v => v * 0.85 + 0.1); for (let i=0;i<n;i++) st.parts.push({ p: [p[0] + (Math.random() - .5) * 20, p[1] + (Math.random() - .5) * 20, (Math.random() - .5) * 20], v: [(Math.random() - .5) * 140, -Math.random() * 140, (Math.random() - .5) * 60], life: 0.7, max: 0.7, color: c, size: 0.1 + Math.random() * 0.12, g: 200, grow: 0.15 }); }
     function bonkFx(b){
       if (reduceMotion) return;
       st.helmets.push({ p: [b.x, b.y - 12, 0], v: [(Math.random() - .5) * 160 + 60, -320 - Math.random() * 120, 60 + Math.random() * 60], r: [0, 0, 0], vr: [(Math.random() - .5) * 14, (Math.random() - .5) * 10, (Math.random() - .5) * 14], life: 2.4 });
-      st.comics.push({ p: [b.x, b.y], t: 0, text: 'BONK!', col: '#9cff5a', big: true });
+      comic([b.x, b.y], b.data.king ? 'KING BONK!' : 'BONK!', '#9cff5a', true, true);
       for (let k=0;k<8;k++) st.parts.push({ p: [b.x, b.y - 20, 0], v: [Math.cos(k) * 90, -90 + Math.sin(k) * 30, Math.sin(k * 2) * 40], life: 0.9, max: 0.9, color: [1, 0.92, 0.3], size: 0.08, add: true, g: 60 });
     }
     function bonk(b, text){
-      const d = b.data; d.off = true; d.gone = true; st.knocked++; st.gobs = (st.gobs || 0) + 1; st.score += 500;
-      bonkFx(b); launchGoblin(b); chunks([b.x, b.y], '#9cff5a', 5, 0.8); dust([b.x, b.y], '#9cff5a', 14);
-      pop([b.x, b.y - 20], text || 'Goblin bonked! +500', '#9cff5a', 1.4); st.world.remove(b); if (PB.sfx) PB.sfx('bonk');
+      const d = b.data, king = !!d.king; d.off = true; d.gone = true; st.knocked++; st.gobs = (st.gobs || 0) + 1; st.score += king ? 2000 : 500;
+      bonkFx(b); launchGoblin(b); chunks([b.x, b.y], '#9cff5a', king ? 14 : 5, 0.8); dust([b.x, b.y], '#9cff5a', 14);
+      pop([b.x, b.y - 20], text || (king ? 'The King is down! +2000' : '+500'), '#9cff5a', 1.4, king ? 28 : 22); st.world.remove(b); if (PB.sfx) PB.sfx('bonk');
+      comboHit();
+      const left = st.blocks.filter(o => o.data.mat === 'goblin' && !o.data.off).length;
+      if (!reduceMotion && (king || left === 0)) { st.slow = Math.max(st.slow, king ? 1.0 : 0.8); st.kick = Math.max(st.kick || 0, 0.1); }
+      if (king) { for (let i=0;i<3;i++) firework(); st.callout = { text: 'KING BONKED!', sub: 'The Goblin King is down!', col: '#ffd23f', t: 0, life: 2 }; }
     }
     function firework(){
       const cx = st.spec.maxX - 160 + (Math.random() - .5) * 260, cy = GROUND - 330 - Math.random() * 160, cols = [[1, 0.3, 0.35], [1, 0.85, 0.2], [0.35, 0.75, 1], [0.5, 1, 0.45], [1, 0.5, 0.95]], col = cols[Math.floor(Math.random() * cols.length)];
@@ -220,6 +279,9 @@
       if (st.slow > 0) st.slow = Math.max(0, st.slow - rdt);
       const dt = st.slow > 0 ? rdt * 0.3 : rdt;
       st.time += dt;
+      if (st.callout) { st.callout.t += rdt; if (st.callout.t > st.callout.life) st.callout = null; }
+      st.combo.t += rdt; st.combo.pulse = Math.max(0, st.combo.pulse - rdt * 4);
+      if (st.intro > 0 && st.phase === 'play') st.intro -= rdt;
       for (const c of st.comics) c.t += rdt; st.comics = st.comics.filter(c => c.t < 0.9);
       if (st.phase === 'menu') { effects(dt); return; }
       const steps = Math.min(16, Math.max(2, Math.ceil(dt * 120))), h = dt / steps;
@@ -252,16 +314,24 @@
         if (d.ouch) d.ouch = Math.max(0, d.ouch - dt) || 0;
         if (d.mat === 'goblin') {
           if (!st.lastFire) { d.hp = d.maxHp; d.broken = false; d.y0 = b.y; d.a0 = b.a; continue; }
-          if (d.broken || b.y > d.y0 + 14 || Math.abs(b.a - d.a0) > 0.9 || b.x < -100 || b.x > st.spec.maxX + 400) { bonk(b); continue; }
+          if (d.broken || b.y > d.y0 + (d.king ? 28 : 14) || Math.abs(b.a - d.a0) > (d.king ? 1.1 : 0.9) || b.x < -100 || b.x > st.spec.maxX + 400) { bonk(b); continue; }
           continue;
         }
+        if (d.mat === 'tnt' && st.lastFire && d.broken) {
+          // a short fizz, then the barrel goes off (and may set off its neighbours)
+          d.fuse = (d.fuse == null ? 0.1 : d.fuse) - dt; if (d.fuse > 0) continue;
+          d.off = true; d.gone = true; st.knocked++; st.world.remove(b); st.score += 150; comboHit(); blast(b.x, b.y, 1.1, true); continue;
+        }
+        if (d.mat === 'chest' && st.lastFire && (d.broken || b.y > d.y0 + 36 || Math.abs(b.a - d.a0) > 1.3)) { openChest(b); continue; }
         if (d.broken) {
           d.off = true; d.gone = true; st.knocked++; st.broken++;
-          const pts = d.mat === 'dark' ? 200 : d.mat === 'gray' ? 150 : 100; st.score += pts; pop([b.x, b.y], 'Smash! +' + pts, '#ffe08a', 0.9); if (PB.sfx) PB.sfx('crash');
-          dust([b.x, b.y], MAT[d.mat].base, 16); chunks([b.x, b.y], MAT[d.mat].base, 16, 1.1); st.shake = Math.max(st.shake, 6);
+          const pts = d.mat === 'dark' ? 200 : d.mat === 'gray' ? 150 : 100; st.score += pts; pop([b.x, b.y], '+' + pts, '#ffe08a', 0.9, 18); if (PB.sfx) PB.sfx('crash');
+          dust([b.x, b.y], MAT[d.mat].base, 18); chunks([b.x, b.y], MAT[d.mat].base, 22, 1.3); st.shake = Math.max(st.shake, 8);
+          if (!d.toppled) comboHit();
           st.world.remove(b); continue;
         }
         if (!st.lastFire) { d.hp = d.maxHp; continue; }
+        if (!d.toppled && (b.y > d.y0 + 30 || Math.abs(b.a - d.a0) > 0.7)) { d.toppled = true; st.score += 25; comboHit(); }
         if (b.y > GROUND + 60 || b.x < -200 || b.x > st.spec.maxX + 500) { d.off = true; st.knocked++; st.world.remove(b); }
       }
       if (!st.over) {
@@ -449,6 +519,13 @@
       g.fillStyle = trim; g.fillRect(0, 0, 256, 10); g.fillRect(0, 104, 256, 8);
       g.fillStyle = shade(trim, -0.3); for (let x=0;x<256;x+=8) g.fillRect(x, 112, 3, 16);
       g.fillStyle = trim; for (let x=4;x<256;x+=32) { g.beginPath(); g.moveTo(x, 40); g.lineTo(x + 8, 52); g.lineTo(x, 64); g.lineTo(x - 8, 52); g.closePath(); g.fill(); }
+      return c;
+    }
+    function tntTex(){
+      const c = cv(256, 128), g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#ff5a3a'); gr.addColorStop(1, '#b8241a'); g.fillStyle = gr; g.fillRect(0, 0, 256, 128);
+      g.fillStyle = 'rgba(0,0,0,.14)'; for (let x=0;x<256;x+=21) g.fillRect(x, 0, 3, 128);
+      g.fillStyle = '#ffe9a8'; g.fillRect(0, 44, 256, 40); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 44, 256, 3); g.fillRect(0, 81, 256, 3);
+      g.font = '900 34px Arial Black, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#b8241a'; for (const x of [32, 96, 160, 224]) g.fillText('TNT', x, 65);
       return c;
     }
     function stripeTex(a, b, n){ const c = cv(256, 64), g = c.getContext('2d'); for (let i=0;i<n;i++) { g.fillStyle = i % 2 ? b : a; g.fillRect(i * 256 / n, 0, 256 / n + 1, 64); } g.fillStyle = 'rgba(0,0,0,.08)'; for (let i=0;i<n;i++) g.fillRect(i * 256 / n, 0, 3, 64); return c; }
@@ -851,7 +928,7 @@
       return { kind: 'idle', k: t };
     }
     function drawGoblin(b, fly){
-      const M = E.M, d = fly ? { w: 34, hitT: 0, fly } : b.data, s = (d.w || 34) * S, pose = goblinPose(b, d), K = pose.kind, k = pose.k, tt = st.time;
+      const M = E.M, d = fly ? { w: fly.w || 34, h: fly.h, hitT: 0, fly, king: fly.king } : b.data, s = (d.w || 34) * S, pose = goblinPose(b, d), K = pose.kind, k = pose.k, tt = st.time;
       const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x), inOut = (a, len) => ease(k / a) * (1 - ease((k - (len - a)) / a));
       // whole-body motion for this pose
       let hop = 0, lean = 0, yaw = -0.42, sway = 0, headTilt = Math.sin(tt * 1.3 + b.id) * 0.06, headYaw = 0, armL = [0.28, 0, 0.35], armR = [0.28, 0, 0.35], legL = 0, legR = 0, mouth = 'grin', eyes = 'open', look = -0.022, earFlap = Math.sin(tt * 2 + b.id) * 0.06;
@@ -867,7 +944,7 @@
       const m = M.trs([pos[0], pos[1] + hop * s, pos[2] + (fly ? 0.25 : 0)], [0, yaw, -(fly ? fly.a : b.a) + lean + sway], [1, 1 + (K === 'idle' ? Math.sin(tt * 3 + b.id) * 0.025 : 0), 1]);
       const D = (mesh, par, l, r, sc, mat) => E.draw(mesh, M.mul(par, M.trs([l[0] * s, l[1] * s, l[2] * s], r || [0, 0, 0], sc.map ? sc.map(v => v * s) : sc * s)), mat);
       const skin = { tex: A.tGobSkin, color: [1, 1, 1], spec: 0.35, shine: 26, rim: 0.35 }, skinD = { color: [0.42, 0.62, 0.2], spec: 0.3, shine: 20, rim: 0.3 }, cloth = { tex: A.tTunic, color: [1, 1, 1], spec: 0.15, shine: 14 };
-      const metal = { color: [0.52, 0.56, 0.64], spec: 1.5, shine: 90, rim: 0.3 }, dark = { color: [0.12, 0.06, 0.04], spec: 0.2 }, boot = { color: [0.3, 0.17, 0.09], spec: 0.5, shine: 30 };
+      const metal = { color: [0.52, 0.56, 0.64], spec: 1.5, shine: 90, rim: 0.3 }, goldM = { color: [1, 0.78, 0.2], emissive: [0.15, 0.1, 0], spec: 1.7, shine: 100, rim: 0.4 }, dark = { color: [0.12, 0.06, 0.04], spec: 0.2 }, boot = { color: [0.3, 0.17, 0.09], spec: 0.5, shine: 30 };
       // legs and boots
       for (const [sd, lift] of [[-1, legL], [1, legR]]) { D(A.cyl, m, [sd * 0.095, -0.37 + lift * 0.5, 0], [0, 0, sd * 0.05], [0.1, 0.17, 0.1], { color: [0.34, 0.24, 0.16], spec: 0.15 }); D(A.sphere, m, [sd * 0.1, -0.465 + lift, 0.035], [0, sd * 0.3, 0], [0.085, 0.06, 0.12], boot); }
       // tunic, belt and buckle
@@ -908,6 +985,15 @@
       if (mouth === 'open') D(A.sphere, hm, [0, -0.16, 0.245], null, [0.06, 0.025, 0.035], { color: [1, 0.45, 0.55], spec: 0.5 });
       // dented steel helmet with a red spike (the thing you need to knock off)
       if (fly) return;
+      if (d.king) {
+        // the Goblin King wears a big gold crown with jewels instead of a helmet
+        D(A.cyl, hm, [0, 0.22, -0.01], [-0.12, 0, 0], [0.56, 0.14, 0.54], goldM); D(A.cyl, hm, [0, 0.22, -0.01], [-0.12, 0, 0], [0.56, 0.14, 0.54], INK);
+        for (let i=-2;i<=2;i++) { const a = i * 0.55; D(A.cone, hm, [Math.sin(a) * 0.25, 0.36, Math.cos(a) * 0.25 - 0.04], [-0.12, 0, 0], [0.09, 0.17, 0.09], goldM); D(A.sphere, hm, [Math.sin(a) * 0.25, 0.46, Math.cos(a) * 0.25 - 0.05], null, 0.03, goldM); }
+        D(A.sphere, hm, [0, 0.22, 0.27], null, 0.045, { color: [1, 0.15, 0.25], emissive: [0.4, 0.02, 0.05], spec: 2, shine: 120 });
+        for (const sd of [-1, 1]) D(A.sphere, hm, [sd * 0.17, 0.22, 0.21], null, 0.032, { color: [0.2, 0.5, 1], emissive: [0.03, 0.1, 0.3], spec: 2, shine: 120 });
+        if (!reduceMotion) { const tw = Math.max(0, Math.sin(tt * 3 + b.id)); E.sprite(M.xform(hm, [0.14 * s, 0.42 * s, 0.2 * s]), 0.04 + tw * 0.08, [1, 1, 0.85], tw, true); }
+        return;
+      }
       const helm = M.mul(hm, M.trs([0, 0.135 * s, -0.01 * s], [-0.12, 0, 0], [0.93 * s, 0.9 * s, 0.93 * s]));
       E.draw(A.gDome, helm, metal); E.draw(A.gDome, helm, INK);
       D(A.gRim, hm, [0, 0.135, -0.01], [-0.12, 0, 0], [0.32, 0.5, 0.31], { color: [0.5, 0.53, 0.6], spec: 1.2, shine: 70 });
@@ -916,14 +1002,14 @@
       if (K === 'panic' && !reduceMotion) { const dp = (tt * 1.6 + b.id * 0.3) % 1; E.sprite(M.xform(hm, [0.3 * s, (0.12 - dp * 0.25) * s, 0.15 * s]), 0.05, [0.6, 0.85, 1], 1 - dp, false); }
     }
     // a goblin knocked out of the castle tumbles away instead of just vanishing
-    function launchGoblin(b){ if (reduceMotion) return; st.flyGobs.push({ x: b.x, y: b.y, vx: 120 + Math.random() * 160, vy: -380 - Math.random() * 140, a: b.a, va: (Math.random() < .5 ? -1 : 1) * (8 + Math.random() * 6), t: 0, id: b.id }); }
+    function launchGoblin(b){ if (reduceMotion) return; st.flyGobs.push({ x: b.x, y: b.y, vx: 120 + Math.random() * 160, vy: -380 - Math.random() * 140, a: b.a, va: (Math.random() < .5 ? -1 : 1) * (8 + Math.random() * 6), t: 0, id: b.id, w: b.data.w, h: b.data.h, king: b.data.king }); }
     function updateGoblins(dt){
       for (const f of st.flyGobs) { f.t += dt; f.vy += G * 0.9 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.a += f.va * dt; }
       st.flyGobs = st.flyGobs.filter(f => f.t < 3 && f.y < GROUND + 600);
       for (const b of st.blocks) { const d = b.data; if (d.mat !== 'goblin' || d.off) continue; if (d.taunt) { d.taunt.t += dt; if (d.taunt.t > 2.8) d.taunt = null; } }
       // a goblin cheers when a shot misses everyone
       if (st.watch && !st.shots.length && !st.over) { const missed = (st.gobs || 0) === st.watch.gobs; st.watch = null; if (missed) taunt(true); }
-      if (st.phase === 'play' && !st.hello && st.time > 1.4) { st.hello = true; taunt(false, 'Come and get us!'); }
+      if (st.phase === 'play' && !st.hello && st.time > 1.4) { st.hello = true; taunt(false, st.hasKing ? 'Bow to the Goblin King!' : 'Come and get us!'); }
     }
     function taunt(sound, text){
       const alive = st.blocks.filter(b => b.data.mat === 'goblin' && !b.data.off); if (!alive.length) return;
@@ -1013,12 +1099,12 @@
       E = PB.gl3d.get(); if (!E) return null;
       const Gm = E.G, M = E.M, T = (g, t, r, s) => Gm.transform(g, M.trs(t, r || [0,0,0], s || [1,1,1]));
       A = {};
-      A.tStone = {}; for (const k of Object.keys(MAT)) if (k !== 'goblin') A.tStone[k] = E.texture(stoneTex(MAT[k], k.length * 7));
+      A.tStone = {}; for (const k of Object.keys(MAT)) if (k !== 'goblin' && k !== 'tnt' && k !== 'chest') A.tStone[k] = E.texture(stoneTex(MAT[k], k.length * 7));
       A.tGoblin = E.texture(goblinTex()); A.tFace = { stone: E.texture(faceTex('#a7a39d', '#3a2a20', 1)), triple: E.texture(faceTex('#d9a86a', '#5a3010', 2)), iron: E.texture(faceTex('#4a4e58', '#111', 3)), fire: E.texture(faceTex('#ff6a2a', '#5a1000', 4)), boulder: E.texture(faceTex('#9a8f80', '#3a2a20', 5)) };
       A.tCrack = [crackTex(31, 5), crackTex(57, 11)];
       A.tPlank = E.texture(plankTex()); A.tGrass = E.texture(grassTex()); A.tDirt = E.texture(soilTex()); A.tRock = E.texture(rockTex());
       A.tMount = E.texture(cv(4, 4), { repeat: false }); A.tHills = E.texture(placeholderHills(), { repeat: false });
-      A.tCloth = E.texture(clothTex('#8e1f1a', '#e0b43c'));
+      A.tCloth = E.texture(clothTex('#8e1f1a', '#e0b43c')); A.tTnt = E.texture(tntTex());
       A.box = E.mesh(Gm.roundBox(1, 1, 1, 0.1, 3)); A.flat = E.mesh(Gm.box(1, 1, 1)); A.sphere = E.mesh(Gm.sphere(1, 24, 16)); A.cyl = E.mesh(Gm.cylinder(0.5, 0.5, 1, 20)); A.cone = E.mesh(Gm.cylinder(0, 0.5, 1, 20, true));
       A.log = E.mesh(Gm.cylinder(0.5, 0.42, 1, 14)); A.quad = E.mesh(Gm.quad(1, 1)); A.ring = E.mesh(Gm.torus(1, 0.08, 40, 6));
       A.flag = E.mesh(Gm.extrude([[0, 0], [1, -0.32], [0, -0.64]], 0.02)); A.chunk = E.mesh(Gm.roundBox(1, 1, 1, 0.2, 2));
@@ -1028,18 +1114,39 @@
 
     // ---------- camera ----------
     const FOV = 0.55, ASPECT = W / H;
+    // The camera tells the story of each shot: it opens close on the castle, pulls back to the sling for
+    // aiming, chases the ball through the air, then holds close on the castle while it comes crashing down.
+    function castleBox(){
+      let x0 = 1e9, x1 = -1e9, top = GROUND;
+      for (const b of st.blocks) { if (b.data.off) continue; x0 = Math.min(x0, b.x - b.hw); x1 = Math.max(x1, b.x + b.hw); top = Math.min(top, b.y - b.hh); }
+      for (const sp of st.spec.statics) { x0 = Math.min(x0, sp.x - sp.w / 2); x1 = Math.max(x1, sp.x + sp.w / 2); }
+      if (x0 > x1) { x0 = st.spec.maxX - 320; x1 = st.spec.maxX - 20; }
+      return { x0, x1, top };
+    }
+    const view = (x, w) => ({ x, y: GROUND - 0.3 * (w / ASPECT), w });
+    function castleView(focus){
+      const c = castleBox(), needW = (GROUND - c.top + 70) / 0.7 * ASPECT;
+      const w = Math.max(340, Math.min(620, Math.max(c.x1 - c.x0 + 60, needW)));
+      let x = (c.x0 + c.x1) / 2; if (focus != null) x = x * 0.65 + focus * 0.35;
+      return view(x, w);
+    }
+    function aimView(){ const w = Math.max(540, Math.min(780, st.spec.maxX + 30)); return view(w / 2 - 10, w); }
     function camTarget(){
       if (st.camLock) return st.camLock;
-      const s = st.camShot && !st.camShot.dead && st.camShot.age < 3 ? st.camShot : null;
-      const widthAll = Math.max(540, Math.min(780, st.spec.maxX + 30));
-      if (s && st.phase !== 'menu') { const w = Math.min(widthAll, 600), hh = w / ASPECT; const cx = Math.max(w / 2 - 10, Math.min(st.spec.maxX + 40 - w / 2, s.x + 60)); return { x: cx, y: Math.min(GROUND - 0.3 * hh, s.y + 40), w }; }
-      const w = widthAll, hh = w / ASPECT; return { x: w / 2 - 10, y: GROUND - 0.3 * hh, w };
+      if (st.phase === 'menu') return aimView();
+      if (st.intro > 0 && !st.lastFire) return castleView();
+      if (!st.loaded && st.impactX != null) return castleView(st.impactX);
+      const s = st.camShot && !st.camShot.dead && st.camShot.age < 3.5 ? st.camShot : null;
+      if (s) { const w = 400, hh = w / ASPECT, x = Math.max(w / 2 - 10, Math.min(st.spec.maxX + 60 - w / 2, s.x + 80)); return { x, y: Math.min(GROUND - 0.3 * hh, s.y + hh * 0.1), w }; }
+      return aimView();
     }
     function updateCam(dt){
       const t = camTarget();
       if (!st.cam) st.cam = { ...t };
-      const k = Math.min(1, dt * (st.camShot && !st.camShot.dead ? 3 : 1.6));
+      const chasing = st.camShot && !st.camShot.dead && st.impactX == null;
+      const k = Math.min(1, dt * (chasing ? 3.5 : st.impactX != null && !st.loaded ? 2.4 : 1.7));
       st.cam.x += (t.x - st.cam.x) * k; st.cam.y += (t.y - st.cam.y) * k; st.cam.w += (t.w - st.cam.w) * k;
+      st.kick = Math.max(0, (st.kick || 0) - dt * 0.35);
     }
     const camScale = () => H / (st.cam.w / ASPECT);   // screen pixels per world unit
 
@@ -1067,6 +1174,30 @@
           if (d.flag) { const top = M.mul(M.trs(p, [0, 0, -b.a]), M.trs([0, d.h * S / 2 + 0.32, 0])); E.draw(A.cyl, M.mul(top, M.trs([0, 0.11, 0], [0, 0, 0], [0.012, 0.22, 0.012])), { color: [0.3, 0.2, 0.12] }); E.draw(A.flag, M.mul(top, M.trs([0, 0.2, 0], [0, -0.6 + Math.sin(st.time * 5 + b.id) * 0.3, 0], [0.16, 0.16, 0.16])), { color: hex(d.flag), doubleSided: true, spec: 0.2 }); } }
         else if (d.type === 'keep') for (let k=0;k<3;k++) { const mm = M.mul(M.trs(p, [0, 0, -b.a]), M.trs([(k - 1) * d.w * S * 0.36, d.h * S / 2 + 0.04, 0], [0, 0, 0], [d.w * S * 0.22, 0.08, DEPTH * S * 0.9])); E.draw(A.box, mm, { tex: A.tStone[d.mat], color: [1, 1, 1], spec: 0.2 }); E.draw(A.box, mm, INK); }
       }
+    }
+    // a red TNT barrel with iron bands and a fizzing fuse
+    function drawTnt(b){
+      const M = E.M, d = b.data, m = M.trs(P3(b.x, b.y), [0, 0, -b.a]), w = d.w * S, h = d.h * S;
+      const hot = d.fuse != null ? 0.6 + 0.4 * Math.sin(st.time * 60) : 0, fl = d.hitT > 0 ? d.hitT / 0.3 : 0;
+      const body = M.mul(m, M.trs([0, 0, 0], [0, -0.5, 0], [w, h, w]));
+      E.draw(A.cyl, body, { tex: A.tTnt, color: [1, 1, 1], emissive: [0.12 + hot * 1.2 + fl * 0.3, 0.03 + hot * 0.3, 0.02], spec: 0.6, shine: 40 }); E.draw(A.cyl, body, INK);
+      for (const yy of [-0.36, 0.36]) E.draw(A.cyl, M.mul(m, M.trs([0, yy * h, 0], [0, 0, 0], [w * 1.05, 0.035, w * 1.05])), { color: [0.32, 0.3, 0.3], spec: 1.2, shine: 60 });
+      E.draw(A.cyl, M.mul(m, M.trs([0.02, h / 2 + 0.06, 0], [0, 0, 0.35], [0.02, 0.13, 0.02])), { color: [0.25, 0.18, 0.1] });
+      const sp = M.xform(m, [0.06, h / 2 + 0.13, 0]), f = 0.7 + Math.random() * 0.3;
+      E.sprite(sp, (0.16 + hot * 0.3) * f, [1, 0.75, 0.25], 0.95, true); E.sprite(sp, 0.07, [1, 1, 0.85], 1, true);
+    }
+    // a wooden treasure chest with gold bands that glints
+    function drawChest(b){
+      const M = E.M, d = b.data, m = M.trs(P3(b.x, b.y), [0, 0, -b.a]), w = d.w * S, h = d.h * S, dp = DEPTH * S * 0.62;
+      const wood = { tex: A.tPlank, color: [0.95, 0.62, 0.3], spec: 0.25, shine: 20, uvScale: [0.5, 0.5] }, gold = { color: [1, 0.78, 0.22], emissive: [0.18, 0.12, 0.02], spec: 1.6, shine: 90 };
+      const part = (t, sc, mat) => { const mm = M.mul(m, M.trs(t, [0, 0, 0], sc)); E.draw(A.box, mm, mat); E.draw(A.box, mm, INK); };
+      part([0, -h * 0.18, 0], [w, h * 0.64, dp], wood);
+      part([0, h * 0.3, 0], [w * 1.05, h * 0.4, dp * 1.06], { ...wood, color: [0.8, 0.48, 0.22] });
+      for (const sx of [-0.32, 0.32]) E.draw(A.box, M.mul(m, M.trs([sx * w, 0, 0], [0, 0, 0], [w * 0.1, h * 1.04, dp * 1.1])), gold);
+      E.draw(A.box, M.mul(m, M.trs([0, h * 0.08, dp * 0.55], [0, 0, 0], [w * 0.2, h * 0.3, 0.03])), gold);
+      const tw = Math.max(0, Math.sin(st.time * 2.4 + b.id) - 0.6) * 2.5;
+      E.sprite(M.xform(m, [0, h * 0.1, dp * 0.6]), 0.55, [1, 0.8, 0.3], 0.25 + tw * 0.3, true);
+      if (tw > 0) E.sprite(M.xform(m, [w * 0.3, h * 0.45, dp * 0.6]), 0.22 * tw + 0.05, [1, 1, 0.9], 1, true);
     }
     // the rocky hills some castles stand on: a craggy core with boulders on its face, moss and a grassy lip
     function outcrop(sp){
@@ -1108,19 +1239,19 @@
       for (const s of st.spec.statics) { const o = outcrop(s); E.draw(o.rock, I, { tex: A.tRock2, color: [1, 1, 1], spec: 0.14, shine: 22 }); E.draw(A.flat, M.trs(P3(s.x, s.y - s.h / 2 - 1, -2), [0, 0, 0], [s.w * S * 1.0, 0.035, 1.0]), { tex: A.tGrass, color: [0.5, 0.58, 0.38], uvScale: [3, 1] }); E.draw(o.tufts, I, { tex: A.tTuft[0], color: [0.8, 0.88, 0.7], spec: 0.05, doubleSided: true, noShadow: true, cutout: true }); }
     }
     function render(snapshot){
-      const M = E.M, cam = st.cam, hh = cam.w / ASPECT, dist = (hh * S / 2) / Math.tan(FOV / 2);
+      const M = E.M, cam = st.cam, hh = cam.w * (1 - (st.kick || 0)) / ASPECT, dist = (hh * S / 2) / Math.tan(FOV / 2);
       const shake = st.shake > 0 && !reduceMotion ? [(Math.random() - .5) * st.shake * 0.004, (Math.random() - .5) * st.shake * 0.004] : [0, 0];
       const c = P3(cam.x, cam.y);
       E.begin({ pos: [c[0] + shake[0], c[1] + 0.25 + shake[1], dist], target: [c[0], c[1], 0], fov: FOV, near: 0.1, far: 400 }, {
         sunDir: [0.5, -0.62, -0.6], sunColor: [2.45, 2.15, 1.75], ambSky: [0.46, 0.55, 0.78], ambGround: [0.3, 0.28, 0.2], toon: 0.3,
         fogColor: [0.74, 0.84, 0.96], fogDensity: 0.03, fogStart: 22,
         shadow: { center: P3(cam.x, GROUND - 120), radius: Math.max(4, cam.w * S * 0.7) },
-        post: { bloom: 0.38, threshold: 0.88, saturation: 1.1, contrast: 1.06, vignette: 0.3, tint: [1.03, 1, 0.96] },
+        post: { bloom: 0.42, threshold: 0.86, saturation: 1.2, contrast: 1.08, vignette: 0.28, tint: [1.03, 1, 0.96] },
         sky: { zenith: [0.14, 0.4, 0.88], horizon: [0.7, 0.84, 0.97], ground: [0.5, 0.6, 0.4], sunColor: [1, 0.9, 0.7], sunSize: 2 },
       });
       scenery(M);
       if (st.boomLight) E.light(P3(st.boomLight.p[0], st.boomLight.p[1] - 20, 30), [6 * st.boomLight.t / 0.35, 3 * st.boomLight.t / 0.35, 0.8], 3.5);
-      for (const b of st.blocks) { if (b.data.gone || b.data.off && b.y > GROUND + 200) continue; if (b.data.mat === 'goblin') drawGoblin(b); else drawBlock(b); }
+      for (const b of st.blocks) { if (b.data.gone || b.data.off && b.y > GROUND + 200) continue; const mt = b.data.mat; if (mt === 'goblin') drawGoblin(b); else if (mt === 'tnt') drawTnt(b); else if (mt === 'chest') drawChest(b); else drawBlock(b); }
       for (const f of st.flyGobs) drawGoblin({ id: f.id, x: f.x, y: f.y, a: f.a, data: {} }, f);
       drawSling();
       for (const s of st.shots) drawBall(P3(s.x, s.y), s.data.type, s.r * S, s.a);
@@ -1151,8 +1282,10 @@
       { const t = st.mode === 'daily' ? 'Daily Siege' : `Level ${st.spec.n}`; ctx.font = `26px "Lilita One", ${FONT}`; ctx.lineJoin = 'round'; ctx.lineWidth = 6; ctx.strokeStyle = '#1a2a50'; ctx.strokeText(t, 24, 42); ctx.fillStyle = '#ffd84a'; ctx.fillText(t, 24, 42); }
       ctx.font = `900 12px ${BODY}`; ctx.fillStyle = '#ffffff'; ctx.fillText('GOBLINS', 24, 66);
       const done = st.gobs || 0;
-      for (let i=0;i<st.goblins;i++) { const x = 92 + i * 19, y = 59, hit = i < done;
-        ctx.globalAlpha = hit ? 0.45 : 1; ctx.fillStyle = '#8fc44a'; ctx.beginPath(); ctx.arc(x, y + 2, 7, 0, 7); ctx.fill(); ctx.fillStyle = '#9aa0ab'; ctx.beginPath(); ctx.arc(x, y - 1, 7.5, Math.PI, 0); ctx.fill(); ctx.globalAlpha = 1;
+      const kingUp = st.hasKing && st.blocks.some(b => b.data.king && !b.data.off);
+      for (let i=0;i<st.goblins;i++) { const x = 92 + i * 19, y = 59, hit = i < done, isKing = st.hasKing && i === st.goblins - 1 && kingUp, kingHit = st.hasKing && i === st.goblins - 1 && !kingUp && hit;
+        ctx.globalAlpha = hit ? 0.45 : 1; ctx.fillStyle = '#8fc44a'; ctx.beginPath(); ctx.arc(x, y + 2, 7, 0, 7); ctx.fill(); ctx.fillStyle = isKing || kingHit ? '#ffd23f' : '#9aa0ab'; ctx.beginPath(); ctx.arc(x, y - 1, 7.5, Math.PI, 0); ctx.fill();
+        if (isKing || kingHit) { ctx.beginPath(); for (const dx of [-6, 0, 6]) { ctx.moveTo(x + dx - 3, y - 5); ctx.lineTo(x + dx, y - 12); ctx.lineTo(x + dx + 3, y - 5); } ctx.fill(); } ctx.globalAlpha = 1;
         if (hit) { ctx.strokeStyle = '#ff5a3c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 6, y - 5); ctx.lineTo(x + 6, y + 7); ctx.moveTo(x + 6, y - 5); ctx.lineTo(x - 6, y + 7); ctx.stroke(); } }
       ctx.textAlign = 'right'; ctx.font = `800 12px ${BODY}`; ctx.fillStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(40,24,10,.8)'; const wt = `Castle wrecked ${Math.round(castleDone() * 100)}%`; ctx.strokeText(wt, W - 16, 30); ctx.fillText(wt, W - 16, 30);
       // ammo tray: tap a ball to load it next
@@ -1183,8 +1316,25 @@
         ctx.restore();
       }
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      for (const q of st.pops) { const sp = E.project(P3(q.p[0], q.p[1], 20)); ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.font = `24px ${FONT}`; ctx.lineWidth = 5; ctx.strokeStyle = '#3d2814'; ctx.lineJoin = 'round'; ctx.strokeText(q.text, sp[0], sp[1] - q.rise); ctx.fillStyle = q.color; ctx.fillText(q.text, sp[0], sp[1] - q.rise); ctx.restore(); }
-      if (st.phase === 'play' && !st.lastFire && !st.pull && !st.over) {
+      for (const q of st.pops) { const sp = E.project(P3(q.p[0], q.p[1], 20)); ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.font = `${q.size || 24}px ${FONT}`; ctx.lineWidth = 5; ctx.strokeStyle = '#3d2814'; ctx.lineJoin = 'round'; ctx.strokeText(q.text, sp[0], sp[1] - q.rise); ctx.fillStyle = q.color; ctx.fillText(q.text, sp[0], sp[1] - q.rise); ctx.restore(); }
+      // combo counter while a shot is still wrecking things
+      const cb = st.combo;
+      if (cb.n >= 2 && cb.t < 2.2 && st.phase === 'play') {
+        const a = cb.t > 1.7 ? 1 - (cb.t - 1.7) / 0.5 : 1, sc = 1 + cb.pulse * 0.35, x = 304, y = 50;
+        ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.scale(sc, sc); ctx.rotate(-0.06); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        ctx.font = `900 11px ${BODY}`; ctx.lineWidth = 4; ctx.strokeStyle = '#2b1408'; ctx.strokeText('COMBO', 0, -20); ctx.fillStyle = '#fff3d6'; ctx.fillText('COMBO', 0, -20);
+        ctx.font = `34px "Lilita One", ${FONT}`; ctx.lineWidth = 8; ctx.strokeText('\u00d7' + cb.n, 0, 6); ctx.fillStyle = cb.n >= 14 ? '#ff7a2a' : cb.n >= 8 ? '#ffd23f' : '#9cff5a'; ctx.fillText('\u00d7' + cb.n, 0, 6);
+        ctx.restore();
+      }
+      // big centre banners: the level intro, combo milestones and the king going down
+      if (st.callout && st.phase === 'play') {
+        const c = st.callout, k = c.t / c.life, sc = c.t < 0.15 ? 0.4 + c.t / 0.15 * 0.8 : 1.2 - Math.min(0.2, (c.t - 0.15) * 0.9), a = k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1;
+        ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.translate(W / 2, 196); ctx.scale(sc, sc); ctx.rotate(-0.04); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        ctx.font = `46px "Lilita One", ${FONT}`; ctx.lineWidth = 11; ctx.strokeStyle = '#2b1408'; ctx.strokeText(c.text, 0, 0, W - 40); ctx.fillStyle = c.col; ctx.fillText(c.text, 0, 0, W - 40);
+        if (c.sub) { ctx.font = `900 17px ${BODY}`; ctx.lineWidth = 6; ctx.strokeText(c.sub, 0, 38, W - 40); ctx.fillStyle = '#ffffff'; ctx.fillText(c.sub, 0, 38, W - 40); }
+        ctx.restore();
+      }
+      if (st.phase === 'play' && !st.lastFire && !st.pull && !st.over && st.intro <= 0) {
         const sp = E.project(P3(REST.x, REST.y)), t = (st.time % 1.6) / 1.6, hx = sp[0] + 20 - Math.sin(t * Math.PI) * 50, hy = sp[1] + 30 + Math.sin(t * Math.PI) * 26;
         ctx.save(); ctx.globalAlpha = 0.9; ctx.font = '30px sans-serif'; ctx.fillText('\u{1F446}', hx, hy + 18); ctx.restore();
         ctx.save(); ctx.globalAlpha = 0.75 + 0.25 * Math.sin(st.time * 3); ctx.font = `700 15px ${BODY}`;
@@ -1210,13 +1360,15 @@
       id:'castle', sfxScore:false, music:'castle', title:'CASTLE CRASH', W, H, statLabel:'Ammo', type:'levels', levels:100, maxLives:0,
       failTitle:'Out of ammo', dailyText:'One giant fortress a day', powersTitle:'Catapult ammo',
       tile:{ order:7, name:'Castle Crash', kind:'Slingshot siege · 100 levels', art: artTile, isNew: true },
-      controls: ['Bonk every goblin in a helmet to win!', 'Pull the ball back in the slingshot (touch anywhere and drag back), aim with the dotted line, and let go to fire.', 'Pull further for a stronger shot. Slide back toward the start to cancel.', 'Tap a ball in the LOAD NEXT SHOT tray to choose what goes in the sling next. Tap the screen while a triple shot flies to split it.', 'Blocks crack when they are hit hard and smash after enough hits. Wood breaks easily, ice takes more, stone is the toughest.', 'Wreck at least half the castle and keep a shot spare for 3 stars.', 'Power-ups (top right): an extra Fire Pot or Big Boulder. Get more in the Swag Shop, gifts and level-map chests.'],
+      controls: ['Bonk every goblin in a helmet to win!', 'Pull the ball back in the slingshot (touch anywhere and drag back), aim with the dotted line, and let go to fire.', 'Pull further for a stronger shot. Slide back toward the start to cancel.', 'Tap a ball in the LOAD NEXT SHOT tray to choose what goes in the sling next. Tap the screen while a triple shot flies to split it.', 'Blocks crack when they are hit hard and smash after enough hits. Wood breaks easily, ice takes more, stone is the toughest.', 'Wreck at least half the castle and keep a shot spare for 3 stars.', 'Knock lots of things over with one shot for a COMBO bonus.', 'Red TNT barrels explode when hit, and can set each other off!', 'Crack open a treasure chest for coins. Every 10th level the Goblin King is waiting.', 'Power-ups (top right): an extra Fire Pot or Big Boulder. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: AMMO_ORDER.map(k => ({ name: AMMO[k].name, desc: AMMO[k].desc, icon: g => drawBall2D(g, 23, 14, k, 11) })),
       init(){ loadAssets(); },
       reviveText: '+2 stones', reviveIcon: '\u{1FAA8}', reviveTitle: 'Out of ammo!',
       revive(){ st.over = false; st.win = false; st.endTimer = null; st.settle = 0; st.inv.stone = (st.inv.stone || 0) + 2; st.sel = 'stone'; st.loaded = false; st.reload = 99; st.lastFire = st.time; },
       preview(){ fresh('classic', 1); st.phase = 'menu'; },
-      start(mode, rand, lives, msg, level){ fresh(mode, level === 'daily' ? 1 : level); },
+      start(mode, rand, lives, msg, level){ fresh(mode, level === 'daily' ? 1 : level);
+        const tn = st.blocks.filter(b => b.data.mat === 'tnt').length, ch = st.blocks.some(b => b.data.mat === 'chest');
+        st.callout = { text: st.hasKing ? 'GOBLIN KING!' : mode === 'daily' ? 'DAILY SIEGE' : `LEVEL ${st.level}`, sub: st.hasKing ? 'Knock his crown off to win!' : `${st.goblins} goblin${st.goblins === 1 ? '' : 's'} to bonk${tn ? ' \u00b7 watch out for TNT!' : ch ? ' \u00b7 find the treasure!' : ''}`, col: st.hasKing ? '#ffd23f' : '#ffffff', t: 0, life: 2.3 }; },
       frame(dt){ update(dt); updateCam(dt); draw(); },
       hud(){ return { lives: null, stat: ammoLeft(), score: st.score }; },
       metrics(){ return { score: st.score, blocks: st.knocked - (st.gobs || 0), goblins: st.gobs || 0, left: st.over && st.win ? ammoLeft() : 0, won: st.over && st.win ? 1 : 0 }; },
@@ -1227,6 +1379,7 @@
       ],
       pointerDown(x, y){
         if (st.over || !E || !st.cam) return;
+        if (st.intro > 0 && !st.lastFire) { st.intro = 0; return; }   // first tap skips the castle fly-by
         { const bz = boostAt(x, y); if (bz) { useBoost(bz); return; } }
         const tr = st.trayRects.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
         if (tr) { if (st.inv[tr.k] > 0 && st.sel !== tr.k && !st.pull) { st.sel = tr.k; if (st.loaded) loadBall(tr.k); else if (PB.sfx) PB.sfx('pick'); pop([REST.x, REST.y - 50], AMMO[tr.k].name + (st.loaded ? ' loaded!' : ' is next!'), '#ffe08a', 0.9); } return; }

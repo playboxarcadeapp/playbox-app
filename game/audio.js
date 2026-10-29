@@ -124,6 +124,7 @@
     giggle: t => { for (let i=0;i<4;i++) critter(t + i * 0.11, 980 - i * 70, 820 - i * 70, 0.075, 0.15, 9); },
     nyah: t => { critter(t, 620, 900, 0.14, 0.16); critter(t + 0.2, 920, 560, 0.26, 0.16, 7); },
     tick: (t, x) => { const f = 880 * Math.pow(2, Math.min(1.5, x || 0)); voice(sfxBus, t, f, { type: ['square', 'sine'], mult: [1, 2], vol: 0.06, d: 0.06, s: 0.01, len: 0.01, cut: 5000 }); },
+    combo: (t, x) => { const b = 523 * Math.pow(2, Math.min(4, x || 0) / 6); [1, 1.26, 1.5, 2].forEach((m, i) => voice(sfxBus, t + i * 0.06, b * m, { type: ['triangle', 'square'], mult: [1, 2], vol: 0.1, d: 0.14, s: 0.2, len: 0.04, r: 0.1, cut: 4500 })); },
     fanfare: t => { [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => voice(sfxBus, t + i * 0.07, f, { type: ['triangle', 'square'], mult: [1, 2], vol: 0.08, d: 0.18, s: 0.3, len: i === 5 ? 0.45 : 0.04, r: 0.3, cut: 5000 })); twinkle(t + 0.45); twinkle(t + 0.6); },
     bark: t => { for (const dt of [0, 0.16]) { critter(t + dt, 420, 260, 0.09, 0.26); noise(sfxBus, t + dt, { ft: 'bandpass', f: 700, q: 1.5, vol: 0.12, len: 0.08 }); } },
     step: t => noise(sfxBus, t, { ft: 'bandpass', f: 900 + Math.random() * 300, q: 2, vol: 0.05, len: 0.04 }),
@@ -158,7 +159,7 @@
     o.start(t); o.stop(t + len + 0.1);
   }
   // the phone gives a little buzz for the big moments, even with sound off
-  const BUZZ = { boom: 'heavy', crash: 'heavy', hurt: 'heavy', bonk: 'medium', seal: 'medium', exit: 'light', launch: 'medium', win: 'success', level: 'success', fanfare: 'success', life: 'light', power: 'light', lose: 'medium' };
+  const BUZZ = { combo: 'medium', boom: 'heavy', crash: 'heavy', hurt: 'heavy', bonk: 'medium', seal: 'medium', exit: 'light', launch: 'medium', win: 'success', level: 'success', fanfare: 'success', life: 'light', power: 'light', lose: 'medium' };
   PB.sfx = function(name, x){
     if (BUZZ[name] && PB.buzz) PB.buzz(BUZZ[name]);
     if (!sound.sfx || !ac || ac.state !== 'running' || !SFX[name]) return;
