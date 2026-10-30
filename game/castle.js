@@ -6,7 +6,7 @@
 
   function createCastle(shell){
     const W = 480, H = 720, G = 900, S = 0.01, GROUND = 600, DEPTH = 46;
-    const SLX = 112, REST = { x: SLX, y: GROUND - 146 }, MAXPULL = 96, VMAX = 820, SPK = 3;
+    const SLX = 112, REST = { x: SLX, y: GROUND - 146 }, MAXPULL = 96, VMAX = 880, SPK = 3;
     const FONT = '"MedievalSharp", "Georgia", serif';
     const BODY = '"Nunito", "Segoe UI", sans-serif';
     const MAT = {
@@ -60,7 +60,8 @@
       };
       const groups = n < 3 ? 1 : n < 10 ? 2 : (n % 3 === 0 || n >= 30 && n % 2 === 0) ? 3 : 2;
       const kinds = n < 3 ? ['tower'] : n < 6 ? ['tower', 'rooms', 'walls'] : n < 10 ? ['rooms', 'bunker', 'arch', 'stilts', 'tower'] : n < 18 ? ['rooms', 'bunker', 'arch', 'pyramid', 'stilts', 'bridge'] : ['bunker', 'fortress', 'rooms', 'pyramid', 'bridge', 'stilts', 'bunker'];
-      const xs = groups === 1 ? [n < 3 ? 470 : 510] : groups === 2 ? [445, 590] : [405, 530, 655];
+      // castles stand a good way from the slingshot (VMAX is tuned so the far side of the field is still reachable)
+      const FAR = 90, xs = (groups === 1 ? [n < 3 ? 470 : 510] : groups === 2 ? [445, 590] : [405, 530, 655]).map(x => x + FAR);
       const size = 2 + Math.min(6, Math.floor(n / 5));
       const wantGobs = Math.min(9, n < 3 ? n : 1 + Math.floor(n / 3));
       const freeTop = b => !blocks.some(o => o !== b && Math.abs((o.y + o.h / 2) - (b.y - b.h / 2)) < 3 && Math.abs(o.x - b.x) < (o.w + b.w) / 2 - 4);
@@ -1126,18 +1127,18 @@
     const view = (x, w) => ({ x, y: GROUND - 0.3 * (w / ASPECT), w });
     function castleView(focus){
       const c = castleBox(), needW = (GROUND - c.top + 70) / 0.7 * ASPECT;
-      const w = Math.max(340, Math.min(620, Math.max(c.x1 - c.x0 + 60, needW)));
+      const w = Math.max(420, Math.min(760, Math.max(c.x1 - c.x0 + 110, needW)));
       let x = (c.x0 + c.x1) / 2; if (focus != null) x = x * 0.65 + focus * 0.35;
       return view(x, w);
     }
-    function aimView(){ const w = Math.max(540, Math.min(780, st.spec.maxX + 30)); return view(w / 2 - 10, w); }
+    function aimView(){ const w = Math.max(700, Math.min(1000, st.spec.maxX + 110)); return view(w / 2 - 30, w); }
     function camTarget(){
       if (st.camLock) return st.camLock;
       if (st.phase === 'menu') return aimView();
       if (st.intro > 0 && !st.lastFire) return castleView();
       if (!st.loaded && st.impactX != null) return castleView(st.impactX);
       const s = st.camShot && !st.camShot.dead && st.camShot.age < 3.5 ? st.camShot : null;
-      if (s) { const w = 400, hh = w / ASPECT, x = Math.max(w / 2 - 10, Math.min(st.spec.maxX + 60 - w / 2, s.x + 80)); return { x, y: Math.min(GROUND - 0.3 * hh, s.y + hh * 0.1), w }; }
+      if (s) { const w = 500, hh = w / ASPECT, x = Math.max(w / 2 - 10, Math.min(st.spec.maxX + 60 - w / 2, s.x + 80)); return { x, y: Math.min(GROUND - 0.3 * hh, s.y + hh * 0.1), w }; }
       return aimView();
     }
     function updateCam(dt){
@@ -1350,16 +1351,16 @@
     function artTile(g){
       if (!loadAssets()) { g.fillStyle = '#6fa8dc'; g.fillRect(0, 0, 240, 180); return; }
       (A.tiles || (A.tiles = new Set())).add(g);
-      const keep = st; fresh('classic', 14); st.phase = 'menu'; st.cam = { x: 500, y: GROUND - 140, w: 210 };
+      const keep = st; fresh('classic', 14); st.phase = 'menu'; st.cam = { x: 590, y: GROUND - 140, w: 210 };
       E.resize(240, 180, 2);
       render(true); g.drawImage(E.canvas, 0, 0, 240, 180);
       st = keep;
     }
 
     return {
-      id:'castle', sfxScore:false, music:'castle', title:'CASTLE CRASH', W, H, statLabel:'Ammo', type:'levels', levels:100, maxLives:0,
+      id:'castle', sfxScore:false, music:'castle', title:'CASTLE CRASH', W, H, statLabel:'Ammo', type:'levels', levels:500, maxLives:0,
       failTitle:'Out of ammo', dailyText:'One giant fortress a day', powersTitle:'Catapult ammo',
-      tile:{ order:7, name:'Castle Crash', kind:'Slingshot siege · 100 levels', art: artTile, isNew: true },
+      tile:{ order:7, name:'Castle Crash', kind:'Slingshot siege · 500 levels', art: artTile, isNew: true },
       controls: ['Bonk every goblin in a helmet to win!', 'Pull the ball back in the slingshot (touch anywhere and drag back), aim with the dotted line, and let go to fire.', 'Pull further for a stronger shot. Slide back toward the start to cancel.', 'Tap a ball in the LOAD NEXT SHOT tray to choose what goes in the sling next. Tap the screen while a triple shot flies to split it.', 'Blocks crack when they are hit hard and smash after enough hits. Wood breaks easily, ice takes more, stone is the toughest.', 'Wreck at least half the castle and keep a shot spare for 3 stars.', 'Knock lots of things over with one shot for a COMBO bonus.', 'Red TNT barrels explode when hit, and can set each other off!', 'Crack open a treasure chest for coins. Every 10th level the Goblin King is waiting.', 'Power-ups (top right): an extra Fire Pot or Big Boulder. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: AMMO_ORDER.map(k => ({ name: AMMO[k].name, desc: AMMO[k].desc, icon: g => drawBall2D(g, 23, 14, k, 11) })),
       init(){ loadAssets(); },

@@ -164,7 +164,8 @@
       startRace();
     }
     // Course length grows every level: about 30 seconds at level 1, over 3 minutes by level 40.
-    const courseLength = L => Math.round(2000 + Math.min(L, 60) * 460 + Math.max(0, L - 60) * 150);
+    // courses grow quickly at first, slowly to level 120, then only a little (level 500 is about 25% longer than level 100)
+    const courseLength = L => Math.round(2000 + Math.min(L, 60) * 460 + Math.min(Math.max(0, L - 60), 60) * 150 + Math.max(0, L - 120) * 15);
     function startRace(){
       const g = GALAXIES[(st.level - 1) % GALAXIES.length];
       const R = st.mode === 'daily' ? mulberry(seedFrom('racer-daily-' + PB.today() + '-' + st.level)) : st.rand;
@@ -563,9 +564,9 @@
     }
 
     return {
-      id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Place', maxLives: MAX_LIVES, type:'levels', levels:100, scoreLabel:'Races won', boardScore: (s, lvl) => lvl, boardFmt: n => `${fmt(n)} race${n === 1 ? '' : 's'} won`, levelScoreText: (s, win) => win ? `Race ${s} won!` : `Race ${s}`,
+      id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Place', maxLives: MAX_LIVES, type:'levels', levels:500, scoreLabel:'Races won', boardScore: (s, lvl) => lvl, boardFmt: n => `${fmt(n)} race${n === 1 ? '' : 's'} won`, levelScoreText: (s, win) => win ? `Race ${s} won!` : `Race ${s}`,
       get failTitle(){ return (st && st.failTitle) || 'Race lost'; }, dailyText:'Race as far as you can, one try a day',
-      tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing \u00b7 100 levels', art: artTile },
+      tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing \u00b7 500 levels', art: artTile },
       controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race. Finish without crashing for 3 stars.', 'Tap the buttons at the bottom to use Turbo, Force Field, Blasters or an Extra Heart. Get more in the Swag Shop!'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => drawOrb2D(g, k, 23, 14, 12) })),
       init(){ loadAssets(); },

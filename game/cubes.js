@@ -59,13 +59,13 @@
             else scramble(3);
           }
         }
-        scramble(30 + L * 4);
+        scramble(30 + Math.min(L, 110) * 4);
         if (blocks.length >= Math.min(target - 2, 7)) return { size, exits, blocks, colors: nColors };
       }
       return genLevel(Math.max(1, L - 1), R);
     }
 
-    // Classic play is 100 set levels (the same puzzle every time you play a level). The daily challenge
+    // Classic play is 500 set levels (the same puzzle every time you play a level). The daily challenge
     // is the old endless run: 3 hearts, keep going as far as you can.
     function fresh(mode, rand, lives, phase, level){
       const endless = mode === 'daily';
@@ -568,8 +568,8 @@
     }
 
     return {
-      id:'cubes', music:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Jellies', maxLives: MAX_LIVES, type:'levels', levels: 100, failTitle: "Time's up!", dailyText: 'Endless run: 3 hearts, how far can you go?',
-      tile:{ order:5, name:'Cube Escape', kind:'Jelly block puzzle \u00b7 100 levels', art: artTile },
+      id:'cubes', music:'cubes', title:'CUBE ESCAPE', W, H, statLabel:'Jellies', maxLives: MAX_LIVES, type:'levels', levels: 500, failTitle: "Time's up!", dailyText: 'Endless run: 3 hearts, how far can you go?',
+      tile:{ order:5, name:'Cube Escape', kind:'Jelly block puzzle \u00b7 500 levels', art: artTile },
       controls: ['Drag a block to slide it around the box.', 'Push it into the glowing bar of the same color to send it out.', 'The block has to line up with the bar to get through. Slide it level with the bar first!', 'Free every block before the timer runs out. Faster = more stars.', 'Each color has its own white shape on the jelly and its exit.', 'Power-ups: the Hammer bonks a jelly out, and +20 Seconds adds time.'],
       powersTitle: 'Helpers',
       powers: [

@@ -18,12 +18,12 @@ Playbox Arcade puts eight fun games in one app, so kids have one safe place to p
 
 THE GAMES
 - Zoom Dash: run through a sunny neighborhood as a cheeky raccoon. Jump gnomes, slide under laundry lines and grab snacks.
-- Galaxy Racer: steer a starfighter through glowing galaxies, dodge asteroids and race rival ships to the finish.
-- Castle Crash: aim a catapult at cartoon castles and knock every block off the table. 100 levels.
-- Gem Mine: swap and match sparkling gems deep in the mine. Every gem has its own shape. 100 levels.
-- Potion Sort: help the wizard sort magic potions before the timer runs out. 100 levels.
+- Galaxy Racer: steer a starfighter through glowing galaxies, dodge asteroids and race rival ships to the finish. 500 levels.
+- Castle Crash: aim a catapult at cartoon castles and knock every block off the table. 500 levels.
+- Gem Mine: swap and match sparkling gems deep in the mine. Every gem has its own shape. 500 levels.
+- Potion Sort: help the wizard sort magic potions before the timer runs out. 500 levels.
 - Brick Bash: classic neon brick breaking with power-ups.
-- Cube Escape: slide colored blocks out through the matching exit.
+- Cube Escape: slide colored blocks out through the matching exit. 500 levels.
 - Anaconda: the classic snake game in the jungle.
 
 MADE FOR FAMILIES
@@ -58,7 +58,8 @@ kids games,arcade,brick breaker,match 3,gems,puzzle,runner,racing,catapult,snake
 - Google Target audience: choose the age groups you want (for example 5 and under, 6-8, 9-12). Picking under-13 groups means the Google Play Families policy applies; Playbox already meets it (no ads, no data collection).
 
 ## Screenshots
-- iPhone (6.9 inch, 1320 x 2868): store/screenshots-iphone
+- iPhone (6.9 inch, 1320 x 2868): store/screenshots-iphone (9 images, one per game plus the game list)
+- iPad (13 inch, 2064 x 2752): store/screenshots-ipad (same 9 images, iPad size). Apple needs these because the app runs on iPad.
 - Android phone (1080 x 1920): store/screenshots-android
 - Google feature graphic (1024 x 500): store/play-feature-graphic.png
 - Google app icon (512 x 512): store/play-store-icon-512.png

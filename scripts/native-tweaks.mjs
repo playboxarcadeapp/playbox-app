@@ -1,5 +1,5 @@
 // Small settings in the generated iOS and Android projects:
-//  - portrait or sideways (follows the phone's rotation lock), iPhone layout, version numbers from the build server, Android release signing
+//  - portrait or sideways (follows the phone's rotation lock), iPhone and iPad, version numbers from the build server, Android release signing
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -36,7 +36,10 @@ if (which === 'ios' || which === 'both') {
   await edit('ios/App/App/Info.plist', s => {
     const portrait = '<array>\n\t\t<string>UIInterfaceOrientationPortrait</string>\n\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n\t</array>';
     s = s.replace(/(<key>UISupportedInterfaceOrientations<\/key>\s*)<array>[\s\S]*?<\/array>/, `$1${portrait}`);
-    s = s.replace(/(<key>UISupportedInterfaceOrientations~ipad<\/key>\s*)<array>[\s\S]*?<\/array>/, `$1${portrait}`);
+    // iPad: all four directions (Apple expects this so the app works in iPad multitasking and windows)
+    const ipad = '<array>\n\t\t<string>UIInterfaceOrientationPortrait</string>\n\t\t<string>UIInterfaceOrientationPortraitUpsideDown</string>\n\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n\t</array>';
+    if (s.includes('UISupportedInterfaceOrientations~ipad')) s = s.replace(/(<key>UISupportedInterfaceOrientations~ipad<\/key>\s*)<array>[\s\S]*?<\/array>/, `$1${ipad}`);
+    else s = s.replace(/<dict>/, `<dict>\n\t<key>UISupportedInterfaceOrientations~ipad</key>\n\t${ipad}`);
     if (!s.includes('ITSAppUsesNonExemptEncryption')) s = s.replace(/<dict>/, '<dict>\n\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>');
     if (!s.includes('UIStatusBarHidden')) s = s.replace(/<dict>/, '<dict>\n\t<key>UIStatusBarHidden</key>\n\t<true/>\n\t<key>UIViewControllerBasedStatusBarAppearance</key>\n\t<false/>');
     return s;
@@ -48,7 +51,7 @@ if (which === 'ios' || which === 'both') {
     return s.replace(/(didFinishLaunchingWithOptions[^{]*\{)/, `$1\n        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])`);
   });
   await edit('ios/App/App.xcodeproj/project.pbxproj', s => s
-    .replace(/TARGETED_DEVICE_FAMILY = "?[\d,]+"?;/g, 'TARGETED_DEVICE_FAMILY = 1;')
+    .replace(/TARGETED_DEVICE_FAMILY = "?[\d,]+"?;/g, 'TARGETED_DEVICE_FAMILY = "1,2";')   // 1 = iPhone, 2 = iPad
     .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${build};`)
     .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${version};`));
 }

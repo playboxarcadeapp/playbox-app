@@ -12,22 +12,24 @@
 
     // ---------- Level design ----------
     function levelSpec(n, R){
+      // difficulty climbs to level 100, then only gently (level 500 plays like level 120) so every level stays winnable
+      const d = n <= 100 ? n : 100 + Math.floor((n - 100) / 20);
       const colors = n <= 5 ? 5 : 6;
       let type = n === 1 ? 'score' : n === 2 ? 'collect' : n === 3 ? 'frost' : ['score','collect','frost','mix'][n % 4];
       if (type === 'mix' && n < 12) type = 'collect';
-      let moves = n <= 3 ? 18 : Math.max(12, 22 - Math.floor(n / 8));
+      let moves = n <= 3 ? 18 : Math.max(12, 22 - Math.floor(d / 8));
       const spec = { n, colors, type, moves, collect: null, frost: null, target: 0 };
-      if (type === 'score') spec.target = Math.round(moves * 120 * (1 + n / 50) / 50) * 50;
+      if (type === 'score') spec.target = Math.round(moves * 120 * (1 + d / 50) / 50) * 50;
       if (type === 'collect' || type === 'mix') {
-        const kinds = n < 25 ? 1 : n < 60 ? 2 : 3;
+        const kinds = d < 25 ? 1 : d < 60 ? 2 : 3;
         const pool = shuffle([...Array(colors).keys()], R).slice(0, kinds);
-        const each = Math.round((kinds === 1 ? 15 + n * 0.45 : 11 + n * 0.3) * (type === 'mix' ? 0.75 : 1));
+        const each = Math.round((kinds === 1 ? 15 + d * 0.45 : 11 + d * 0.3) * (type === 'mix' ? 0.75 : 1));
         spec.collect = {}; pool.forEach(t => spec.collect[t] = each);
       }
       if (type === 'frost' || type === 'mix') {
         moves += 4; spec.moves = moves;
-        const count = Math.min(type === 'mix' ? 30 : 48, 12 + Math.floor(n * 0.55));
-        const dbl = n < 20 ? 0 : Math.min(0.55, (n - 20) / 110);
+        const count = Math.min(type === 'mix' ? 30 : 48, 12 + Math.floor(d * 0.55));
+        const dbl = d < 20 ? 0 : Math.min(0.55, (d - 20) / 110);
         const f = Array.from({length:N}, () => Array(N).fill(0));
         let placed = 0, guard = 0;
         while (placed < count && guard++ < 500) {
@@ -811,9 +813,9 @@
     }
 
     return {
-      id:'sweets', sfxScore:false, music:'sweets', title:'GEM MINE', W, H, statLabel:'Moves', type:'levels', levels:100, maxLives: 0,
+      id:'sweets', sfxScore:false, music:'sweets', title:'GEM MINE', W, H, statLabel:'Moves', type:'levels', levels:500, maxLives: 0,
       failTitle:'Out of moves', dailyText:'Score attack: 25 moves', powersTitle:'Special gems',
-      tile:{ order:3, name:'Gem Mine', kind:'Mining match 3 \u00b7 100 levels', art: artTile, isNew: true },
+      tile:{ order:3, name:'Gem Mine', kind:'Mining match 3 \u00b7 500 levels', art: artTile, isNew: true },
       controls: ['Swipe a gem into its neighbor to swap them.', 'Line up 3 or more of the same gem to mine them.', 'Every gem has its own shape: hearts, triangles, diamonds and more.', 'Meet the goal at the top before your moves run out.', 'Rock tiles crack open when you match on top of them.', 'Moves you have left at the end turn into bonus points.', 'Tap a power-up under the board to use it. Get more in the Swag Shop, daily gifts, level-map chests and reward boxes every 5 levels.'],
       powers: [
         { name:'Laser gem', desc:'Match 4 in a row. Blasts a whole row or column', icon: g => { const sv = st; st = st || {time:0}; g.fillStyle='#5ce1ff'; g.fillRect(4, 12, 38, 4); pastry(g, 3, 23, 14, 0.55); st = sv; } },
