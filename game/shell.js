@@ -113,12 +113,13 @@
   let G = null, mode = 'classic', phase = 'menu', level = 1, raf = null, last = 0, clock = 0;
   let cachedBest = 0, lastEntryId = null, lastScore = 0, overTimer = null;
   const play = $('play'), screen = $('screen');
-  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel'), pause: $('vPause'), revive: $('vRevive') };
+  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel'), pause: $('vPause'), revive: $('vRevive'), limit: $('vLimit') };
   function showView(name){ for (const k in views) views[k].hidden = k !== name; }
 
   // ---------- Hub ----------
   const flameSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#ff8a3d" d="M12 2c1 3.5-1.5 5-1.5 7.5 0 1.4 1 2.5 2.3 2.5 1.6 0 2.4-1.3 2.2-3.3C17.6 10.6 19 13 19 15.5 19 19.1 15.9 22 12 22s-7-2.9-7-6.5C5 10.6 9.6 7.6 12 2z"/></svg>';
   function refreshHub(){
+    paintPlusCard();
     const s = streakInfo();
     $('hubStreak').innerHTML = flameSvg + (s.count ? `<b>${s.count}</b> day streak` : 'Start a streak today');
     paintCoins();
@@ -222,6 +223,14 @@
     if (l.length) [...el.querySelectorAll('.n')].forEach((n,i) => n.textContent = l[i].name);
   }
 
+  function paintPlusCard(){
+    const c = $('plusCard'); if (!c) return;
+    if (!PB.plus) { c.hidden = true; return; }
+    const on = PB.plus.on(); c.hidden = false; c.classList.toggle('on', on);
+    c.innerHTML = on
+      ? `<span class="pci">\u2605</span><span class="pct"><small>PLAYBOX PLUS</small><b>Everything unlocked</b><span>Thanks for being a member!</span></span>`
+      : `<span class="pci">\u2605</span><span class="pct"><small>PLAYBOX PLUS</small><b>Unlock everything</b><span>All 500 levels, unlimited play, Swag Shop and daily gifts.</span></span><span class="pcgo">Try free</span>`;
+  }
   function openMenu(){
     clearTimeout(overTimer); paused = false; hideCoach();
     phase = 'menu'; mode = 'classic'; G.preview(); cachedBest = 0;
@@ -244,11 +253,35 @@
       $('btnLevels').hidden = true;
     }
     $('btnDaily').hidden = !!G.noDaily;
+    paintFree();
     if (PB.music) PB.music.duck(true);
     const c = challengeFor(G);
     $('mDailyBest').textContent = c ? (challengeDone(G) ? '\u2713 ' + c.label : c.label + ` \u00b7 +${CHALLENGE_COINS} coins`) : (G.dailyText || 'A new challenge every day');
     showView('menu');
   }
+  function paintFree(){
+    const f = $('mFree'); if (!f || !G) return;
+    if (!PB.plus || PB.plus.on()) { f.hidden = true; return; }
+    const n = PB.plus.left(G), lv = G.type === 'levels', max = lv ? PB.plus.FREE.levels : PB.plus.FREE.runs;
+    f.hidden = false;
+    f.innerHTML = n > 0 ? `Free today: <b>${n} of ${max}</b> ${lv ? 'new levels' : 'plays'} left` : `Today\u2019s free ${lv ? 'levels' : 'plays'} are used up. More tomorrow!`;
+  }
+  // the friendly stop sign when today's free plays are used up
+  function showLimit(){
+    phase = 'menu'; paused = false; hideCoach();
+    const lv = G.type === 'levels', name = G.tile.name;
+    $('xText').textContent = lv
+      ? `You beat ${PB.plus.FREE.levels} new levels in ${name} today. Come back tomorrow for ${PB.plus.FREE.levels} more, replay any level you\u2019ve already beaten, or try the Daily Challenge.`
+      : `You\u2019ve had your ${PB.plus.FREE.runs} free plays of ${name} today. Come back tomorrow for more, or try the Daily Challenge. It\u2019s always free!`;
+    $('btnLimitOld').hidden = !lv;
+    $('btnLimitDaily').hidden = !!G.noDaily;
+    showView('limit');
+  }
+  function openPlus(){
+    if (!PB.plus) return;
+    PB.plus.open(on => { refreshHub(); if (on && !play.hidden && G) openMenu(); });
+  }
+  PB.openPlus = openPlus;
   function openHelp(){
     const hc = $('helpControls'); hc.innerHTML = '';
     G.controls.forEach(c => { const d = document.createElement('div'); d.textContent = c; hc.appendChild(d); });
@@ -303,6 +336,16 @@
   }
   function startGame(m, lvl){
     clearTimeout(overTimer);
+    if (m !== 'daily' && PB.plus && !PB.plus.on()) {
+      if (G.type === 'levels') {
+        // only a brand-new level uses up a free play; replays and retries are free
+        const p = progress(G), target = lvl || Math.min(p.unlocked, G.levels);
+        if (target >= p.unlocked && PB.plus.left(G) <= 0) { showLimit(); return; }
+      } else {
+        if (PB.plus.left(G) <= 0) { showLimit(); return; }
+        PB.plus.useRun(G.id);
+      }
+    }
     const streakCoins = markPlayed();
     if (streakCoins) { wallet.add(streakCoins); setTimeout(() => toast(`Daily streak bonus +${streakCoins} coins`, true), 400); }
     refreshHub();
@@ -419,7 +462,7 @@
     if (win) {
       p.stars[level] = Math.max(p.stars[level] || 0, stars);
       if (lastScore > (p.best[level] || 0)) { newBest = !!p.best[level]; p.best[level] = lastScore; }
-      if (level >= p.unlocked) p.unlocked = Math.min(level + 1, G.levels + 1);
+      if (level >= p.unlocked) { if (PB.plus && !PB.plus.on()) PB.plus.countWin(G.id); p.unlocked = Math.min(level + 1, G.levels + 1); }
       saveProgress(G, p);
       // a reward box with a free power-up the first time you beat every 5th level
       if (firstClear && level % 5 === 0 && PB.meta && PB.meta.boostsFor(G.id).length) {
@@ -442,7 +485,7 @@
     $('lFlag').hidden = !newBest; $('lFlag').textContent = lBestText;
     if (PB.meta) PB.meta.onRun({ g: G.id, mode, score: lastScore, win, stars, level, m: G.metrics ? G.metrics() : {} });
     const next = $('btnNext');
-    if (win && level < G.levels) { next.textContent = 'Next level'; next.onclick = () => startGame('classic', level + 1); }
+    if (win && level < G.levels) { next.textContent = PB.plus && PB.plus.left(G) <= 0 && level + 1 >= progress(G).unlocked ? 'Next level \u{1F512}' : 'Next level'; next.onclick = () => startGame('classic', level + 1); }
     else if (win) { next.textContent = 'You beat every level!'; next.onclick = openLevels; }
     else { next.textContent = 'Try again'; next.onclick = () => startGame('classic', level); }
     $('btnReplay').hidden = !win;
@@ -467,6 +510,12 @@
     renderList($('sList'), t, lastEntryId);
   }
   $('btnClassic').addEventListener('click', () => startGame('classic'));
+  $('btnPlusGo').addEventListener('click', openPlus);
+  $('btnLimitOld').addEventListener('click', () => openLevels());
+  $('btnLimitDaily').addEventListener('click', () => startGame('daily'));
+  $('btnLimitBack').addEventListener('click', closeGame);
+  $('plusCard').addEventListener('click', openPlus);
+  if (PB.plus) PB.plus.onChange(() => { refreshHub(); if (!play.hidden && G && phase === 'menu' && !views.menu.hidden) openMenu(); });
   $('btnDaily').addEventListener('click', () => startGame('daily'));
   $('btnLevels').addEventListener('click', openLevels);
   $('btnHelp').addEventListener('click', openHelp);

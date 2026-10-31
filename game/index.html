@@ -524,6 +524,46 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
   max-width: calc(100% - 24px); padding: 10px 16px; border-radius: 999px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,.45); pointer-events: none; }
 #metaBanner.show { transform: translate(-50%, 0); } #metaBanner.good { background: #2a1e00; color: #ffd23f; border: 2px solid #ffc21a; } #metaBanner.meh { background: #2a0d18; color: #ff9fb5; border: 2px solid #ff3d6e; }
 
+
+/* ---------- Playbox Plus ---------- */
+.pluscard { appearance: none; font: inherit; color: inherit; cursor: pointer; display: grid; grid-template-columns: 44px minmax(0,1fr) auto; align-items: center; gap: 12px; text-align: left;
+  padding: 12px 14px; border-radius: 18px; border: 2px solid var(--yellow); background: linear-gradient(100deg, rgba(255,210,63,.22), rgba(255,61,220,.14) 60%, rgba(34,228,255,.12)); box-shadow: 0 0 24px rgba(255,210,63,.18); }
+.pluscard .pci { width: 44px; height: 44px; border-radius: 50%; background: var(--yellow); color: #2a1e00; display: grid; place-items: center; font-size: 1.5rem; line-height: 1; }
+.pluscard .pct { display: grid; min-width: 0; } .pluscard small { color: var(--yellow); font-weight: 900; letter-spacing: .12em; font-size: .7rem; }
+.pluscard b { font-family: var(--display); font-size: .95rem; } .pluscard .pct span { color: var(--muted); font-weight: 800; font-size: .86rem; }
+.pluscard .pcgo { font-family: var(--display); font-weight: 900; background: var(--yellow); color: #2a1e00; border-radius: 12px; padding: 8px 14px; white-space: nowrap; }
+.pluscard.on { border-width: 1px; box-shadow: none; padding: 8px 14px; } .pluscard.on .pci { width: 34px; height: 34px; font-size: 1.1rem; }
+.mbtn.locked .mi { filter: grayscale(.6); opacity: .75; }
+.mbtn.locked::after { content: 'PLUS'; position: absolute; top: 6px; right: 6px; font-size: .6rem; font-weight: 900; letter-spacing: .08em; padding: 2px 6px; border-radius: 8px; background: var(--yellow); color: #2a1e00; }
+.panel p.freeleft { margin-top: -4px; font-size: .85rem; } .panel p.freeleft b { color: var(--ptext); }
+.mmlock { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 6px 0 2px; } .mmlock .ml { font-size: 2.4rem; }
+#plusModal { position: fixed; inset: 0; z-index: 60; background: rgba(4,6,20,.82); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) 14px max(16px, env(safe-area-inset-bottom, 0px)); font-family: var(--body); color: var(--text); }
+#plusModal[hidden] { display: none; }
+.pcard { position: relative; width: min(440px, 100%); max-height: 100%; overflow-y: auto; background: linear-gradient(180deg, #1b1550, var(--panel) 40%); border: 2px solid var(--yellow); border-radius: 24px; padding: 22px 18px 16px; box-shadow: 0 20px 60px rgba(0,0,0,.55); text-align: center; animation: toastIn .3s ease; }
+.pcard h3 { font-family: var(--display); margin: 4px 0 6px; font-size: 1.5rem; color: var(--yellow); }
+.pcard .px { position: absolute; top: 10px; right: 10px; appearance: none; border: 0; background: var(--panel-2); color: var(--text); width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; cursor: pointer; }
+.pcard .psub { margin: 0 0 12px; color: var(--muted); font-weight: 800; }
+.pcard .pstar, .pcard .gi { font-size: 2.6rem; line-height: 1; } .pcard .pstar.big { font-size: 3.4rem; margin-top: 8px; }
+.pben { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; text-align: left; }
+.pben li { position: relative; padding: 9px 12px 9px 38px; border-radius: 12px; background: rgba(255,255,255,.05); font-weight: 700; font-size: .92rem; line-height: 1.3; }
+.pben li::before { content: '\2713'; position: absolute; left: 12px; top: 8px; width: 18px; height: 18px; border-radius: 50%; background: var(--lime); color: #06210a; font-weight: 900; font-size: .75rem; display: grid; place-items: center; }
+.pplans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.pplan { appearance: none; font: inherit; color: inherit; cursor: pointer; position: relative; display: grid; gap: 3px; padding: 16px 8px 12px; border-radius: 16px; background: var(--panel-2); border: 2px solid var(--line); }
+.pplan.on { border-color: var(--yellow); background: rgba(255,210,63,.12); box-shadow: 0 0 18px rgba(255,210,63,.25); }
+.pplan b { font-family: var(--display); font-size: 1rem; } .pplan .pp { font-weight: 900; font-size: 1.05rem; } .pplan small { color: var(--muted); font-weight: 700; font-size: .74rem; line-height: 1.25; }
+.pplan .ptag { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-style: normal; font-weight: 900; font-size: .7rem; padding: 3px 9px; border-radius: 10px; background: var(--pink); color: #fff; white-space: nowrap; }
+.pbuy { appearance: none; font: inherit; width: 100%; margin-top: 6px; padding: 15px; border-radius: 16px; border: 0; background: var(--yellow); color: #2a1e00; font-weight: 900; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 0 #b78a00; }
+.pbuy.ghost { background: transparent; color: var(--text); border: 2px solid var(--line); box-shadow: none; margin-top: 10px; } .pbuy:disabled { opacity: .6; }
+.pnote { margin: 4px 0 8px; color: var(--muted); font-weight: 800; font-size: .9rem; } .pmsg { margin: 10px 0 0; color: var(--yellow); font-weight: 800; }
+.pfine { margin: 12px 0 4px; color: var(--muted); font-size: .72rem; line-height: 1.4; font-weight: 600; }
+.plinks { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 8px; }
+.plink { appearance: none; border: 0; background: none; color: var(--cyan); font: inherit; font-weight: 800; font-size: .8rem; padding: 6px 2px; cursor: pointer; text-decoration: underline; }
+.pcard.gate .gq { font-weight: 900; font-size: 1.15rem; margin: 6px 0 10px; }
+.gin { min-height: 48px; display: grid; place-items: center; font-family: var(--display); font-size: 1.7rem; letter-spacing: .15em; border-radius: 14px; background: var(--panel-2); border: 2px solid var(--line); margin: 0 auto 12px; width: 60%; }
+.gkeys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 280px; margin: 0 auto; }
+.gk { appearance: none; font: inherit; font-weight: 900; font-size: 1.3rem; padding: 12px 0; border-radius: 14px; border: 2px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; }
+.gk.ok { background: var(--yellow); color: #2a1e00; border-color: var(--yellow); } .gk:active { transform: scale(.96); }
+.gerr { margin: 10px 0 0; color: #ff7a93; font-weight: 800; }
 </style>
 
 <div id="bgfx" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="stars"></i><i class="stars s2"></i></div>
@@ -548,6 +588,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
   </header>
   <section class="metatop" id="metaTop">
     <button class="cont" id="metaCont" hidden></button>
+    <button class="pluscard" id="plusCard" hidden></button>
     <div class="metabtns">
       <button class="mbtn gift" id="btnGift"><span class="mi">🎁</span><b>Daily gift</b><i class="dot"></i></button>
       <button class="mbtn shop" id="btnShop"><span class="mi">🛍️</span><b>Swag Shop</b><small class="n"></small></button>
@@ -610,6 +651,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           </div>
           <p class="wallet"><svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#ffc21a" stroke="#b77800" stroke-width="2"/></svg><span><b id="hCoins">0</b> coins saved for the Swag Shop</span></p>
           <button class="btn primary" id="btnClassic"><span id="btnClassicLabel">Play</span><small id="mClassicBest">Best: 0</small></button>
+          <p class="freeleft" id="mFree" hidden></p>
           <button class="btn ghost" id="btnLevels" hidden>All levels</button>
           <button class="btn gold" id="btnDaily"><span>Daily Challenge</span><small id="mDailyBest">New every day</small></button>
           <div class="btnrow">
@@ -675,6 +717,20 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
         </div>
       </div>
 
+      <div class="view" id="vLimit" hidden>
+        <div class="panel">
+          <h3>That's today's free play!</h3>
+          <div class="revic">🌙</div>
+          <p class="summary" id="xText"></p>
+          <button class="btn primary" id="btnPlusGo"><span>Unlock everything</span><small>Playbox Plus · ask a grown-up</small></button>
+          <button class="btn gold" id="btnLimitDaily"><span>Daily Challenge</span><small>Always free</small></button>
+          <div class="btnrow">
+            <button class="btn ghost" id="btnLimitOld">Replay a level</button>
+            <button class="btn ghost" id="btnLimitBack">Other games</button>
+          </div>
+        </div>
+      </div>
+
       <div class="view" id="vRevive" hidden>
         <div class="panel">
           <h3 id="rTitle">So close!</h3>
@@ -714,5 +770,6 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 <script src="physics.js"></script>
 <script src="castle.js"></script>
 <script src="snake.js"></script>
+<script src="plus.js"></script>
 <script src="meta.js"></script>
 <script src="shell.js"></script>

@@ -321,8 +321,9 @@
     const ev = event(); $('metaEvent').innerHTML = `<span class="ei">${ev.icon}</span><span class="et"><small>THIS WEEK</small><b></b><span></span></span>`;
     $('metaEvent').querySelector('b').textContent = ev.name; $('metaEvent').querySelector('.et span').textContent = ev.desc;
     // buttons with little badges
-    const gs = giftState();
-    $('btnGift').querySelector('.dot').hidden = gs.claimed;
+    const gs = giftState(), plus = hasPlus();
+    $('btnGift').querySelector('.dot').hidden = gs.claimed || !plus;
+    $('btnGift').classList.toggle('locked', !plus); $('btnShop').classList.toggle('locked', !plus);
     $('btnTrophy').querySelector('.n').textContent = `${earned().length}/${TROPHIES.length}`;
     $('btnShop').querySelector('.n').textContent = `${owned().length}/${SHOP.length}`;
     if ($('btnStickers')) { $('btnStickers').querySelector('.n').textContent = `${stickers().length}/${STICKERS.length}`; $('btnStickers').querySelector('.dot').hidden = !(store.get('pb-stickers-new') || []).length; }
@@ -338,9 +339,23 @@
     }
     $('misCount').textContent = M.bonus ? 'All done! ✓' : `Finish all 3 for +${MISSION_BONUS * mult} bonus`;
   }
+  // the Swag Shop and the daily gift are part of Playbox Plus
+  const hasPlus = () => !PB.plus || PB.plus.on();
   function openModal(kind){
     const m = $('metaModal'), body = $('mmBody'); m.hidden = false; body.innerHTML = '';
     const h = document.createElement('h3'); body.appendChild(h);
+    if ((kind === 'gift' || kind === 'shop') && !hasPlus()) {
+      h.textContent = kind === 'gift' ? 'Daily gift' : 'Swag Shop';
+      const box = document.createElement('div'); box.className = 'mmlock';
+      box.innerHTML = `<span class="ml">${kind === 'gift' ? '\u{1F381}' : '\u{1F6CD}\uFE0F'}</span><p class="mmsub"></p>`;
+      box.querySelector('p').textContent = kind === 'gift'
+        ? 'Playbox Plus members get a present every day: coins, free power-ups and a treasure chest on day 7!'
+        : `Spend your ${fmt(PB.wallet.get())} coins on fun outfits, ships, colors and power-ups. The Swag Shop is part of Playbox Plus.`;
+      const b = document.createElement('button'); b.className = 'mmbtn'; b.textContent = '\u2605 See Playbox Plus';
+      b.onclick = () => { closeModal(); if (PB.openPlus) PB.openPlus(); };
+      box.appendChild(b); body.appendChild(box);
+      return;
+    }
     if (kind === 'gift') {
       const gs = giftState(); h.textContent = 'Daily gift';
       const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = gs.claimed ? 'Come back tomorrow for the next gift!' : 'A present every day you play. Days 3 and 5 add a free power-up, and day 7 is a treasure chest!'; body.appendChild(p);
@@ -401,7 +416,7 @@
     $('mmClose').onclick = closeModal; $('metaModal').addEventListener('click', e => { if (e.target.id === 'metaModal') closeModal(); });
     render(); checkTrophies(); checkStickers();
     // the gift pops up by itself once a day
-    if (!giftState().claimed) setTimeout(() => { if (!document.getElementById('hub').hidden) openModal('gift'); }, 900);
+    if (!giftState().claimed && hasPlus()) setTimeout(() => { if (!document.getElementById('hub').hidden) openModal('gift'); }, 900);
   }
 
   PB.meta = { STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };

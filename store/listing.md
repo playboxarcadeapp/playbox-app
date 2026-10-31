@@ -27,11 +27,26 @@ THE GAMES
 - Anaconda: the classic snake game in the jungle.
 
 MADE FOR FAMILIES
-- No ads
-- No in-app purchases
+- No ads, ever
 - No accounts or sign-ups
 - No data collected
 - Plays offline, no internet needed
+- Purchases are behind a grown-ups-only question
+
+FREE TO PLAY EVERY DAY
+Every game is free to play each day: 2 new levels a day in each level game, 3 plays a day in Zoom Dash, Brick Bash and Anaconda, plus the Daily Challenge. Replaying levels you've beaten is always free.
+
+PLAYBOX PLUS
+Unlock everything with Playbox Plus:
+- All 500 levels in Castle Crash, Gem Mine, Potion Sort, Cube Escape and Galaxy Racer
+- Unlimited play in every game
+- The Swag Shop: outfits, ships, colors and power-ups
+- Daily gifts and treasure chests
+- Share with your family through Family Sharing
+
+Playbox Plus is $2.99 per month or $19.99 per year (prices may vary by country), with a 7-day free trial for new subscribers. Payment is charged to your Apple ID / Google Play account at confirmation of purchase, or when the free trial ends. The subscription renews automatically unless canceled at least 24 hours before the end of the current period. Manage or cancel any time in your account settings.
+Terms of Use: https://playboxarcadeapp.github.io/playbox-app/terms.html
+Privacy Policy: https://playboxarcadeapp.github.io/playbox-app/privacy.html
 
 COME BACK EVERY DAY
 Daily challenges, high scores and play streaks give kids a reason to come back, and new games will keep being added.
@@ -45,12 +60,15 @@ kids games,arcade,brick breaker,match 3,gems,puzzle,runner,racing,catapult,snake
 
 ## URLs
 - Privacy policy: https://playboxarcadeapp.github.io/playbox-app/privacy.html
+- Terms of use: https://playboxarcadeapp.github.io/playbox-app/terms.html
 - Support / marketing: https://playboxarcadeapp.github.io/playbox-app/
 
 ## Privacy answers
 - Apple App Privacy: "Data Not Collected".
 - Google Data safety: "No data collected" and "No data shared". Data is not encrypted in transit because none is sent. Users cannot request deletion because nothing is stored on a server.
-- Contains ads: No. In-app purchases: No. App access: all features available without login.
+- Apple App Privacy stays "Data Not Collected" with Playbox Plus: purchases go through Apple/Google, and the app sends nothing to us or anyone else.
+- Contains ads: No. In-app purchases: Yes (Playbox Plus subscription). App access: no login; the free daily play is available to everyone.
+- Note for App Review (Apple) / app access (Google): "No login needed. The subscription screen is behind a parental gate: answer the times-table question (for example, 'What is seven times eight?' = 56)." 
 
 ## Age / audience
 - Apple age rating questionnaire: answer "None" to every content question (there is no realistic violence, no scary content, no web access, no chat).
