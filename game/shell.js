@@ -227,6 +227,7 @@
     const c = $('plusCard'); if (!c) return;
     if (!PB.plus) { c.hidden = true; return; }
     const on = PB.plus.on(); c.hidden = false; c.classList.toggle('on', on);
+    if (PB.plus.test) { c.innerHTML = `<span class="pci">\u2605</span><span class="pct"><small>TEST BUILD</small><b>Everything unlocked</b><span>For testing only. Store builds have Playbox Plus.</span></span>`; return; }
     c.innerHTML = on
       ? `<span class="pci">\u2605</span><span class="pct"><small>PLAYBOX PLUS</small><b>Everything unlocked</b><span>Thanks for being a member!</span></span>`
       : `<span class="pci">\u2605</span><span class="pct"><small>PLAYBOX PLUS</small><b>Unlock everything</b><span>All 500 levels, unlimited play, Swag Shop and daily gifts.</span></span><span class="pcgo">Try free</span>`;

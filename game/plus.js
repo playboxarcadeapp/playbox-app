@@ -22,10 +22,13 @@
   const native = !!NP && (platform === 'ios' || platform === 'android');
   const storeName = platform === 'android' ? 'Google Play' : 'Apple ID';
 
+  // Test builds (the Codemagic "TEST" workflows) unlock everything so testers never hit the paywall.
+  const TEST = !!window.PB_TEST_UNLOCK;
+
   // ---------- is Plus on? (remembered so it works offline; re-checked with the store at every launch) ----------
   let state = store.get('pb-plus') || { on: false, exp: null };
   if (!native && store.get('pb-plus-dev')) state = { on: true, exp: null };   // testing in a browser only
-  const isOn = () => !!state.on && (!state.exp || Date.parse(state.exp) > Date.now() - 3 * 864e5);
+  const isOn = () => TEST || !!state.on && (!state.exp || Date.parse(state.exp) > Date.now() - 3 * 864e5);
   const listeners = [];
   function setOn(on, exp){
     const was = isOn(); state = { on: !!on, exp: exp || null, checked: Date.now() }; store.set('pb-plus', state);
@@ -120,8 +123,8 @@
   function gate(next){
     const card = shell(), a = 6 + Math.floor(Math.random() * 4), b = 3 + Math.floor(Math.random() * 7), ans = String(a * b);
     card.classList.add('gate');
-    card.innerHTML += `<div class="gi">\u{1F46A}</div><h3>Ask a grown-up</h3><p class="psub">Grown-ups: answer to continue.</p>
-      <p class="gq">What is ${WORDS[a]} times ${WORDS[b]}?</p><div class="gin" aria-live="polite"></div><div class="gkeys"></div><p class="gerr" hidden>Not quite. Here is a new one.</p>`;
+    card.insertAdjacentHTML('beforeend', `<div class="gi">\u{1F46A}</div><h3>Ask a grown-up</h3><p class="psub">Grown-ups: answer to continue.</p>
+      <p class="gq">What is ${WORDS[a]} times ${WORDS[b]}?</p><div class="gin" aria-live="polite"></div><div class="gkeys"></div><p class="gerr" hidden>Not quite. Here is a new one.</p>`);
     let v = '';
     const show = () => { card.querySelector('.gin').textContent = v || ' '; };
     const keys = card.querySelector('.gkeys');
@@ -141,14 +144,14 @@
   async function panel(){
     const card = shell(); card.classList.add('plus');
     const on = isOn();
-    card.innerHTML += `<div class="pstar">⭐</div><h3>Playbox Plus</h3>
+    card.insertAdjacentHTML('beforeend', `<div class="pstar">⭐</div><h3>Playbox Plus</h3>
       <p class="psub">${on ? 'You have Playbox Plus. Thank you!' : 'All of Playbox, unlimited. Still no ads, ever.'}</p>
       <ul class="pben">
         <li><b>All 500 levels</b> in Castle Crash, Gem Mine, Potion Sort, Cube Escape and Galaxy Racer</li>
         <li><b>Unlimited play</b> in every game, every day</li>
         <li><b>Swag Shop</b>: outfits, ships, colors and power-ups</li>
         <li><b>Daily gifts</b> and treasure chests</li>
-      </ul><div class="pbody"></div>`;
+      </ul><div class="pbody"></div>`);
     const body = card.querySelector('.pbody');
     const links = el('div', 'plinks');
     const mk = (txt, fn) => { const b = el('button', 'plink', txt); b.onclick = fn; links.appendChild(b); return b; };
@@ -209,13 +212,13 @@
   }
   function celebrate(){
     const card = shell(); card.classList.add('plus');
-    card.innerHTML += `<div class="pstar big">\u{1F389}</div><h3>Welcome to Playbox Plus!</h3><p class="psub">Every level, every game, unlimited. Have fun!</p>`;
+    card.insertAdjacentHTML('beforeend', `<div class="pstar big">\u{1F389}</div><h3>Welcome to Playbox Plus!</h3><p class="psub">Every level, every game, unlimited. Have fun!</p>`);
     const b = el('button', 'pbuy', 'Let’s play!'); b.onclick = close; card.appendChild(b);
     if (PB.sfx) PB.sfx('fanfare');
   }
 
   PB.plus = {
-    FREE, PLANS, on: isOn, left, refresh, restore, loadProducts,
+    FREE, PLANS, test: TEST, on: isOn, left, refresh, restore, loadProducts,
     countWin: id => bump('wins', id), useRun: id => bump('runs', id),
     onChange: f => listeners.push(f),
     // open the Plus screen (always behind the grown-ups question); done(on) runs when it closes

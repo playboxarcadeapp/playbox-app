@@ -29,6 +29,9 @@ const head = `<!doctype html>
   input { -webkit-user-select: text; user-select: text; }
 </style>
 `;
-html = head + html.replace(/<meta charset="utf-8">\s*/i, '') + '\n</html>\n';
+// test builds unlock everything (set PLAYBOX_TEST_UNLOCK=true, as the Codemagic TEST workflows do)
+const testUnlock = process.env.PLAYBOX_TEST_UNLOCK === 'true';
+if (testUnlock) console.log('TEST BUILD: Playbox Plus unlocked for everyone');
+html = head + (testUnlock ? '<script>window.PB_TEST_UNLOCK = true;</script>\n' : '') + html.replace(/<meta charset="utf-8">\s*/i, '') + '\n</html>\n';
 await fs.writeFile(path.join(out, 'index.html'), html);
 console.log('www/ is ready:', (await fs.readdir(out)).length, 'items');

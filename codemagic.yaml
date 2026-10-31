@@ -1,6 +1,9 @@
 # Codemagic builds the phone apps in the cloud, so no Mac or Android Studio is needed.
-# Two workflows: one makes the Android app bundle (.aab) for Google Play,
-# the other makes the iPhone app and sends it to TestFlight / App Store Connect.
+# Store workflows (use these for the App Store / Google Play release):
+#   - Android - Google Play bundle   -> the .aab for Google Play
+#   - iOS - TestFlight / App Store   -> uploads the iPhone/iPad app to App Store Connect
+# TEST workflows build exactly the same app, but with Playbox Plus unlocked for everyone and a
+# "TEST BUILD" label on the home screen. Use them for testers only, never for the store release.
 workflows:
 
   android-release:
@@ -12,7 +15,7 @@ workflows:
         - playbox_key          # reference name of the keystore uploaded in Codemagic (Team settings > Code signing identities > Android keystores)
       node: 22
       java: 21
-    scripts:
+    scripts: &android_scripts
       - name: Install tools
         script: npm install
       - name: Build the game files
@@ -27,8 +30,22 @@ workflows:
         script: BUILD_NUMBER=$PROJECT_BUILD_NUMBER node scripts/native-tweaks.mjs android
       - name: Build the signed app bundle
         script: cd android && ./gradlew bundleRelease
-    artifacts:
+    artifacts: &android_artifacts
       - android/app/build/outputs/bundle/release/*.aab
+
+  android-test:
+    name: Android - TEST build (everything unlocked)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      android_signing:
+        - playbox_key
+      node: 22
+      java: 21
+      vars:
+        PLAYBOX_TEST_UNLOCK: "true"
+    scripts: *android_scripts
+    artifacts: *android_artifacts
 
   ios-release:
     name: iOS - TestFlight / App Store
@@ -42,7 +59,7 @@ workflows:
         bundle_identifier: com.playboxarcade.app
       node: 22
       xcode: latest
-    scripts:
+    scripts: &ios_scripts
       - name: Install tools
         script: npm install
       - name: Build the game files
@@ -59,10 +76,28 @@ workflows:
         script: xcode-project use-profiles --project "ios/App/App.xcodeproj"
       - name: Build the iPhone app
         script: xcode-project build-ipa --project "ios/App/App.xcodeproj" --scheme "App"
-    artifacts:
+    artifacts: &ios_artifacts
       - build/ios/ipa/*.ipa
-    publishing:
+    publishing: &ios_publishing
       app_store_connect:
         auth: integration
         submit_to_testflight: false   # upload only; testers are added in App Store Connect
         submit_to_app_store: false
+
+  ios-test:
+    name: iOS - TEST build (everything unlocked, TestFlight only)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: Playbox App Store key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.playboxarcade.app
+      node: 22
+      xcode: latest
+      vars:
+        PLAYBOX_TEST_UNLOCK: "true"
+    scripts: *ios_scripts
+    artifacts: *ios_artifacts
+    publishing: *ios_publishing
