@@ -9,7 +9,7 @@ workflows:
     max_build_duration: 60
     environment:
       android_signing:
-        - playbox_upload_key   # reference name of the keystore uploaded in Codemagic (Team settings > Code signing identities > Android keystores)
+        - playbox_key          # reference name of the keystore uploaded in Codemagic (Team settings > Code signing identities > Android keystores)
       node: 22
       java: 21
     scripts:
