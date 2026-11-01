@@ -524,7 +524,13 @@
         return 4;
       }
       const lanes = [0,1,2].sort(() => R() - .5);
-      const pick = () => { const q = R(); return q < .36 ? 'cone' : q < .68 ? 'can' : 'truck'; };
+      // a line across the whole street: slide under it (swipe down)
+      if (st.t > 12 && r > 0.86 && at + 10 < sg.J - 32) {
+        for (const l of [0, 1, 2]) st.objs.push({ kind:'obs', seg: st.cur, type:'bar', lane: l, at });
+        trail('coin', Math.floor(R() * 3), at - 3, 5, 1.4, () => 0.3);
+        return 4;
+      }
+      const pick = () => { const q = R(); if (st.t > 6 && q < 0.16) return 'bar'; return q < .42 ? 'cone' : q < .7 ? 'can' : 'truck'; };
       const pat = R(), used = [];
       if (pat < 0.38 - 0.22 * df) used.push(lanes[0]); else if (pat < 0.8 + 0.15 * df) used.push(lanes[0], lanes[1]);
       const city = zoneAt(at) === 'city', row = used.map(l => { const o = { kind:'obs', seg: st.cur, type: pick(), lane:l, at, color: city && R() < 0.7 ? '#ffc61a' : vanColor(at, R) }; if (city && o.color === '#ffc61a') o.taxi = true; if (o.type === 'truck' && df > 0.25 && R() < 0.25 + 0.5 * df) { o.moving = 5 + 5 * df; o.at += o.moving * 3; } return o; });
@@ -533,6 +539,8 @@
       const ft = FOODS[Math.floor(R()*FOODS.length)];
       if (free.length && R() < (st.t < 30 ? 0.5 : 0.6)) { const fl = free[Math.floor(R()*free.length)]; trail('coin', fl, at - 6, R() < 0.5 ? 9 : 6, 1.5, null); }
       if (st.fx.gold > 0) for (const fl of free) trail('coin', fl, at - 8, 6, 1.4, null);
+      const bar = row.find(o => o.type === 'bar');
+      if (bar && R() < 0.6) trail('coin', bar.lane, at - 3, 4, 1.4, () => 0.3);
       const low = row.find(o => o.type === 'cone' || o.type === 'can');
       if (low && R() < 0.3) trail('coin', low.lane, at - 2.4, 5, 1.2, (i) => 0.45 + 1.5 * Math.sin(Math.PI * i / 4));
       if (st.powIn <= 0 && free.length) { const pl = free[free.length-1]; st.objs.push({ kind:'pow', seg: st.cur, type: pickPower(), lane: pl, x: laneX(pl), at: at + 9, h: 0.9 }); st.powIn = 5.5 + R() * 4; }
@@ -656,6 +664,7 @@
         if (o.gone) continue;
         const rel = o.at - st.dist;
         if (o.seg !== st.cur) continue;
+        if (o.type === 'bar' && !st.slideTip && rel < 26 && rel > 0) { st.slideTip = true; if (!PB.store.get('pb-dash-slidetip')) { PB.store.set('pb-dash-slidetip', 1); pop(playerPos(), 'Swipe down to slide under!', '#5ee0ff', 2.2); } }
         if (o.moving && !o.hit) { driveCar(o, dt); if (o.oncoming && !o.honked && rel < 34) { o.honked = true; if (PB.sfx) PB.sfx('honk'); pop(playerPos(), 'Beep beep! Watch out!', '#ffd23f'); } }
         if (o.kind === 'obs' && o.type === 'bus') {
           const inLane = Math.abs(laneX(o.lane) - p.x) < 1.15;
@@ -679,8 +688,8 @@
         if (o.kind === 'obs' && !o.hit) {
           if (rel < DEPTH[o.type] && rel > -0.6 && Math.abs(laneX(o.lane) - p.x) < 1.25) {
             // floating with the balloon (or bouncing high) carries you over vans too
-            const blocked = o.type === 'cone' ? p.h < 0.8 : o.type === 'can' ? p.h < 1.05 : p.h < 2.4;
-            if (blocked) { if (o.type === 'cone' || o.type === 'can') stumble(o); else crash(o); }
+            const blocked = o.type === 'cone' ? p.h < 0.8 : o.type === 'can' ? p.h < 1.05 : o.type === 'bar' ? !(p.slide > 0 && p.h < 0.3) && p.h < 2.3 : p.h < 2.4;
+            if (blocked) { if (o.type === 'cone' || o.type === 'can') stumble(o); else crash(o, o.type === 'bar' ? 'Slide under it next time!' : undefined); }
             if (st.phase !== 'play') return;
           }
         } else if (o.kind === 'food' || o.kind === 'pow') {
@@ -1406,16 +1415,18 @@
           if (v === 'tower' || v === 'tower2') {
             const H = v === 'tower' ? 30 : 42, fx = X(8), bx = X(14.5);
             P(A.box, [bx, H / 2, 0], null, [13, H, 12.5], { tex: worldTex('neonwin'), uvScale: [3, H / 6], color: [1, 1, 1], unlit: true });
-            for (const dz of [-6.3, 6.3]) P(A.box, [fx, H / 2, dz], null, [0.25, H, 0.25], glow);
-            P(A.box, [fx - sd * 0.1, H * 0.3, 0], null, [0.2, 2.2, 8], glow);
-            P(A.box, [fx - sd * 0.2, H * 0.3, 0], null, [0.1, 1.6, 7.4], { color: [0.08, 0.06, 0.12] });
+            // glowing edges and a sign, all standing clear of the wall (touching faces flicker)
+            for (const dz of [-6.0, 6.0]) P(A.box, [fx - sd * 0.25, H / 2, dz], null, [0.25, H, 0.25], glow);
+            P(A.box, [fx - sd * 0.45, H * 0.3, 0], null, [0.2, 2.2, 8], glow);
+            P(A.box, [fx - sd * 0.6, H * 0.3, 0], null, [0.08, 1.6, 7.4], { color: [0.08, 0.06, 0.12] });
             P(A.cyl, [bx, H + 4, 0], null, [0.25, 8, 0.25], { color: [0.6, 0.6, 0.7], spec: 1 }); P(A.sphere, [bx, H + 8.1, 0], null, [0.6, 0.6, 0.6], { color: [1, 0.2, 0.2], emissive: [2, 0.2, 0.2] });
           } else {
             const fx = X(7.6), bx = X(12);
             P(A.box, [bx, 3.2, 0], null, [9, 6.4, 13], { color: C('#241f45'), spec: 0.4 });
-            P(A.quad, [fx - sd * 0.06, 6.2, 0], [0, sd < 0 ? Math.PI / 2 : -Math.PI / 2, 0], [10, 3.2, 1], { tex: worldTex('sign' + (c % 4)), unlit: true, color: [1, 1, 1], noShadow: true });
-            P(A.box, [fx - sd * 0.05, 2.2, 0], null, [0.1, 3.4, 10], { color: C('#ffd27a'), emissive: [0.8, 0.6, 0.3] });
-            for (const y of [0.1, 6.45]) P(A.box, [fx, y, 0], null, [0.2, 0.18, 13], glow);
+            const face = bx - sd * 4.5;   // the shop's front wall
+            P(A.quad, [face - sd * 0.35, 6.2, 0], [0, sd < 0 ? Math.PI / 2 : -Math.PI / 2, 0], [10, 3.2, 1], { tex: worldTex('sign' + (c % 4)), unlit: true, color: [1, 1, 1], noShadow: true });
+            P(A.box, [face - sd * 0.15, 2.2, 0], null, [0.1, 3.4, 10], { color: C('#ffd27a'), emissive: [0.8, 0.6, 0.3] });
+            for (const y of [0.1, 6.45]) P(A.box, [face - sd * 0.3, y, 0], null, [0.2, 0.18, 13.2], glow);
           }
         } else {
           if (v === 'spires') {
@@ -1434,7 +1445,8 @@
         }
       });
     }
-    function worldTex(key){
+    function worldTex(key){ return worldTex0(key); }
+    function worldTex0(key){
       if (WT['t_' + key]) return WT['t_' + key];
       let c;
       if (key === 'neonwin') c = canvas(128, 128, (g, w, h) => { g.fillStyle = '#16122e'; g.fillRect(0, 0, w, h); for (let y=6;y<h;y+=16) for (let x=6;x<w;x+=14) { g.fillStyle = Math.random() < 0.55 ? ['#ffd86a', '#5ee0ff', '#ff8ae0', '#fff3c4'][Math.floor(Math.random() * 4)] : '#241e48'; g.fillRect(x, y, 8, 9); } });
@@ -1497,6 +1509,7 @@
     // obstacles: same size as the gnome ('cone', jump it) and the trash can ('can', jump it), dressed for the world
     function drawWorldObstacle(Wd, o, at, R3, rot){
       const M = E.M, id = Object.keys(WORLDS).find(k => WORLDS[k] === Wd), cone = o.type === 'cone', ol = 0.03;
+      if (o.type === 'bar') { drawWorldBar(id, o, at); return; }
       const S = (t, s, col, m) => D(A.sphere, M.trs(at(...t), R3, s), { color: C(col), spec: 0.3, ol, ...(m || {}) });
       if (id === 'beach') {
         if (cone) { D(A.cyl, M.trs(at(0, 0.25, 0), R3, [1.0, 0.5, 1.0]), { color: C('#e8cf92'), spec: 0.05, ol }); for (let k=0;k<3;k++) { const a = k * 2.1; D(A.cyl, M.trs(at(Math.cos(a) * 0.32, 0.65, Math.sin(a) * 0.32), R3, [0.3, 0.4, 0.3]), { color: C('#e8cf92'), ol }); D(A.cone, M.trs(at(Math.cos(a) * 0.32, 0.98, Math.sin(a) * 0.32), R3, [0.36, 0.3, 0.36]), { color: C('#d9b878'), ol }); } D(A.box, M.trs(at(0, 1.1, 0), R3, [0.03, 0.6, 0.03]), { color: [0.9, 0.9, 0.9] }); D(A.box, M.trs(at(0.12, 1.3, 0), R3, [0.24, 0.16, 0.02]), { color: C('#ff4f6b') }); }
@@ -1517,6 +1530,18 @@
         if (cone) { D(A.bump, M.trs(at(0, 0.42, 0), R3, [0.95, 0.85, 0.9]), { color: C('#2a2222'), spec: 0.05, ol }); for (let k=0;k<4;k++) S([Math.cos(k * 1.6) * 0.32, 0.45 + (k % 2) * 0.18, Math.sin(k * 1.6) * 0.3], [0.16, 0.16, 0.16], '#ff7a1a', { emissive: [1.8, 0.6, 0.05], ol: 0 }); }
         else { D(A.bump, M.trs(at(0, 0.5, 0), R3, [1.0, 0.95, 0.95]), { color: C('#3a2a26'), spec: 0.05, ol }); D(A.cyl, M.trs(at(0, 0.98, 0), R3, [0.5, 0.06, 0.5]), { color: C('#ff7a1a'), emissive: [1.8, 0.6, 0.05] }); if (!reduceMotion) for (let k=0;k<2;k++) { const t = (st.time * 0.7 + k / 2 + (o.at % 1)) % 1; SP(at(0, 1.1 + t * 2, 0), 0.5 + t, [0.5, 0.45, 0.45], (1 - t) * 0.35, false); } }
       }
+    }
+    // slide-under lines for each world: posts at the lane edges, a beam about 1.9 m up, open space underneath
+    function drawWorldBar(id, o, at){
+      const M = E.M, ol = 0.03, posts = (col, h = 2.3, r = 0.11) => { for (const sx of [-1.15, 1.15]) D(A.cyl, M.trs(at(sx, h / 2, 0), [0, 0, 0], [r * 2, h, r * 2]), { color: C(col), spec: 0.2, ol }); };
+      const beam = (y, col, m) => D(A.box, M.trs(at(0, y, 0), [0, 0, 0], [2.4, 0.22, 0.22]), { color: C(col), spec: 0.3, ol, ...(m || {}) });
+      const sway = Math.sin(st.time * 3 + o.at) * 0.08;
+      if (id === 'beach') { posts('#f4f4f4'); beam(2.15, '#ffffff'); D(A.box, M.trs(at(0, 1.8, 0), [sway * 0.3, 0, 0], [2.3, 0.62, 0.03]), { color: C('#3a3a48'), spec: 0.1 }); for (let k=0;k<7;k++) D(A.box, M.trs(at(-1.0 + k * 0.33, 1.8, 0.02), [0, 0, 0], [0.03, 0.62, 0.03]), { color: [0.85, 0.85, 0.85] }); D(A.sphere, M.trs(at(0.5, 2.5, 0), [0, 0, 0], [0.4, 0.4, 0.4]), { color: C('#ffd23f'), spec: 0.8, ol }); }
+      else if (id === 'desert') { posts('#8a5a34', 2.3, 0.14); D(A.cyl, M.trs(at(0, 2.0, 0), [0, 0, Math.PI / 2], [0.36, 2.6, 0.36]), { color: C('#9a6b43'), spec: 0.1, ol }); D(A.box, M.trs(at(0, 1.55, 0), [sway, 0, 0], [0.9, 0.5, 0.06]), { color: C('#c9a26b'), ol }); D(A.box, M.trs(at(0, 1.55, 0.04), [sway, 0, 0], [0.5, 0.12, 0.02]), { color: C('#6b3a1a') }); }
+      else if (id === 'jungle') { for (const sx of [-1.2, 1.2]) D(A.bump, M.trs(at(sx, 0.9, 0), [0, 0, 0], [0.7, 1.9, 0.7]), { color: C('#7a8a72'), ol }); D(A.cyl, M.trs(at(0, 2.0, 0), [0, 0, Math.PI / 2], [0.5, 2.9, 0.5]), { color: C('#6b4a2f'), ol }); for (let k=0;k<5;k++) D(A.box, M.trs(at(-0.9 + k * 0.45, 1.55 + (k % 2) * 0.1, 0), [sway * (k % 2 ? 1 : -1), 0, 0], [0.06, 0.7 - (k % 2) * 0.2, 0.06]), { color: C('#3f9a3a') }); }
+      else if (id === 'snow') { for (const sx of [-1.15, 1.15]) for (let k=0;k<6;k++) D(A.cyl, M.trs(at(sx, 0.2 + k * 0.38, 0), [0, 0, 0], [0.22, 0.38, 0.22]), { color: k % 2 ? [0.97, 0.97, 0.97] : C('#e8342a'), spec: 0.4 }); D(A.box, M.trs(at(0, 1.95, 0), [sway * 0.4, 0, 0], [2.3, 0.55, 0.05]), { color: C('#3fa9ff'), spec: 0.3, ol }); D(A.box, M.trs(at(0, 1.95, 0.03), [sway * 0.4, 0, 0], [1.6, 0.14, 0.02]), { color: [1, 1, 1] }); }
+      else if (id === 'neon') { posts('#2a2240'); beam(2.05, '#ff3ddc', { emissive: [1.4, 0.2, 1.2] }); beam(1.7, '#22e4ff', { emissive: [0.2, 1.3, 1.7] }); SP(at(0, 1.9, 0.3), 2.6, [1, 0.4, 1], 0.35, true); }
+      else { posts('#2a2220', 2.3, 0.14); D(A.cyl, M.trs(at(0, 2.0, 0), [0, 0, Math.PI / 2 + 0.06], [0.4, 2.7, 0.4]), { color: C('#2a2220'), ol }); for (let k=0;k<5;k++) D(A.sphere, M.trs(at(-1 + k * 0.5, 2.0 + (k % 2) * 0.12, 0.15), [0, 0, 0], [0.16, 0.16, 0.16]), { color: C('#ff7a1a'), emissive: [1.8, 0.6, 0.05] }); if (!reduceMotion) { const t = (st.time * 0.8 + (o.at % 1)) % 1; SP(at(0, 2.3 + t * 1.5, 0), 0.6 + t, [0.5, 0.45, 0.45], (1 - t) * 0.3, false); } }
     }
     // the trench across the street becomes water, a canyon crack, a muddy creek, an icy crevasse, a glowing pit, or lava
     function gapFor(id){
@@ -1650,7 +1675,7 @@
       if (o.fly) { y = Math.max(-2, o.fly.y); rot = o.fly.rot; x += o.fly.x || 0; }
       const mv = o.moving && o.type === 'truck', at = (dx, dy, dz) => [x + dx, y + dy, z + (mv ? -4.6 - dz : dz)], R3 = [rot, 0, rot * 0.5];
       const ow = WORLDS[zoneAt(o.at)];
-      if (ow && (o.type === 'cone' || o.type === 'can')) { drawWorldObstacle(ow, o, at, R3, rot); return; }
+      if (ow && (o.type === 'cone' || o.type === 'can' || o.type === 'bar')) { drawWorldObstacle(ow, o, at, R3, rot); return; }
       if (o.type === 'cone') {
         // a grumpy garden gnome
         D(A.cyl, M.trs(at(0, 0.06, 0), R3, [0.6, 0.12, 0.6]), { color: [0.55, 0.42, 0.3], spec: 0.1 });
