@@ -17,7 +17,7 @@ Eight fun, ad-free games in one app: run, race, match gems, sort potions & more!
 Playbox Arcade puts eight fun games in one app, so kids have one safe place to play.
 
 THE GAMES
-- Zoom Dash: run through a sunny neighborhood as a cheeky raccoon. Jump gnomes, slide under laundry lines and grab snacks.
+- Zoom Dash: run as a cheeky raccoon from the farm to the big city, then on to the beach, desert, jungle, snowy mountains, a neon night city and a volcano. Jump, slide, grab snacks, and see how many laps you can go.
 - Galaxy Racer: steer a starfighter through glowing galaxies, dodge asteroids and race rival ships to the finish. Upgrade your ship's engine, boosters, thrusters and shields in the Hangar to take on tougher sectors. 500 levels.
 - Castle Crash: aim a catapult at cartoon castles and knock every block off the table. 500 levels.
 - Gem Mine: swap and match sparkling gems deep in the mine. Every gem has its own shape. 500 levels.
