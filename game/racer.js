@@ -162,7 +162,7 @@
     // Four upgrades, 8 levels each. Ship Power is the total of all levels (0 to 32).
     // New races are gated by Ship Power: race 6 needs 1, then +1 every 5 races up to race 51 (power 10),
     // then +1 every 15 races until power 32 at race 381. Rivals get faster to match, so upgrades matter.
-    const UPG_MAX = 8, UPG_COST = [40, 50, 60, 75, 95, 120, 145, 170];   // priced so racing alone pays for every gate
+    const UPG_MAX = 8, UPG_COST = [150, 200, 260, 330, 420, 520, 640, 780];   // about 13,000 coins to max everything: weeks of play across all the games
     const UPGRADES = [
       { id: 'engine',  name: 'Engine',    ic: '\u{1F525}', what: 'Higher top speed',                     at: lv => `Top speed +${lv * 3}%` },
       { id: 'boost',   name: 'Boosters',  ic: '\u{1F4A8}', what: 'Stronger, longer boost rings',         at: lv => `Boost rings +${lv * 5}% power` },
@@ -170,18 +170,24 @@
       { id: 'shields', name: 'Shields',   ic: '\u{1F6E1}\uFE0F', what: 'More hearts every race',          at: lv => `${RACE_HEARTS + Math.ceil(lv / 2)} hearts per race` },
     ];
     const hangar = () => ({ engine: 0, boost: 0, thrust: 0, shields: 0, ...(PB.store.get('racer-hangar') || {}) });
-    const upg = id => Math.max(0, Math.min(UPG_MAX, hangar()[id] || 0));
-    const shipPower = () => UPGRADES.reduce((a, u) => a + upg(u.id), 0);
+    const owned = id => Math.max(0, Math.min(UPG_MAX, hangar()[id] || 0));
+    // you can fly with a lower level than you own (too fast? turn the Engine down); gates count what you own
+    const using = () => PB.store.get('racer-hangar-use') || {};
+    const upg = id => { const o = owned(id), u = using()[id]; return u == null ? o : Math.max(0, Math.min(o, u)); };
+    const shipPower = () => UPGRADES.reduce((a, u) => a + owned(u.id), 0);
     const needPower = L => L < 6 ? 0 : L <= 51 ? Math.floor((L - 1) / 5) : Math.min(UPG_MAX * UPGRADES.length, 10 + Math.floor((L - 51) / 15));
     const heartsFor = () => RACE_HEARTS + Math.ceil(upg('shields') / 2);
     function nextGate(L){ const n = needPower(L); let to = L; while (to < 500 && needPower(to + 1) === n) to++; return to; }
     const HANGAR = {
-      list: () => UPGRADES.map(u => { const lv = upg(u.id); return { ...u, lv, max: UPG_MAX, cost: lv < UPG_MAX ? UPG_COST[lv] : null, now: u.at(lv), next: lv < UPG_MAX ? u.at(lv + 1) : null }; }),
+      list: () => UPGRADES.map(u => { const lv = owned(u.id), use = upg(u.id); return { ...u, lv, use, max: UPG_MAX, cost: lv < UPG_MAX ? UPG_COST[lv] : null, now: u.at(use), next: lv < UPG_MAX ? u.at(lv + 1) : null }; }),
+      setUse(id, lv){ const o = owned(id), u = using(); u[id] = Math.max(0, Math.min(o, lv)); PB.store.set('racer-hangar-use', u); },
       power: shipPower, need: needPower, max: UPG_MAX * UPGRADES.length,
       buy(id){
-        const lv = upg(id); if (lv >= UPG_MAX) return 'max';
+        const lv = owned(id); if (lv >= UPG_MAX) return 'max';
         if (!PB.wallet.spend(UPG_COST[lv])) return 'coins';
-        const h = hangar(); h[id] = lv + 1; PB.store.set('racer-hangar', h); return 'ok';
+        const h = hangar(); h[id] = lv + 1; PB.store.set('racer-hangar', h);
+        const u = using(); delete u[id]; PB.store.set('racer-hangar-use', u);   // a new level is switched on right away
+        return 'ok';
       },
     };
     function fresh(mode, rand, lives, phase, level){
@@ -597,7 +603,7 @@
       id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Place', maxLives: MAX_LIVES, type:'levels', levels:500, scoreLabel:'Races won', boardScore: (s, lvl) => lvl, boardFmt: n => `${fmt(n)} race${n === 1 ? '' : 's'} won`, levelScoreText: (s, win) => win ? `Race ${s} won!` : `Race ${s}`,
       get failTitle(){ return (st && st.failTitle) || 'Race lost'; }, dailyText:'Race as far as you can, one try a day',
       tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing \u00b7 500 levels', art: artTile },
-      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race (more with Shields). Finish without crashing for 3 stars.', 'Upgrade your ship in the Hangar (in the Swag Shop): Engine, Boosters, Thrusters and Shields. New sectors of races need more Ship Power.', 'Tap the buttons at the bottom to use Turbo, Force Field, Blasters or an Extra Heart. Get more in the Swag Shop!'],
+      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race (more with Shields). Finish without crashing for 3 stars.', 'Upgrade your ship in the Hangar (Playbox Plus): Engine, Boosters, Thrusters and Shields. New sectors of races need more Ship Power. Too fast? Turn an upgrade down in the Hangar.', 'Tap the buttons at the bottom to use Turbo, Force Field, Blasters or an Extra Heart. Get more in the Swag Shop!'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => drawOrb2D(g, k, 23, 14, 12) })),
       init(){ loadAssets(); },
       hangar: HANGAR,

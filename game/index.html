@@ -572,8 +572,11 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 .hangar h4 span { color: #5ee0ff; font-size: .85rem; }
 .hangar .hsub { margin: 0 0 8px; color: var(--muted); font-weight: 700; font-size: .82rem; }
 .hgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.hup { appearance: none; font: inherit; color: inherit; cursor: pointer; display: grid; gap: 3px; justify-items: start; text-align: left; padding: 10px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); }
-.hup:disabled { cursor: default; } .hup .hn { display: flex; gap: 6px; align-items: center; font-weight: 900; } .hup .hi { font-size: 1.3rem; }
+.hup { display: grid; gap: 5px; justify-items: start; text-align: left; padding: 10px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); }
+.hup .pips i.own { background: rgba(94,224,255,.35); }
+.huse { display: flex; align-items: center; gap: 6px; width: 100%; } .huse em { flex: 1; text-align: center; font-style: normal; font-weight: 800; font-size: .78rem; }
+.hb { appearance: none; font: inherit; width: 34px; height: 30px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-weight: 900; font-size: 1.1rem; cursor: pointer; } .hb:disabled { opacity: .35; cursor: default; }
+.hbuy { appearance: none; font: inherit; width: 100%; padding: 8px 6px; border-radius: 10px; border: 0; background: var(--yellow); color: #2a1e00; font-weight: 900; font-size: .85rem; cursor: pointer; } .hbuy:disabled { background: var(--lime); opacity: .85; cursor: default; } .hup .hn { display: flex; gap: 6px; align-items: center; font-weight: 900; } .hup .hi { font-size: 1.3rem; }
 .hup .pips { display: flex; gap: 3px; } .hup .pips i { width: 12px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); } .hup .pips i.on { background: #5ee0ff; box-shadow: 0 0 6px #5ee0ff; }
 .hup small { color: var(--muted); font-weight: 700; font-size: .74rem; line-height: 1.25; } .hup .pr { font-weight: 900; color: var(--yellow); font-size: .85rem; }
 .hup.max .pr { color: var(--lime); }
@@ -667,6 +670,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           <p class="freeleft" id="mFree" hidden></p>
           <p class="freeleft" id="mNote" hidden></p>
           <button class="btn ghost" id="btnLevels" hidden>All levels</button>
+          <button class="btn ghost" id="btnHangar" hidden><span>🚀 Hangar</span><small></small></button>
           <button class="btn gold" id="btnDaily"><span>Daily Challenge</span><small id="mDailyBest">New every day</small></button>
           <div class="btnrow">
             <button class="btn ghost" id="btnHelp">How to play</button>

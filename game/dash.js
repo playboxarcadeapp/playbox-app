@@ -730,7 +730,7 @@
       st.phase = 'tally'; st.speed = 0;
       st.tally = { t: 0, base: Math.floor(st.dist), coins: st.coins || 0, left: st.coins || 0, bonus: 0, done: 0, tick: 0, label: label || 'Run over!', best: st.bestDist || 0, fly: [], pops: [], conf: [], bump: 0, spawn: 0 };
       // every 5 coins grabbed on the run = 1 Swag Shop coin, so the shop stays something to save up for
-      if (PB.wallet && st.coins) PB.wallet.add(Math.floor(st.coins / 5) * (PB.meta ? PB.meta.coinMult('dash') : 1));
+      if (PB.wallet && st.coins) PB.wallet.add(Math.floor(st.coins / 20) * (PB.meta ? PB.meta.coinMult('dash') : 1));   // 1 wallet coin for every 20 picked up
       if (PB.sfx) PB.sfx('lose');
     }
     // Results card timeline: banner + card (0-1 s), "Coin bonus!" strip (1-1.9 s), coins pour into the distance, then the total
@@ -1137,8 +1137,8 @@
     const WORLDS = {
       beach: {
         lotLen: 16, lots: ['shack', 'umbrellas', 'palms'], decos: ['ball', 'castle', 'umbrella'], treeP: 0.3,
-        look: { sun: [4.2, 3.6, 2.8], amb: [0.42, 0.54, 0.82], ambG: [0.55, 0.48, 0.32], fog: [0.84, 0.92, 0.98], fogD: 0.006, bloom: 0.45, thr: 0.86, sat: 1.15, vig: 0.2, tint: [1.02, 1.01, 0.98], zen: [0.1, 0.45, 0.95], hor: [0.8, 0.92, 1] },
-        sky: 'day', backdrop: 'ocean', road: [1.08, 1.03, 0.94], vans: ['#ff8fb8', '#5ee0ff', '#ffe066', '#9be07a', '#ffffff'],
+        look: { sun: [3.1, 2.75, 2.25], amb: [0.32, 0.42, 0.66], ambG: [0.36, 0.32, 0.24], fog: [0.78, 0.86, 0.94], fogD: 0.006, bloom: 0.32, thr: 0.92, sat: 1.05, vig: 0.24, tint: [1.0, 1.0, 0.98], zen: [0.1, 0.45, 0.95], hor: [0.8, 0.92, 1] },
+        sky: 'day', backdrop: 'ocean', road: [0.98, 0.95, 0.9], vans: ['#ff8fb8', '#5ee0ff', '#ffe066', '#9be07a', '#ffffff'],
       },
       desert: {
         lotLen: 18, lots: ['mesa', 'adobe', 'cacti'], decos: ['cactus', 'rock', 'skull'], treeP: 0.25,
@@ -1152,8 +1152,8 @@
       },
       snow: {
         lotLen: 16, lots: ['cabin', 'pines', 'lodge'], decos: ['snowman', 'minipine', 'sled'], treeP: 0.45,
-        look: { sun: [3.8, 3.7, 3.9], amb: [0.5, 0.58, 0.86], ambG: [0.62, 0.66, 0.78], fog: [0.9, 0.94, 1.0], fogD: 0.011, bloom: 0.48, thr: 0.84, sat: 1.05, vig: 0.2, tint: [0.98, 1.0, 1.05], zen: [0.25, 0.5, 0.92], hor: [0.88, 0.94, 1] },
-        sky: 'day', backdrop: 'peaks', road: [1.22, 1.24, 1.32], roadSpec: 0.5, vans: ['#e8463a', '#3f7fd6', '#ffd23f', '#2f8f5b'],
+        look: { sun: [2.5, 2.5, 2.7], amb: [0.36, 0.42, 0.64], ambG: [0.36, 0.4, 0.5], fog: [0.74, 0.8, 0.9], fogD: 0.011, bloom: 0.22, thr: 0.95, sat: 1.0, vig: 0.26, tint: [0.96, 0.98, 1.03], zen: [0.25, 0.5, 0.92], hor: [0.88, 0.94, 1] },
+        sky: 'day', backdrop: 'peaks', road: [0.92, 0.95, 1.02], roadSpec: 0.22, vans: ['#e8463a', '#3f7fd6', '#ffd23f', '#2f8f5b'],
       },
       neon: {
         lotLen: 15, lots: ['tower', 'arcade', 'tower2'], decos: ['nlamp', 'vending', 'nlamp'], treeP: 0.1,
@@ -1263,14 +1263,14 @@
       if (WT['g_' + id]) return WT['g_' + id];
       const T = (c) => E.texture(c), sp = speckle;
       let g;
-      if (id === 'beach') g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#f0d9a0'; x.fillRect(0, 0, w, h); sp(x, w, h, 7000, 'rgba(255,248,220,.6)', 'rgba(190,150,90,.35)', 1.4); for (let i=0;i<26;i++) { x.fillStyle = ['#ffd1dc','#fff','#ffb38a'][i % 3]; x.beginPath(); x.ellipse(Math.random() * w, Math.random() * h, 3, 2, Math.random() * 3, 0, 7); x.fill(); } })), spec: 0.06 },
-        walk: { tex: T(plankTex('#c9a26b')), spec: 0.1 }, curb: { color: [0.95, 0.9, 0.78], spec: 0.05 } };
+      if (id === 'beach') g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#f0d9a0'; x.fillRect(0, 0, w, h); sp(x, w, h, 7000, 'rgba(255,248,220,.6)', 'rgba(190,150,90,.35)', 1.4); for (let i=0;i<26;i++) { x.fillStyle = ['#ffd1dc','#fff','#ffb38a'][i % 3]; x.beginPath(); x.ellipse(Math.random() * w, Math.random() * h, 3, 2, Math.random() * 3, 0, 7); x.fill(); } })), color: [0.8, 0.77, 0.72], spec: 0.03 },
+        walk: { tex: T(plankTex('#c9a26b')), color: [0.85, 0.85, 0.85], spec: 0.05 }, curb: { color: [0.78, 0.74, 0.66], spec: 0.03 } };
       else if (id === 'desert') g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#c47e4c'; x.fillRect(0, 0, w, h); sp(x, w, h, 6000, 'rgba(255,210,150,.5)', 'rgba(140,70,30,.35)', 1.6); x.strokeStyle = 'rgba(120,60,30,.35)'; x.lineWidth = 1.4; for (let i=0;i<14;i++) { let px = Math.random() * w, py = Math.random() * h; x.beginPath(); x.moveTo(px, py); for (let k=0;k<5;k++) { px += (Math.random() - .5) * 30; py += (Math.random() - .5) * 30; x.lineTo(px, py); } x.stroke(); } })), color: [0.86, 0.8, 0.76], spec: 0.04 },
         walk: { tex: A.tGravel, color: [1.05, 0.85, 0.7], spec: 0.03 } };
       else if (id === 'jungle') g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#2f6224'; x.fillRect(0, 0, w, h); for (let i=0;i<500;i++) { x.fillStyle = ['#2a5a20','#3f7a2e','#24501c','#4a8a34'][i % 4]; x.beginPath(); x.ellipse(Math.random() * w, Math.random() * h, 6 + Math.random() * 6, 3, Math.random() * 3, 0, 7); x.fill(); } })), color: [0.62, 0.6, 0.55], spec: 0.08 },
         walk: { tex: A.tGravel, color: [0.75, 0.6, 0.45], spec: 0.03 } };
-      else if (id === 'snow') g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#f4f8ff'; x.fillRect(0, 0, w, h); sp(x, w, h, 5000, 'rgba(255,255,255,1)', 'rgba(190,210,240,.55)', 1.6); })), spec: 0.6, shine: 60 },
-        walk: { color: [0.96, 0.98, 1.0], spec: 0.5 } };
+      else if (id === 'snow') g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#f4f8ff'; x.fillRect(0, 0, w, h); sp(x, w, h, 5000, 'rgba(255,255,255,1)', 'rgba(170,190,225,.6)', 1.6); })), color: [0.74, 0.78, 0.86], spec: 0.12, shine: 30 },
+        walk: { color: [0.7, 0.74, 0.82], spec: 0.1 } };
       else if (id === 'neon') g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#1b1a2e'; x.fillRect(0, 0, w, h); sp(x, w, h, 3000, 'rgba(255,255,255,.06)', 'rgba(0,0,0,.3)', 1.2); x.strokeStyle = 'rgba(120,90,255,.35)'; x.lineWidth = 2; for (let k=0;k<=w;k+=64) { x.beginPath(); x.moveTo(k, 0); x.lineTo(k, h); x.stroke(); x.beginPath(); x.moveTo(0, k); x.lineTo(w, k); x.stroke(); } })), spec: 0.5, shine: 50 },
         walk: { tex: A.tConcrete, color: [0.4, 0.4, 0.55], spec: 0.4 }, curb: { color: [0.2, 0.9, 1], emissive: [0.15, 0.7, 0.9], spec: 0.2 } };
       else g = { lawn: { tex: T(canvas(256, 256, (x, w, h) => { x.fillStyle = '#2a2222'; x.fillRect(0, 0, w, h); sp(x, w, h, 5000, 'rgba(90,70,70,.5)', 'rgba(0,0,0,.4)', 1.6); x.lineWidth = 3; for (let i=0;i<10;i++) { let px = Math.random() * w, py = Math.random() * h; x.strokeStyle = '#ff6a1a'; x.beginPath(); x.moveTo(px, py); for (let k=0;k<6;k++) { px += (Math.random() - .5) * 36; py += (Math.random() - .5) * 36; x.lineTo(px, py); } x.stroke(); } })), emissive: [0.07, 0.02, 0], spec: 0.1 },

@@ -24,7 +24,7 @@
 
   // Test builds (the Codemagic "TEST" workflows) unlock everything so testers never hit the paywall.
   const TEST = !!window.PB_TEST_UNLOCK;
-  if (TEST && !store.get('pb-test-coins')) { store.set('pb-test-coins', 1); store.set('pb-coins', (store.get('pb-coins') || 0) + 3000); }   // test builds: coins to try the Hangar and shop
+  if (TEST && !store.get('pb-test-coins')) { store.set('pb-test-coins', 1); store.set('pb-coins', (store.get('pb-coins') || 0) + 1000); }   // test builds: coins to try the Hangar and shop
 
   // ---------- is Plus on? (remembered so it works offline; re-checked with the store at every launch) ----------
   let state = store.get('pb-plus') || { on: false, exp: null };
@@ -150,7 +150,8 @@
       <ul class="pben">
         <li><b>All 500 levels</b> in Castle Crash, Gem Mine, Potion Sort, Cube Escape and Galaxy Racer</li>
         <li><b>Unlimited play</b> in every game, every day</li>
-        <li><b>Swag Shop</b>: outfits, ships, colors, power-ups and the Galaxy Racer Hangar</li>
+        <li><b>Swag Shop</b>: outfits, ships, colors and power-ups</li>
+        <li><b>Galaxy Racer Hangar</b>: upgrade your starfighter</li>
         <li><b>Daily gifts</b> and treasure chests</li>
       </ul><div class="pbody"></div>`);
     const body = card.querySelector('.pbody');

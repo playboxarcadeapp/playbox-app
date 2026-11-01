@@ -254,6 +254,7 @@
       $('btnLevels').hidden = true;
     }
     $('btnDaily').hidden = !!G.noDaily;
+    { const hb = $('btnHangar'); hb.hidden = !G.hangar; if (G.hangar) { const plus = !PB.plus || PB.plus.on(); hb.querySelector('small').textContent = plus ? `Ship Power ${G.hangar.power()} \u00b7 upgrade your ship` : 'Upgrades \u00b7 Playbox Plus'; } }
     paintFree();
     const note = $('mNote'); if (note) { const t = G.menuNote && G.type === 'levels' ? G.menuNote(Math.min(progress(G).unlocked, G.levels)) : ''; note.hidden = !t; note.textContent = t; }
     if (PB.music) PB.music.duck(true);
@@ -283,7 +284,7 @@
     phase = 'menu'; paused = false; hideCoach();
     const plus = !PB.plus || PB.plus.on();
     $('gText').textContent = `Races ${gt.from}${gt.to > gt.from ? '\u2013' + gt.to : ''} need Ship Power ${gt.need}. Your ship has ${gt.have}. ` +
-      (plus ? 'Spend your coins on Engine, Boosters, Thrusters or Shields in the Hangar.' : 'Upgrades are in the Hangar, part of Playbox Plus.');
+      (plus ? 'Spend your coins on Engine, Boosters, Thrusters or Shields in the Hangar.' : 'Ship upgrades are in the Hangar, part of Playbox Plus.');
     $('gGo').querySelector('span').textContent = plus ? 'Open the Hangar' : 'Get the Hangar';
     $('gGo').querySelector('small').textContent = plus ? `You have ${fmt(wallet.get())} coins` : 'Playbox Plus \u00b7 ask a grown-up';
     showView('gate');
@@ -532,7 +533,10 @@
   $('btnLimitOld').addEventListener('click', () => openLevels());
   $('btnLimitDaily').addEventListener('click', () => startGame('daily'));
   $('btnLimitBack').addEventListener('click', closeGame);
-  $('gGo').addEventListener('click', () => { if (PB.plus && !PB.plus.on()) openPlus(); else if (PB.meta && PB.meta.openShop) PB.meta.openShop(G.id, () => openMenu()); });
+  // the Hangar lives in the game (Playbox Plus)
+  const openGameHangar = () => { if (PB.plus && !PB.plus.on()) openPlus(); else if (PB.meta && PB.meta.openHangar) PB.meta.openHangar(() => openMenu()); };
+  $('gGo').addEventListener('click', openGameHangar);
+  $('btnHangar').addEventListener('click', openGameHangar);
   $('gOld').addEventListener('click', () => openLevels());
   $('gBack').addEventListener('click', () => openMenu());
   $('plusCard').addEventListener('click', openPlus);

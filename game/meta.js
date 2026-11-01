@@ -344,6 +344,7 @@
   function openModal(kind){
     const m = $('metaModal'), body = $('mmBody'); m.hidden = false; body.innerHTML = '';
     const h = document.createElement('h3'); body.appendChild(h);
+    if (kind === 'hangar') { hangarSection(body, h); return; }
     if ((kind === 'gift' || kind === 'shop') && !hasPlus()) {
       h.textContent = kind === 'gift' ? 'Daily gift' : 'Swag Shop';
       const box = document.createElement('div'); box.className = 'mmlock';
@@ -369,7 +370,6 @@
       h.innerHTML = `Swag Shop <span class="mmcoins">${coin}<b>${fmt(PB.wallet.get())}</b></span>`;
       const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = 'Spend your coins on fun looks for your games. Tap something you own to wear it (tap again to take it off).'; body.appendChild(p);
       for (const gid of ['dash', 'castle', 'racer', 'potions', 'snake', 'sweets', 'bricks', 'cubes']) {
-        if (gid === 'racer') hangarSection(body);
         const items = SHOP.filter(it => it.game === gid); if (!items.length) continue;
         const sec = document.createElement('div'); sec.className = 'shopsec'; sec.innerHTML = `<h4></h4><div class="shopgrid"></div>`; sec.querySelector('h4').textContent = NAME[gid];
         for (const it of items) { const have = owned().includes(it.id), on = look(it.game, it.slot) === it.id;
@@ -412,30 +412,37 @@
     }
   }
   // Galaxy Racer Hangar: ship upgrades (Engine, Boosters, Thrusters, Shields)
-  function hangarSection(body){
+  // Galaxy Racer Hangar (opened from the Galaxy Racer menu; Playbox Plus): buy upgrade levels, and choose
+  // which level to fly with (turn the Engine down if the ship feels too fast). Gates count the levels you own.
+  function hangarSection(body, h){
     const G = PB.games && PB.games.racer, H = G && G.hangar; if (!H) return;
-    const sec = document.createElement('div'); sec.className = 'shopsec hangar'; sec.id = 'hangar';
-    sec.innerHTML = `<h4>\u{1F680} Galaxy Racer Hangar <span>Ship Power ${H.power()} / ${H.max}</span></h4><p class="hsub">Upgrade your starfighter to win tougher races. New sectors of races need more Ship Power.</p><div class="hgrid"></div>`;
+    h.innerHTML = `\u{1F680} Hangar <span class="mmcoins">${coin}<b>${fmt(PB.wallet.get())}</b></span>`;
+    const sec = document.createElement('div'); sec.className = 'hangar'; sec.id = 'hangar';
+    sec.innerHTML = `<h4>Ship Power <span>${H.power()} / ${H.max}</span></h4><p class="hsub">Buy upgrades to reach tougher races. Use \u2212 and + to choose how strong each one is while you fly.</p><div class="hgrid"></div>`;
     for (const u of H.list()) {
-      const c = document.createElement('button'); c.className = 'hup' + (u.cost == null ? ' max' : ''); c.disabled = u.cost == null;
-      c.innerHTML = `<span class="hn"><span class="hi">${u.ic}</span><b></b></span><span class="pips">${Array.from({ length: u.max }, (_, i) => `<i class="${i < u.lv ? 'on' : ''}"></i>`).join('')}</span><small></small><span class="pr">${u.cost == null ? 'Maxed out!' : coin + fmt(u.cost)}</span>`;
+      const c = document.createElement('div'); c.className = 'hup' + (u.cost == null ? ' max' : '');
+      c.innerHTML = `<span class="hn"><span class="hi">${u.ic}</span><b></b></span>
+        <span class="pips">${Array.from({ length: u.max }, (_, i) => `<i class="${i < u.use ? 'on' : i < u.lv ? 'own' : ''}"></i>`).join('')}</span>
+        <small class="hnow"></small>
+        <span class="huse"><button class="hb" data-d="-1" aria-label="Turn ${u.name} down">\u2212</button><em>Using ${u.use}/${u.lv}</em><button class="hb" data-d="1" aria-label="Turn ${u.name} up">+</button></span>
+        <button class="hbuy"${u.cost == null ? ' disabled' : ''}>${u.cost == null ? 'Maxed out!' : `Upgrade ${coin}${fmt(u.cost)}`}</button>`;
       c.querySelector('b').textContent = `${u.name} ${u.lv}/${u.max}`;
-      c.querySelector('small').textContent = u.next ? `Next: ${u.next}` : u.now;
-      c.onclick = () => {
+      c.querySelector('.hnow').textContent = u.now + (u.next ? ` \u00b7 next: ${u.next}` : '');
+      const [dn, up] = c.querySelectorAll('.hb'); dn.disabled = u.use <= 0; up.disabled = u.use >= u.lv;
+      for (const b of [dn, up]) b.onclick = () => { H.setUse(u.id, u.use + +b.dataset.d); if (PB.sfx) PB.sfx('pick'); openModal('hangar'); };
+      c.querySelector('.hbuy').onclick = () => {
         const r = H.buy(u.id);
-        if (r === 'coins') { banner('Not enough coins yet. Win races to earn more!', false); if (PB.sfx) PB.sfx('nope'); return; }
+        if (r === 'coins') { banner('Not enough coins yet. Keep playing to earn more!', false); if (PB.sfx) PB.sfx('nope'); return; }
         if (r === 'ok') { if (PB.sfx) PB.sfx('power'); banner(`${u.ic} ${u.name} upgraded to level ${u.lv + 1}!`, true); }
-        openModal('shop'); const h = $('hangar'); if (h) h.scrollIntoView({ block: 'nearest' });
+        openModal('hangar');
       };
       sec.querySelector('.hgrid').appendChild(c);
     }
     body.appendChild(sec);
   }
+  function openHangar(done){ openModal('hangar'); afterClose = done || null; }
   let afterClose = null;
-  function openShop(game, done){
-    openModal('shop'); afterClose = done || null;
-    const target = game === 'racer' ? $('hangar') : null; if (target) setTimeout(() => target.scrollIntoView({ block: 'start' }), 0);
-  }
+  function openShop(game, done){ openModal('shop'); afterClose = done || null; }
   function closeModal(){ $('metaModal').hidden = true; render(); const f = afterClose; afterClose = null; if (f) f(); }
   function initUI(){
     $('btnGift').onclick = () => openModal('gift'); if ($('btnStickers')) $('btnStickers').onclick = () => openModal('stickers'); $('btnShop').onclick = () => openModal('shop'); $('btnTrophy').onclick = () => openModal('trophies');
@@ -445,5 +452,5 @@
     if (!giftState().claimed && hasPlus()) setTimeout(() => { if (!document.getElementById('hub').hidden) openModal('gift'); }, 900);
   }
 
-  PB.meta = { openShop, STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
+  PB.meta = { openShop, openHangar, STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
 })();
