@@ -539,6 +539,8 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 .mmlock { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 6px 0 2px; } .mmlock .ml { font-size: 2.4rem; }
 #plusModal { position: fixed; inset: 0; z-index: 60; background: rgba(4,6,20,.82); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) 14px max(16px, env(safe-area-inset-bottom, 0px)); font-family: var(--body); color: var(--text); }
 #plusModal[hidden] { display: none; }
+#remindAsk { position: fixed; inset: 0; z-index: 60; background: rgba(4,6,20,.82); display: grid; place-items: center; padding: 16px 14px; font-family: var(--body); color: var(--text); }
+#remindAsk .pbuy.ghost { margin-top: 10px; }
 .pcard { position: relative; width: min(440px, 100%); max-height: 100%; overflow-y: auto; background: linear-gradient(180deg, #1b1550, var(--panel) 40%); border: 2px solid var(--yellow); border-radius: 24px; padding: 22px 18px 16px; box-shadow: 0 20px 60px rgba(0,0,0,.55); text-align: center; animation: toastIn .3s ease; }
 .pcard h3 { font-family: var(--display); margin: 4px 0 6px; font-size: 1.5rem; color: var(--yellow); }
 .pcard .px { position: absolute; top: 10px; right: 10px; appearance: none; border: 0; background: var(--panel-2); color: var(--text); width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; cursor: pointer; }
@@ -600,6 +602,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
       <button class="chip" id="tglSfx" aria-pressed="true">Sounds</button>
       <button class="chip" id="tglSym" aria-pressed="true">Symbols</button>
       <button class="chip" id="tglBuzz" aria-pressed="true">Buzz</button>
+      <button class="chip" id="tglRemind" aria-pressed="false" hidden>Reminders</button>
     </div>
   </header>
   <section class="metatop" id="metaTop">
@@ -804,3 +807,4 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 <script src="plus.js"></script>
 <script src="meta.js"></script>
 <script src="shell.js"></script>
+<script src="notify.js"></script>

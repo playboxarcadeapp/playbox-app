@@ -32,6 +32,17 @@ if (which === 'android' || which === 'both') {
   });
 }
 
+if (which === 'android' || which === 'both') {
+  // white star for the status bar when a reminder arrives (Android needs a one-color icon there)
+  const dir = path.join(root, 'android/app/src/main/res/drawable');
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, 'ic_stat_playbox.xml'), `<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+  <path android:fillColor="#FFFFFFFF" android:pathData="M12,2.2l2.9,6.1 6.7,0.8 -4.9,4.6 1.3,6.6L12,17l-6,3.3 1.3,-6.6 -4.9,-4.6 6.7,-0.8z"/>
+</vector>
+`);
+  console.log('updated android notification icon');
+}
+
 if (which === 'ios' || which === 'both') {
   await edit('ios/App/App/Info.plist', s => {
     const portrait = '<array>\n\t\t<string>UIInterfaceOrientationPortrait</string>\n\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n\t</array>';
