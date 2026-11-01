@@ -564,6 +564,19 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 .gk { appearance: none; font: inherit; font-weight: 900; font-size: 1.3rem; padding: 12px 0; border-radius: 14px; border: 2px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; }
 .gk.ok { background: var(--yellow); color: #2a1e00; border-color: var(--yellow); } .gk:active { transform: scale(.96); }
 .gerr { margin: 10px 0 0; color: #ff7a93; font-weight: 800; }
+
+/* Galaxy Racer Hangar */
+.lvlmap .lvl .gtag { position: absolute; top: -9px; right: -12px; font-style: normal; font-size: .62rem; font-weight: 900; padding: 2px 5px; border-radius: 8px; background: #5ee0ff; color: #04223a; box-shadow: 0 2px 0 rgba(0,0,0,.3); white-space: nowrap; }
+.hangar { border: 2px solid #5ee0ff; border-radius: 16px; padding: 10px; margin-bottom: 12px; background: linear-gradient(180deg, rgba(94,224,255,.12), transparent); }
+.hangar h4 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 4px; }
+.hangar h4 span { color: #5ee0ff; font-size: .85rem; }
+.hangar .hsub { margin: 0 0 8px; color: var(--muted); font-weight: 700; font-size: .82rem; }
+.hgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.hup { appearance: none; font: inherit; color: inherit; cursor: pointer; display: grid; gap: 3px; justify-items: start; text-align: left; padding: 10px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line); }
+.hup:disabled { cursor: default; } .hup .hn { display: flex; gap: 6px; align-items: center; font-weight: 900; } .hup .hi { font-size: 1.3rem; }
+.hup .pips { display: flex; gap: 3px; } .hup .pips i { width: 12px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); } .hup .pips i.on { background: #5ee0ff; box-shadow: 0 0 6px #5ee0ff; }
+.hup small { color: var(--muted); font-weight: 700; font-size: .74rem; line-height: 1.25; } .hup .pr { font-weight: 900; color: var(--yellow); font-size: .85rem; }
+.hup.max .pr { color: var(--lime); }
 </style>
 
 <div id="bgfx" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="stars"></i><i class="stars s2"></i></div>
@@ -652,6 +665,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           <p class="wallet"><svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#ffc21a" stroke="#b77800" stroke-width="2"/></svg><span><b id="hCoins">0</b> coins saved for the Swag Shop</span></p>
           <button class="btn primary" id="btnClassic"><span id="btnClassicLabel">Play</span><small id="mClassicBest">Best: 0</small></button>
           <p class="freeleft" id="mFree" hidden></p>
+          <p class="freeleft" id="mNote" hidden></p>
           <button class="btn ghost" id="btnLevels" hidden>All levels</button>
           <button class="btn gold" id="btnDaily"><span>Daily Challenge</span><small id="mDailyBest">New every day</small></button>
           <div class="btnrow">
@@ -727,6 +741,19 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           <div class="btnrow">
             <button class="btn ghost" id="btnLimitOld">Replay a level</button>
             <button class="btn ghost" id="btnLimitBack">Other games</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="vGate" hidden>
+        <div class="panel">
+          <h3>Upgrade your ship!</h3>
+          <div class="revic">🚀</div>
+          <p class="summary" id="gText"></p>
+          <button class="btn primary" id="gGo"><span>Open the Hangar</span><small></small></button>
+          <div class="btnrow">
+            <button class="btn ghost" id="gOld">Replay a race</button>
+            <button class="btn ghost" id="gBack">Back</button>
           </div>
         </div>
       </div>

@@ -369,6 +369,7 @@
       h.innerHTML = `Swag Shop <span class="mmcoins">${coin}<b>${fmt(PB.wallet.get())}</b></span>`;
       const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = 'Spend your coins on fun looks for your games. Tap something you own to wear it (tap again to take it off).'; body.appendChild(p);
       for (const gid of ['dash', 'castle', 'racer', 'potions', 'snake', 'sweets', 'bricks', 'cubes']) {
+        if (gid === 'racer') hangarSection(body);
         const items = SHOP.filter(it => it.game === gid); if (!items.length) continue;
         const sec = document.createElement('div'); sec.className = 'shopsec'; sec.innerHTML = `<h4></h4><div class="shopgrid"></div>`; sec.querySelector('h4').textContent = NAME[gid];
         for (const it of items) { const have = owned().includes(it.id), on = look(it.game, it.slot) === it.id;
@@ -410,7 +411,32 @@
       body.appendChild(grid);
     }
   }
-  function closeModal(){ $('metaModal').hidden = true; render(); }
+  // Galaxy Racer Hangar: ship upgrades (Engine, Boosters, Thrusters, Shields)
+  function hangarSection(body){
+    const G = PB.games && PB.games.racer, H = G && G.hangar; if (!H) return;
+    const sec = document.createElement('div'); sec.className = 'shopsec hangar'; sec.id = 'hangar';
+    sec.innerHTML = `<h4>\u{1F680} Galaxy Racer Hangar <span>Ship Power ${H.power()} / ${H.max}</span></h4><p class="hsub">Upgrade your starfighter to win tougher races. New sectors of races need more Ship Power.</p><div class="hgrid"></div>`;
+    for (const u of H.list()) {
+      const c = document.createElement('button'); c.className = 'hup' + (u.cost == null ? ' max' : ''); c.disabled = u.cost == null;
+      c.innerHTML = `<span class="hn"><span class="hi">${u.ic}</span><b></b></span><span class="pips">${Array.from({ length: u.max }, (_, i) => `<i class="${i < u.lv ? 'on' : ''}"></i>`).join('')}</span><small></small><span class="pr">${u.cost == null ? 'Maxed out!' : coin + fmt(u.cost)}</span>`;
+      c.querySelector('b').textContent = `${u.name} ${u.lv}/${u.max}`;
+      c.querySelector('small').textContent = u.next ? `Next: ${u.next}` : u.now;
+      c.onclick = () => {
+        const r = H.buy(u.id);
+        if (r === 'coins') { banner('Not enough coins yet. Win races to earn more!', false); if (PB.sfx) PB.sfx('nope'); return; }
+        if (r === 'ok') { if (PB.sfx) PB.sfx('power'); banner(`${u.ic} ${u.name} upgraded to level ${u.lv + 1}!`, true); }
+        openModal('shop'); const h = $('hangar'); if (h) h.scrollIntoView({ block: 'nearest' });
+      };
+      sec.querySelector('.hgrid').appendChild(c);
+    }
+    body.appendChild(sec);
+  }
+  let afterClose = null;
+  function openShop(game, done){
+    openModal('shop'); afterClose = done || null;
+    const target = game === 'racer' ? $('hangar') : null; if (target) setTimeout(() => target.scrollIntoView({ block: 'start' }), 0);
+  }
+  function closeModal(){ $('metaModal').hidden = true; render(); const f = afterClose; afterClose = null; if (f) f(); }
   function initUI(){
     $('btnGift').onclick = () => openModal('gift'); if ($('btnStickers')) $('btnStickers').onclick = () => openModal('stickers'); $('btnShop').onclick = () => openModal('shop'); $('btnTrophy').onclick = () => openModal('trophies');
     $('mmClose').onclick = closeModal; $('metaModal').addEventListener('click', e => { if (e.target.id === 'metaModal') closeModal(); });
@@ -419,5 +445,5 @@
     if (!giftState().claimed && hasPlus()) setTimeout(() => { if (!document.getElementById('hub').hidden) openModal('gift'); }, 900);
   }
 
-  PB.meta = { STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
+  PB.meta = { openShop, STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
 })();

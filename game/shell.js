@@ -113,7 +113,7 @@
   let G = null, mode = 'classic', phase = 'menu', level = 1, raf = null, last = 0, clock = 0;
   let cachedBest = 0, lastEntryId = null, lastScore = 0, overTimer = null;
   const play = $('play'), screen = $('screen');
-  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel'), pause: $('vPause'), revive: $('vRevive'), limit: $('vLimit') };
+  const views = { menu: $('vMenu'), help: $('vHelp'), over: $('vOver'), scores: $('vScores'), levels: $('vLevels'), level: $('vLevel'), pause: $('vPause'), revive: $('vRevive'), limit: $('vLimit'), gate: $('vGate') };
   function showView(name){ for (const k in views) views[k].hidden = k !== name; }
 
   // ---------- Hub ----------
@@ -255,6 +255,7 @@
     }
     $('btnDaily').hidden = !!G.noDaily;
     paintFree();
+    const note = $('mNote'); if (note) { const t = G.menuNote && G.type === 'levels' ? G.menuNote(Math.min(progress(G).unlocked, G.levels)) : ''; note.hidden = !t; note.textContent = t; }
     if (PB.music) PB.music.duck(true);
     const c = challengeFor(G);
     $('mDailyBest').textContent = c ? (challengeDone(G) ? '\u2713 ' + c.label : c.label + ` \u00b7 +${CHALLENGE_COINS} coins`) : (G.dailyText || 'A new challenge every day');
@@ -277,6 +278,15 @@
     $('btnLimitOld').hidden = !lv;
     $('btnLimitDaily').hidden = !!G.noDaily;
     showView('limit');
+  }
+  function showGate(gt){
+    phase = 'menu'; paused = false; hideCoach();
+    const plus = !PB.plus || PB.plus.on();
+    $('gText').textContent = `Races ${gt.from}${gt.to > gt.from ? '\u2013' + gt.to : ''} need Ship Power ${gt.need}. Your ship has ${gt.have}. ` +
+      (plus ? 'Spend your coins on Engine, Boosters, Thrusters or Shields in the Hangar.' : 'Upgrades are in the Hangar, part of Playbox Plus.');
+    $('gGo').querySelector('span').textContent = plus ? 'Open the Hangar' : 'Get the Hangar';
+    $('gGo').querySelector('small').textContent = plus ? `You have ${fmt(wallet.get())} coins` : 'Playbox Plus \u00b7 ask a grown-up';
+    showView('gate');
   }
   function openPlus(){
     if (!PB.plus) return;
@@ -318,6 +328,7 @@
       if (n === done) b.classList.add('current');
       b.innerHTML = locked ? `<span class="num">${n}</span>${lockSvg}` : `<span class="num">${n}</span><span class="stars">${'★'.repeat(st)}<i>${'★'.repeat(3 - st)}</i></span>`;
       b.setAttribute('aria-label', locked ? `Level ${n}, locked` : `Level ${n}, ${st} stars`);
+      if (G.gateNeed) { const nd = G.gateNeed(n); if (nd > 0 && nd !== G.gateNeed(n - 1)) { b.insertAdjacentHTML('beforeend', `<i class="gtag" title="Needs Ship Power ${nd}">\u26A1${nd}</i>`); b.setAttribute('aria-label', b.getAttribute('aria-label') + `, needs Ship Power ${nd}`); } }
       if (!locked) b.addEventListener('click', () => startGame('classic', n));
       trail.appendChild(b);
       if (n % 10 === 0 && n < G.levels + 1) {
@@ -337,6 +348,12 @@
   }
   function startGame(m, lvl){
     clearTimeout(overTimer);
+    // games with gates (Galaxy Racer's Ship Power): a new level the player isn't ready for yet
+    if (m !== 'daily' && G.gate && G.type === 'levels') {
+      const p = progress(G), target = lvl || Math.min(p.unlocked, G.levels);
+      const gt = target >= p.unlocked ? G.gate(target) : null;
+      if (gt) { showGate(gt); return; }
+    }
     if (m !== 'daily' && PB.plus && !PB.plus.on()) {
       if (G.type === 'levels') {
         // only a brand-new level uses up a free play; replays and retries are free
@@ -515,6 +532,9 @@
   $('btnLimitOld').addEventListener('click', () => openLevels());
   $('btnLimitDaily').addEventListener('click', () => startGame('daily'));
   $('btnLimitBack').addEventListener('click', closeGame);
+  $('gGo').addEventListener('click', () => { if (PB.plus && !PB.plus.on()) openPlus(); else if (PB.meta && PB.meta.openShop) PB.meta.openShop(G.id, () => openMenu()); });
+  $('gOld').addEventListener('click', () => openLevels());
+  $('gBack').addEventListener('click', () => openMenu());
   $('plusCard').addEventListener('click', openPlus);
   if (PB.plus) PB.plus.onChange(() => { refreshHub(); if (!play.hidden && G && phase === 'menu' && !views.menu.hidden) openMenu(); });
   $('btnDaily').addEventListener('click', () => startGame('daily'));

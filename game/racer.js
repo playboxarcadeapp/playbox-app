@@ -158,6 +158,32 @@
 
     // ---------- game state ----------
     const RACE_HEARTS = 3;
+    // ---------- Hangar: ship upgrades bought with coins in the Swag Shop ----------
+    // Four upgrades, 8 levels each. Ship Power is the total of all levels (0 to 32).
+    // New races are gated by Ship Power: race 6 needs 1, then +1 every 5 races up to race 51 (power 10),
+    // then +1 every 15 races until power 32 at race 381. Rivals get faster to match, so upgrades matter.
+    const UPG_MAX = 8, UPG_COST = [40, 50, 60, 75, 95, 120, 145, 170];   // priced so racing alone pays for every gate
+    const UPGRADES = [
+      { id: 'engine',  name: 'Engine',    ic: '\u{1F525}', what: 'Higher top speed',                     at: lv => `Top speed +${lv * 3}%` },
+      { id: 'boost',   name: 'Boosters',  ic: '\u{1F4A8}', what: 'Stronger, longer boost rings',         at: lv => `Boost rings +${lv * 5}% power` },
+      { id: 'thrust',  name: 'Thrusters', ic: '\u26A1',    what: 'Faster take-off and quicker recovery after a hit', at: lv => `Acceleration +${lv * 15}%` },
+      { id: 'shields', name: 'Shields',   ic: '\u{1F6E1}\uFE0F', what: 'More hearts every race',          at: lv => `${RACE_HEARTS + Math.ceil(lv / 2)} hearts per race` },
+    ];
+    const hangar = () => ({ engine: 0, boost: 0, thrust: 0, shields: 0, ...(PB.store.get('racer-hangar') || {}) });
+    const upg = id => Math.max(0, Math.min(UPG_MAX, hangar()[id] || 0));
+    const shipPower = () => UPGRADES.reduce((a, u) => a + upg(u.id), 0);
+    const needPower = L => L < 6 ? 0 : L <= 51 ? Math.floor((L - 1) / 5) : Math.min(UPG_MAX * UPGRADES.length, 10 + Math.floor((L - 51) / 15));
+    const heartsFor = () => RACE_HEARTS + Math.ceil(upg('shields') / 2);
+    function nextGate(L){ const n = needPower(L); let to = L; while (to < 500 && needPower(to + 1) === n) to++; return to; }
+    const HANGAR = {
+      list: () => UPGRADES.map(u => { const lv = upg(u.id); return { ...u, lv, max: UPG_MAX, cost: lv < UPG_MAX ? UPG_COST[lv] : null, now: u.at(lv), next: lv < UPG_MAX ? u.at(lv + 1) : null }; }),
+      power: shipPower, need: needPower, max: UPG_MAX * UPGRADES.length,
+      buy(id){
+        const lv = upg(id); if (lv >= UPG_MAX) return 'max';
+        if (!PB.wallet.spend(UPG_COST[lv])) return 'coins';
+        const h = hangar(); h[id] = lv + 1; PB.store.set('racer-hangar', h); return 'ok';
+      },
+    };
     function fresh(mode, rand, lives, phase, level){
       const lv = typeof level === 'number' ? level : 1;
       st = { mode, phase, rand, lives, lives0: lives, score:0, level: lv, stars:0, parts:[], pops:[], dust:[], trail:[], shake:0, msg:null, clock:0, t:0 };
@@ -172,17 +198,20 @@
       st.R = R; st.gal = g; st.gi = (st.level - 1) % GALAXIES.length;
       st.length = courseLength(st.level);
       st.lives = Math.max(st.lives, st.lives0); // a full set of hearts for every race
+      st.cap = Math.max(MAX_LIVES, st.lives0);  // heart pickups can top up to the Shields level
+      st.up = { engine: 1 + upg('engine') * 0.03, ring: 1.45 + upg('boost') * 0.05, ringT: 1.6 + upg('boost') * 0.12,
+                accel: 3 * (1 + upg('thrust') * 0.15), hitT: 1 - upg('thrust') * 0.06, hitK: 0.55 + upg('thrust') * 0.03 };
       st.d = 0; st.speed = 0; st.base = 70 + Math.min(st.level, 12) * 2.4;
       st.objs = []; st.bolts = []; st.nextSpawn = 70; st.powIn = 5;
       st.fx = { turbo:0, shield:0, magnet:0, blaster:0, mini:0 }; st.boost = 0; st.hitSlow = 0; st.inv = 0; st.fireCD = 0;
       st.p = { x: 0, y: 0, tx: 0, ty: 0, bank: 0 };
-      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([1.02, 1.06, 1.1][i], [0.92, 0.95, 0.98][i] + (st.level - 1) * 0.004), ph: R() * 6, boostT: 0, boostIn: 3 + i * 1.5 + R() * 4 }));
+      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([1.02, 1.06, 1.1][i], [0.92, 0.95, 0.98][i] + (st.level - 1) * 0.004) + needPower(st.level) * 0.009, ph: R() * 6, boostT: 0, boostIn: 3 + i * 1.5 + R() * 4 }));
       st.count = 2.6; st.finished = false; st.place = 4; st.raceStars = 0; st.planetSpin = R() * 6;
       st.drag = null;
       st.dust = Array.from({ length: 90 }, () => ({ x: (Math.random() - .5) * 40, y: (Math.random() - .5) * 26, z: -Math.random() * 160 }));
     }
     function pickPower(){
-      const e = Object.entries(POWERS).filter(([k]) => !(k === 'life' && st.lives >= MAX_LIVES));
+      const e = Object.entries(POWERS).filter(([k]) => !(k === 'life' && st.lives >= st.cap));
       let roll = st.R() * e.reduce((s,[,p]) => s + p.weight, 0);
       for (const [k,p] of e) { roll -= p.weight; if (roll <= 0) return k; }
       return 'shield';
@@ -221,7 +250,7 @@
       if (st.fx.turbo > 0) { if (PB.sfx) PB.sfx('crash'); st.score += 20; pop(shipPos(), 'SMASH!', '#ff9a3d'); return; }
       if (st.inv > 0) return;
       if (st.fx.shield > 0) { st.fx.shield = 0; st.inv = 0.8; pop(shipPos(), 'Shield saved you!', '#5ee0ff'); return; }
-      st.lives--; st.inv = 1.6; st.hitSlow = 1; st.shake = 14;
+      st.lives--; st.inv = 1.6; st.hitSlow = st.up.hitT; st.shake = 14;
       pop(shipPos(), 'Ouch!', '#ff5d7a');
       if (st.lives <= 0) {
         st.phase = 'over';
@@ -233,7 +262,7 @@
       o.dead = true;
       if (o.kind === 'star') { st.stars++; st.raceStars++; st.score += 10; burst([o.x, o.y, -rel(o)], [1, 0.85, 0.3], 8, 4); return; }
       const P = POWERS[o.type];
-      if (o.type === 'life') st.lives = Math.min(MAX_LIVES, st.lives + 1); else st.fx[o.type] = P.time;
+      if (o.type === 'life') st.lives = Math.min(st.cap, st.lives + 1); else st.fx[o.type] = P.time;
       burst([o.x, o.y, -rel(o)], hex(P.color), 20, 6); pop(shipPos(), P.name + '!', P.color, 1.3);
     }
     function finish(){
@@ -267,8 +296,9 @@
       st.t += dt;
       for (const k in st.fx) if (st.fx[k] > 0) st.fx[k] = Math.max(0, st.fx[k] - dt);
       st.powIn -= dt; st.inv = Math.max(0, st.inv - dt); st.hitSlow = Math.max(0, st.hitSlow - dt); st.boost = Math.max(0, st.boost - dt);
-      const want = st.base * (st.fx.turbo > 0 ? 1.7 : st.boost > 0 ? 1.45 : 1) * (st.hitSlow > 0 ? 0.55 : 1);
-      st.speed += (want - st.speed) * Math.min(1, dt * 3);
+      const U = st.up;
+      const want = st.base * U.engine * (st.fx.turbo > 0 ? 1.7 : st.boost > 0 ? U.ring : 1) * (st.hitSlow > 0 ? U.hitK : 1);
+      st.speed += (want - st.speed) * Math.min(1, dt * U.accel);
       st.d += st.speed * dt;
       const p = st.p, px0 = p.x;
       p.x += (p.tx - p.x) * Math.min(1, dt * 9); p.y += (p.ty - p.y) * Math.min(1, dt * 9);
@@ -303,7 +333,7 @@
           if (st.phase !== 'play') return;
         } else if (o.kind === 'star' && near && Math.hypot(o.x - p.x, o.y - p.y) < 1.5) collect(o);
         else if (o.kind === 'pow' && near && Math.hypot(o.x - p.x, o.y - p.y) < 1.7) collect(o);
-        else if (o.kind === 'gate' && !o.used && near && Math.hypot(o.x - p.x, o.y - p.y) < 2.6) { o.used = true; st.boost = 1.6; if (PB.sfx) PB.sfx('whoosh'); pop(shipPos(), 'BOOST!', '#5ee0ff', 0.8); }
+        else if (o.kind === 'gate' && !o.used && near && Math.hypot(o.x - p.x, o.y - p.y) < 2.6) { o.used = true; st.boost = st.up.ringT; if (PB.sfx) PB.sfx('whoosh'); pop(shipPos(), 'BOOST!', '#5ee0ff', 0.8); }
       }
       st.objs = st.objs.filter(o => !o.dead && -rel(o) < 12);
       st.score += st.speed * dt * 0.15;
@@ -471,7 +501,7 @@
       const say = (t, c) => pop([st.p.x, st.p.y + 1.5, -3], t, c, 1.3);
       if (boostN(b.id) <= 0) { say('Get more in the Swag Shop!', '#ffd23f'); if (PB.sfx) PB.sfx('nope'); return; }
       const fx = SHOP_FX[b.id];
-      if (b.id === 'r_heart' && st.lives >= MAX_LIVES) { say('Hearts are full!', '#ff8fc4'); if (PB.sfx) PB.sfx('nope'); return; }
+      if (b.id === 'r_heart' && st.lives >= st.cap) { say('Hearts are full!', '#ff8fc4'); if (PB.sfx) PB.sfx('nope'); return; }
       if (fx && st.fx[fx] > 1) { say('Already on!', POWERS[fx].color); if (PB.sfx) PB.sfx('nope'); return; }
       if (!PB.meta.useBoost(b.id)) return;
       if (b.id === 'r_heart') { st.lives++; say('+1 heart!', '#ff3d6e'); }
@@ -567,11 +597,17 @@
       id:'racer', sfxScore:false, music:'racer', title:'GALAXY RACER', W, H, statLabel:'Place', maxLives: MAX_LIVES, type:'levels', levels:500, scoreLabel:'Races won', boardScore: (s, lvl) => lvl, boardFmt: n => `${fmt(n)} race${n === 1 ? '' : 's'} won`, levelScoreText: (s, win) => win ? `Race ${s} won!` : `Race ${s}`,
       get failTitle(){ return (st && st.failTitle) || 'Race lost'; }, dailyText:'Race as far as you can, one try a day',
       tile:{ order:6, name:'Galaxy Racer', kind:'Spaceship racing \u00b7 500 levels', art: artTile },
-      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race. Finish without crashing for 3 stars.', 'Tap the buttons at the bottom to use Turbo, Force Field, Blasters or an Extra Heart. Get more in the Swag Shop!'],
+      controls: ['Drag anywhere to steer your ship up, down, left and right.', 'Dodge asteroids and grab gold stars for points.', 'Fly through glowing rings for a burst of speed.', 'Win 1st place to unlock the next level. Each level is a longer course.', 'You get 3 hearts per race (more with Shields). Finish without crashing for 3 stars.', 'Upgrade your ship in the Hangar (in the Swag Shop): Engine, Boosters, Thrusters and Shields. New sectors of races need more Ship Power.', 'Tap the buttons at the bottom to use Turbo, Force Field, Blasters or an Extra Heart. Get more in the Swag Shop!'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: g => drawOrb2D(g, k, 23, 14, 12) })),
       init(){ loadAssets(); },
+      hangar: HANGAR,
+      // a new race the ship isn't strong enough for yet
+      gate(L){ const need = needPower(L), have = shipPower(); return have >= need ? null : { need, have, from: L, to: nextGate(L) }; },
+      gateNeed: needPower,
+      menuNote(next){ const have = shipPower(), need = needPower(next); let n = next; while (n < 500 && needPower(n) <= have) n++;
+        return need > have ? `\u{1F680} Ship Power ${have}. Race ${next} needs ${need}: upgrade in the Hangar!` : n >= 500 && needPower(500) <= have ? `\u{1F680} Ship Power ${have}. Your ship can reach every race!` : `\u{1F680} Ship Power ${have}. Race ${n} will need ${needPower(n)}.`; },
       preview(){ fresh('classic', Math.random, 3, 'menu'); },
-      start(mode, rand, lives, msg, level){ const daily = mode === 'daily'; fresh(mode, rand, daily ? 3 : RACE_HEARTS, 'play', daily ? 1 : level); st.msg = daily ? `${st.gal.name} \u00b7 Tap to race` : `Level ${st.level} \u00b7 ${st.gal.name} \u00b7 Win 1st!`; },
+      start(mode, rand, lives, msg, level){ const daily = mode === 'daily'; fresh(mode, rand, daily ? 3 : heartsFor(), 'play', daily ? 1 : level); st.msg = daily ? `${st.gal.name} \u00b7 Tap to race` : `Level ${st.level} \u00b7 ${st.gal.name} \u00b7 Win 1st!`; },
       frame(dt){ update(dt); draw(); },
       hud(){ const pl = st.finished ? st.place : 1 + st.rivals.filter(r => r.d > st.d).length, won = st.level - 1 + (st.finished && st.place === 1 ? 1 : 0), best = Math.max(won, (PB.bestOf && PB.bestOf('racer')) || 0); return st.mode === 'daily' ? { lives: st.lives, stat: st.level, statLabel: 'Race', score: won } : { lives: st.lives, stat: PLACE[pl - 1], score: won, best }; },
       metrics(){ return { score: st.score, level: st.level, stars: st.stars }; },

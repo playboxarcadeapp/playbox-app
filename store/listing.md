@@ -18,7 +18,7 @@ Playbox Arcade puts eight fun games in one app, so kids have one safe place to p
 
 THE GAMES
 - Zoom Dash: run through a sunny neighborhood as a cheeky raccoon. Jump gnomes, slide under laundry lines and grab snacks.
-- Galaxy Racer: steer a starfighter through glowing galaxies, dodge asteroids and race rival ships to the finish. 500 levels.
+- Galaxy Racer: steer a starfighter through glowing galaxies, dodge asteroids and race rival ships to the finish. Upgrade your ship's engine, boosters, thrusters and shields in the Hangar to take on tougher sectors. 500 levels.
 - Castle Crash: aim a catapult at cartoon castles and knock every block off the table. 500 levels.
 - Gem Mine: swap and match sparkling gems deep in the mine. Every gem has its own shape. 500 levels.
 - Potion Sort: help the wizard sort magic potions before the timer runs out. 500 levels.
@@ -40,7 +40,7 @@ PLAYBOX PLUS
 Unlock everything with Playbox Plus:
 - All 500 levels in Castle Crash, Gem Mine, Potion Sort, Cube Escape and Galaxy Racer
 - Unlimited play in every game
-- The Swag Shop: outfits, ships, colors and power-ups
+- The Swag Shop: outfits, ships, colors, power-ups and the Galaxy Racer Hangar
 - Daily gifts and treasure chests
 - Share with your family through Family Sharing
 
