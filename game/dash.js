@@ -656,7 +656,7 @@
         if (o.gone) continue;
         const rel = o.at - st.dist;
         if (o.seg !== st.cur) continue;
-        if (o.moving && !o.hit) { o.at -= o.moving * dt; if (o.oncoming && !o.honked && rel < 34) { o.honked = true; if (PB.sfx) PB.sfx('honk'); pop(playerPos(), 'Beep beep! Watch out!', '#ffd23f'); } }
+        if (o.moving && !o.hit) { driveCar(o, dt); if (o.oncoming && !o.honked && rel < 34) { o.honked = true; if (PB.sfx) PB.sfx('honk'); pop(playerPos(), 'Beep beep! Watch out!', '#ffd23f'); } }
         if (o.kind === 'obs' && o.type === 'bus') {
           const inLane = Math.abs(laneX(o.lane) - p.x) < 1.15;
           if (!o.hit && inLane && rel < 0.35 && rel > -o.len && p.h < BUS_H - 0.4 && fx.giant > 0) { o.hit = true; o.squash = 1; addCoins(1); pop(playerPos(), 'STOMP!', '#ff5a4a'); st.shake = 10; if (PB.sfx) PB.sfx('boom'); }
@@ -678,7 +678,8 @@
         }
         if (o.kind === 'obs' && !o.hit) {
           if (rel < DEPTH[o.type] && rel > -0.6 && Math.abs(laneX(o.lane) - p.x) < 1.25) {
-            const blocked = o.type === 'cone' ? p.h < 0.8 : o.type === 'can' ? p.h < 1.05 : true;
+            // floating with the balloon (or bouncing high) carries you over vans too
+            const blocked = o.type === 'cone' ? p.h < 0.8 : o.type === 'can' ? p.h < 1.05 : p.h < 2.4;
             if (blocked) { if (o.type === 'cone' || o.type === 'can') stumble(o); else crash(o); }
             if (st.phase !== 'play') return;
           }
@@ -693,6 +694,19 @@
       st.objs = st.objs.filter(keepObj);
     }
     // keep what's on this street (and the streets around the next corner), forget streets we've left behind
+    // moving cars brake and wait behind anything in their lane (parked vans, gnomes, buses, trenches)
+    // instead of driving straight through it
+    const farEnd = b => b.at + (b.type === 'bus' || b.type === 'gap' ? b.len : b.type === 'truck' ? DEPTH.truck : (DEPTH[b.type] || 1));
+    function driveCar(o, dt){
+      const step = o.moving * dt, GAP = 1.2;
+      let stopAt = -Infinity;
+      for (const b of st.objs) {
+        if (b === o || b.gone || b.hit || b.fly || b.kind !== 'obs' || b.seg !== o.seg || (b.lane !== o.lane && b.lane !== -1) || b.at >= o.at) continue;
+        const e = farEnd(b) + GAP; if (e > stopAt && o.at - e < 30) stopAt = e;
+      }
+      o.at = Math.max(o.at - step, stopAt);
+      o.braked = o.at === stopAt;
+    }
     function keepObj(o){
       if (o.gone) return false;
       const s = curSeg();
