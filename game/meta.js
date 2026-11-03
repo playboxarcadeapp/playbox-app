@@ -69,7 +69,7 @@
     { id: 'hammer',    game: 'cubes',   name: 'Hammer',         desc: 'Tap a cube to bonk it out',             ic: '\u{1F528}',    price: 300, pack: 3, sw: ['#ffd23f', '#a0602a'] },
     { id: 'time20',    game: 'cubes',   name: '+20 Seconds',    desc: 'Twenty more seconds on the clock',      ic: '\u23F1\uFE0F', price: 240, pack: 3, sw: ['#9fe8ff', '#2f86ff'] },
     { id: 'firepot',   game: 'castle',  name: 'Fire Pot',       desc: 'An extra exploding fire pot',           ic: '\u{1F525}',    price: 300, pack: 3, sw: ['#ffb347', '#d8401c'] },
-    { id: 'boulder',   game: 'castle',  name: 'Big Boulder',    desc: 'An extra giant rolling boulder',        ic: '\u{1FAA8}',    price: 300, pack: 3, sw: ['#d8cfc2', '#6a5a48'] },
+    { id: 'boulder',   game: 'castle',  name: 'Iron Ball',      desc: 'An extra heavy iron ball for stone walls', ic: '\u26AB',    price: 300, pack: 3, sw: ['#9aa0ac', '#2e3138'] },
     { id: 'r_turbo',   game: 'racer',   name: 'Turbo',          desc: 'Blast ahead and smash through rocks',   ic: '\u{1F525}',    price: 300, pack: 3, sw: ['#ffb347', '#d8401c'] },
     { id: 'r_shield',  game: 'racer',   name: 'Force Field',    desc: 'Bounces you off one crash',             ic: '\u{1F6E1}\uFE0F', price: 300, pack: 3, sw: ['#9ae6ff', '#2f6fff'] },
     { id: 'r_blaster', game: 'racer',   name: 'Blasters',       desc: 'Lasers that break asteroids',           ic: '\u{1F4A5}',    price: 360, pack: 3, sw: ['#ff8fa0', '#c0203a'] },
