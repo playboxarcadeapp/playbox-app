@@ -61,7 +61,77 @@
       (r,c,rows) => (c !== 3 && c !== 4) || r % 2 === 0,
     ];
     const ROWCOL = [N.pink, N.orange, N.yellow, N.lime, N.cyan, N.blue, N.violet, N.pink, N.orange];
+    // ---------- 500 classic levels ----------
+    // Each level is a little picture made of bricks (8 wide). Letters are colors; the level builder then mixes in
+    // the special bricks as you go: TNT (level 5), steel you can't break (8), 3-hit bricks (12), sliding bricks (15)
+    // and bricks that grow back (25). Difficulty follows the shared groups-of-10 pattern with HARD and SUPER HARD levels.
+    const PAL = { p: N.pink, o: N.orange, y: N.yellow, g: N.lime, c: N.cyan, b: N.blue, v: N.violet, r: '#ff3b5c', w: '#e8ecff' };
+    const PICS = [
+      ['heart',    '.rr..rr.', 'rrrrrrrr', 'rrrwrrrr', 'rrrrrrrr', '.rrrrrr.', '..rrrr..', '...rr...'],
+      ['smiley',   '..yyyy..', '.yyyyyy.', 'yybyybyy', 'yyyyyyyy', 'ybyyyyby', 'yybbbbyy', '.yyyyyy.', '..yyyy..'],
+      ['rocket',   '...ww...', '..wwww..', '..wccw..', '..wwww..', '..wwww..', '.vwwwwv.', 'vv.ww.vv', '...oo...', '...yy...'],
+      ['invader',  '..g..g..', '...gg...', '..gggg..', '.gg.g.g.', 'gggggggg', 'g.gggg.g', 'g.g..g.g', '...gg...'],
+      ['star',     '...yy...', '...yy...', 'yyyyyyyy', '.yyyyyy.', '..yyyy..', '.yyyyyy.', 'yyy..yyy', 'yy....yy'],
+      ['mushroom', '..rrrr..', '.rrwwrr.', 'rrwwrrrr', 'rrrrrwwr', 'rrrrrrrr', '..wwww..', '..wwww..', '..wwww..'],
+      ['ghost',    '..vvvv..', '.vvvvvv.', 'vvwvvwvv', 'vvbvvbvv', 'vvvvvvvv', 'vvvvvvvv', 'vvvvvvvv', 'v.vv.vv.'],
+      ['tree',     '...gg...', '..gggg..', '.gggggg.', '..gggg..', '.gggggg.', 'gggggggg', '...oo...', '...oo...'],
+      ['fish',     '........', '..cccc.c', '.cccccccc'.slice(0, 8), 'cwcccccc', 'cccccccc', '.cccccc.', '..cccc.c', '........'],
+      ['cat',      'o......o', 'oo....oo', 'oooooooo', 'ogooogoo', 'oooooooo', 'ooopoooo', '.oooooo.', '..o..o..'],
+      ['house',    '...rr...', '..rrrr..', '.rrrrrr.', 'rrrrrrrr', '.wwwwww.', '.wbwwbw.', '.wwwoww.', '.wwwoww.'],
+      ['diamond',  '...cc...', '..cccc..', '.ccwccc.', 'cccccccc', '.cccccc.', '..cccc..', '...cc...'],
+      ['crown',    'y..y..y.', 'yy.yy.yy', 'yyyyyyyy', 'yryybyyr', 'yyyyyyyy', 'yyyyyyyy'],
+      ['flower',   '..pp.pp.', '.pppppp.', '..pyyp..', '.pppppp.', '..pp.pp.', '...gg...', '.g.gg...', '..ggg...'],
+      ['sun',      'y..yy..y', '.y.yy.y.', '..oooo..', 'yyooooyy', 'yyooooyy', '..oooo..', '.y.yy.y.', 'y..yy..y'],
+      ['icecream', '..pppp..', '.pwpppp.', '.pppppp.', '..cccc..', '..oooo..', '...oo...', '...oo...'],
+      ['robot',    '...ww...', '.wwwwww.', '.wcwwcw.', '.wwwwww.', '..wrrw..', 'bbbbbbbb', 'b.bbbb.b', '..b..b..'],
+      ['planet',   '..vvvv..', '.vvvvvvy', 'vvvvvyy.', 'vvvyyvv.', '.yyvvvv.', 'yy.vvv..', '........'],
+      ['car',      '........', '..rrrr..', '.rwrrwr.', 'rrrrrrrr', 'rrrrrrrr', '.bb..bb.', '.bb..bb.'],
+      ['umbrella', '..vvvv..', '.vpvvpv.', 'vvvvvvvv', 'v..y...v', '...y....', '...y....', '.y.y....', '..yy....'],
+      ['pyramid',  '...oo...', '..oooo..', '..oyyo..', '.oooooo.', '.oyoyoo.', 'oooooooo', 'oyoooyoo'],
+      ['bunny',    '.w....w.', '.wp..pw.', '.wp..pw.', '.wwwwww.', 'wwbwwbww', 'wwwppwww', '.wwwwww.', '..w..w..'],
+      ['checker',  'pcpcpcpc', 'cpcpcpcp', 'pcpcpcpc', 'cpcpcpcp', 'pcpcpcpc', 'cpcpcpcp'],
+      ['rainbow',  'rrrrrrrr', 'oooooooo', 'yyyyyyyy', 'gggggggg', 'cccccccc', 'bbbbbbbb', 'vvvvvvvv'],
+      ['frame',    'vvvvvvvv', 'v......v', 'v.pppp.v', 'v.pyyp.v', 'v.pyyp.v', 'v.pppp.v', 'v......v', 'vvvvvvvv'],
+      ['zigzag',   'g.......', 'gg......', '.gg....c', '..gg..cc', '...gccc.', '..cc.gg.', '.cc...gg', 'cc.....g'],
+    ];
+    const SWAP = ['pocygbvrw', 'cbvpoygrw', 'gyobcvprw', 'vpcgybory'];   // color swaps so repeated pictures look new
+    const FIRST = { tnt: 5, steel: 8, tough3: 12, mover: 15, regrow: 25 };
+    const NEW_MSG = { 5: 'NEW! TNT bricks blow up the bricks around them', 8: "NEW! Steel bricks can't break. Bounce around them!", 12: 'NEW! Gold bricks take 3 hits', 15: 'NEW! Some bricks slide back and forth', 25: 'NEW! Ghost bricks grow back once. Break them twice!' };
+    function levelBricks(n){
+      const R = PB.mulberry(PB.seedFrom('bricks-level-' + n)), c = PB.levels.challenge(n), tier = PB.levels.tier(n);
+      const cols = 8, bw = 52, bh = 20, gap = 6, left = (W - (cols * bw + (cols - 1) * gap)) / 2;
+      // every picture once in each run through the list, shuffled, with a color swap after the first time round
+      const round = Math.floor((n - 1) / PICS.length), order = PB.shuffle(PICS.map((_, i) => i), PB.mulberry(PB.seedFrom('bricks-order-' + round)));
+      const pic = PICS[n <= 3 ? [0, 1, 4][n - 1] : order[(n - 1) % PICS.length]], swap = round ? SWAP[(round - 1) % SWAP.length] : 'pocygbvrw';
+      const rows = pic.slice(1).map(r => r.slice(0, 8).padEnd(8, '.')), top = 70 + Math.max(0, 8 - rows.length) * 8;
+      const bricks = [], at = (r, col) => bricks.find(k => k.r === r && k.c === col);
+      rows.forEach((row, r) => [...row].forEach((ch, col) => { if (ch === '.') return;
+        const key = swap['pocygbvrw'.indexOf(ch)] || ch;
+        bricks.push({ r, c: col, x: left + col * (bw + gap), y: top + r * (bh + gap), w: bw, h: bh, hp: 1, max: 1, color: PAL[key] || N.cyan, kind: 'normal' }); }));
+      const pickFrom = list => list.splice(Math.floor(R() * list.length), 1)[0];
+      // tougher bricks
+      const p2 = n <= 3 ? 0 : Math.min(0.55, 0.06 + c * 0.55), p3 = n >= FIRST.tough3 ? Math.min(0.3, c * 0.32) : 0;
+      for (const k of bricks) { const q = R(); if (q < p3) { k.hp = k.max = 3; k.kind = 'gold'; k.color = '#ffd23f'; } else if (q < p3 + p2) k.hp = k.max = 2; }
+      // TNT: a few, inside the picture
+      if (n >= FIRST.tnt) { const pool = bricks.filter(k => k.kind === 'normal'); for (let i = 0, nt = 1 + Math.round(c * 2) + (n === FIRST.tnt ? 1 : 0); i < nt && pool.length; i++) { const k = pickFrom(pool); Object.assign(k, { kind: 'tnt', hp: 1, max: 1, color: '#ff4a1c' }); } }
+      // ghost bricks that grow back
+      if (n >= FIRST.regrow) { const pool = bricks.filter(k => k.kind === 'normal' && k.max === 1); for (let i = 0, ng = Math.round(1 + c * 3); i < ng && pool.length; i++) Object.assign(pickFrom(pool), { kind: 'ghost', color: '#b9a8ff' }); }
+      const below = top + rows.length * (bh + gap) + 10;
+      // steel: a shield row under the picture with gaps to aim through (and a few steel bricks in harder pictures)
+      if (n >= FIRST.steel && (n === FIRST.steel || R() < 0.35 + c * 0.6)) {
+        const gapAt = Math.floor(R() * 6) + 1, wide = c > 0.55 ? 1 : 2;
+        for (let col = 0; col < cols; col++) if (col < gapAt || col >= gapAt + wide) bricks.push({ r: 99, c: col, x: left + col * (bw + gap), y: below, w: bw, h: bh, hp: 1, max: 1, color: '#9aa3b8', kind: 'steel' });
+        if (c > 0.45) { const pool = bricks.filter(k => k.kind === 'normal' && k.r !== 99); for (let i = 0, ns = Math.round((c - 0.45) * 8); i < ns && pool.length; i++) Object.assign(pickFrom(pool), { kind: 'steel', color: '#9aa3b8' }); }
+      }
+      // sliding bricks: a short row that glides from side to side under everything
+      if (n >= FIRST.mover && (n === FIRST.mover || R() < 0.3 + c * 0.5)) {
+        const y = below + (bricks.some(k => k.r === 99) ? bh + gap + 8 : 0), count = c > 0.5 ? 3 : 2;
+        for (let i = 0; i < count; i++) { const x0 = 60 + i * 130; bricks.push({ r: 98, c: i, x: x0, x0, y, w: bw, h: bh, hp: c > 0.4 ? 2 : 1, max: c > 0.4 ? 2 : 1, color: N.cyan, kind: 'normal', move: { amp: 50 + c * 30, sp: 0.9 + c * 0.9, ph: i * 1.3 } }); }
+      }
+      return { bricks, c, tier, pic: pic[0] };
+    }
     function newLevel(level){
+      if (st.mode !== 'daily' && st.classic) return st.spec.bricks;
       const R = st.rand;
       const rows = Math.min(4 + Math.floor(level/2), 9), cols = 8, bw = 52, bh = 20, gap = 6;
       const left = (W - (cols*bw + (cols-1)*gap))/2;
@@ -81,13 +151,15 @@
       return bricks;
     }
     // Ball speed: each level starts slow and builds up the longer you stay in it, topping out at the old full speed.
-    const topSpeed = () => Math.min(640, (300 + Math.min(st.level, 12)*25) * 1.12);
-    const startSpeed = () => 235 + Math.min(st.level, 12)*6;
+    const effLevel = () => st.classic ? (st.classic <= 3 ? st.classic : 1 + Math.round(st.spec.c * 12)) : st.level;
+    const topSpeed = () => Math.min(640, (300 + Math.min(effLevel(), 12)*25) * 1.12);
+    const startSpeed = () => 235 + Math.min(effLevel(), 12)*6;
     const RAMP_TIME = 75; // seconds in a level to reach top speed
     const baseSpeed = () => { const t = Math.min(1, (st.levelTime || 0) / RAMP_TIME); const e = t * t * (3 - 2 * t); return startSpeed() + (topSpeed() - startSpeed()) * e; };
-    function fresh(mode, rand, lives, phase){
-      st = { mode, phase, score:0, level:1, lives, nextLife: LIFE_EVERY, rand, parts:[], pops:[], shards:[], rings:[], flash:0, shake:0, msg:null };
-      st.bricks = newLevel(1); st.bdirty = true; st.dropsLeft = 2; st.time = 0; st.levelTime = 0;
+    function fresh(mode, rand, lives, phase, classic){
+      st = { mode, phase, score:0, level:1, lives, nextLife: LIFE_EVERY, rand, parts:[], pops:[], shards:[], rings:[], flash:0, shake:0, msg:null, classic: mode !== 'daily' && classic ? classic : 0, lost: 0, ghosts: [] };
+      if (st.classic) { st.spec = levelBricks(st.classic); st.level = st.classic; st.rand = PB.mulberry(PB.seedFrom('bricks-play-' + st.classic + '-' + Math.random())); }
+      st.bricks = newLevel(1); st.bdirty = true; st.dropsLeft = st.classic ? (st.spec.tier === 'super' ? 2 : 3) : 2; st.time = 0; st.levelTime = 0;
       st.paddle = { x: W/2 - BASE_W/2, w: BASE_W, h: 14, y: PADDLE_Y };
       clearRound();
     }
@@ -131,7 +203,13 @@
     }
     function pop(x,y,text,color,life){ st.pops.push({ x, y, text, color: color||'#fff', life: life||0.9 }); }
     function breakBrick(k){
-      k.hp--; st.bdirty = true; k.hit = 0.3;
+      if (k.kind === 'steel') { k.hit = 0.15; if (PB.sfx) PB.sfx('tap'); return; }
+      k.hp--; st.bdirty = true; k.hit = 0.3; st.lastBreak = st.time;
+      if (k.hp <= 0 && k.kind === 'ghost' && st.classic && !k.back) st.ghosts.push({ k, t: 7 });
+      if (k.hp <= 0 && k.kind === 'tnt') { k.boom = true; st.shake = Math.max(st.shake, 12); st.flash = 0.6; if (PB.sfx) PB.sfx('boom'); burst(k.x + k.w / 2, k.y + k.h / 2, N.orange, 30); pop(k.x + k.w / 2, k.y, 'BOOM!', N.orange, 1);
+        st.rings.push({ x: k.x + k.w / 2, y: k.y + k.h / 2, r: 10, life: 0.4, color: N.orange });
+        const near = st.bricks.filter(o => o !== k && o.hp > 0 && o.kind !== 'steel' && Math.abs(o.x - k.x) < 62 && Math.abs(o.y - k.y) < 30);
+        const S0 = st; setTimeout(() => { if (st !== S0 || st.phase !== 'play') return; for (const o of near) if (o.hp > 0) { o.hp = 1; breakBrick(o); } }, 90); }
       if (k.hp > 0) { addPoints(5); burst(k.x+k.w/2, k.y+k.h/2, '#fff', 5); st.shake = Math.max(st.shake, 2); return; }
       st.combo++;
       const mult = Math.min(1 + Math.floor(st.combo/4), 5), pts = 10 * mult; addPoints(pts);
@@ -167,6 +245,11 @@
     }
     function step(dt){
       const p = st.paddle, fx = st.fx; st.time = (st.time || 0) + dt;
+      if (st.classic) {
+        for (const k of st.bricks) if (k.move && k.hp > 0) { k.x = Math.max(4, Math.min(W - k.w - 4, k.x0 + Math.sin(st.time * k.move.sp + k.move.ph) * k.move.amp)); st.bdirty = true; }
+        for (const g of st.ghosts) { g.t -= dt; if (g.t <= 0 && st.bricks.some(o => o.hp > 0 && o.kind !== 'steel')) { g.k.hp = 1; g.k.hit = 0.4; g.k.back = true; st.bdirty = true; burst(g.k.x + g.k.w / 2, g.k.y + g.k.h / 2, '#b9a8ff', 10); } }
+        st.ghosts = st.ghosts.filter(g => g.t > 0 && g.k.hp <= 0);
+      }
       for (const k in fx) if (fx[k] > 0) { fx[k] = Math.max(0, fx[k] - dt); if (fx[k] === 0 && (k==='wide'||k==='shrink')) updatePaddleW(); }
       if (fx.magnet === 0 && !st.msg) for (const b of st.balls) if (b.held) fire(b);
       const slow = fx.slow > 0 ? 0.6 : 1;
@@ -184,7 +267,9 @@
           if (fx.magnet > 0) { b.held = true; b.off = Math.max(-p.w/2+6, Math.min(p.w/2-6, b.x - (p.x + p.w/2))) || 0.01; }
           else {
             const hit = (b.x - (p.x + p.w/2)) / (p.w/2), speed = Math.hypot(b.vx, b.vy);
-            const ang = Math.max(-1.1, Math.min(1.1, hit * 1.05));
+            // if the ball has gone a while without breaking anything (stuck bouncing around steel), nudge its angle
+            const stuck = st.time - (st.lastBreak || 0) > 10 ? (Math.random() - 0.5) * 0.6 : 0;
+            const ang = Math.max(-1.1, Math.min(1.1, hit * 1.05 + stuck));
             b.vx = speed * Math.sin(ang); b.vy = -Math.abs(speed * Math.cos(ang)); b.y = p.y - b.r; if (PB.sfx) PB.sfx('tap');
           }
           continue;
@@ -194,7 +279,7 @@
           const cx = Math.max(k.x, Math.min(b.x, k.x+k.w)), cy = Math.max(k.y, Math.min(b.y, k.y+k.h));
           const dx = b.x - cx, dy = b.y - cy;
           if (dx*dx + dy*dy <= b.r*b.r) {
-            if (fx.fire > 0) { k.hp = 1; breakBrick(k); continue; }
+            if (fx.fire > 0 && k.kind !== 'steel') { k.hp = 1; breakBrick(k); continue; }
             breakBrick(k);
             if (Math.abs(dx) > Math.abs(dy)) b.vx = -b.vx; else b.vy = -b.vy;
             break;
@@ -215,11 +300,23 @@
       }
       st.drops = st.drops.filter(d => d.y < H + 30);
       if (st.balls.length === 0) {
-        st.lives--; st.shake = 10;
-        if (st.lives <= 0) { st.phase = 'over'; st.msg = null; shell.gameOver(st.score, `You reached level ${st.level}`); return; }
+        st.lives--; st.lost++; st.shake = 10;
+        if (st.lives <= 0) {
+          st.phase = 'over'; st.msg = null;
+          if (st.classic) { const left = st.bricks.filter(k => k.hp > 0 && k.kind !== 'steel').length; shell.levelDone({ win: false, stars: 0, score: st.score, summary: `${left} brick${left === 1 ? '' : 's'} left. So close!` }); }
+          else shell.gameOver(st.score, `You reached level ${st.level}`);
+          return;
+        }
         clearRound(); updatePaddleW(); st.msg = 'Oops! Tap to try again'; return;
       }
-      if (st.bricks.every(k => k.hp <= 0)) nextLevel();
+      if (st.bricks.every(k => k.hp <= 0 || k.kind === 'steel')) {
+        if (!st.classic) return nextLevel();
+        // a won level: stars for the balls you kept
+        st.phase = 'over'; st.msg = null; st.flash = 1; if (PB.sfx) PB.sfx('level');
+        const stars = st.lost === 0 ? 3 : st.lost === 1 ? 2 : 1; addPoints(200 + st.lives * 100);
+        for (let i = 0; i < 4; i++) burst(80 + i * 110, 200, [N.pink, N.cyan, N.yellow, N.lime][i], 24);
+        setTimeout(() => shell.levelDone({ win: true, stars, score: st.score, summary: st.lost === 0 ? 'Perfect! You never lost a ball' : `You lost ${st.lost} ball${st.lost === 1 ? '' : 's'}` }), 900);
+      }
     }
     function effects(dt){
       for (const k of st.bricks) if (k.hit > 0) k.hit = Math.max(0, k.hit - dt);
@@ -310,8 +407,19 @@
         if (k.hp <= 0) continue;
         const c = hex3(k.color), wob = k.hit > 0 ? Math.sin(k.hit * 40) * k.hit * 0.5 : 0, s = 1 + (k.hit > 0 ? k.hit * 0.35 : 0);
         const m = M.trs(P3(k.x + k.w / 2, k.y + k.h / 2, 10), [0, 0, wob], [s, s, s]);
-        if (k.max > 1) {
-          E.draw(A3.frame, m, { color: [0.78, 0.8, 0.88], spec: 1.6, shine: 90, rim: 0.5 });
+        if (k.kind === 'steel') {
+          E.draw(A3.frame, m, { color: [0.5, 0.54, 0.64], spec: 2.4, shine: 150, rim: 0.4 });
+          E.draw(A3.core, M.mul(m, M.trs([0, 0, 6])), { color: [0.62, 0.66, 0.76], spec: 2.2, shine: 160 });
+          for (const [rx, ry] of [[-21, 6], [21, 6], [-21, -6], [21, -6]]) E.draw(A3.rivet, M.mul(m, M.trs([rx, ry, 7], [0, 0, 0], 2)), { color: [0.9, 0.92, 1], spec: 2, shine: 120, noShadow: true });
+        } else if (k.kind === 'tnt') {
+          const pu = reduceMotion ? 0.6 : 0.45 + 0.35 * Math.sin(clock * 8 + k.x);
+          E.draw(A3.brick, m, { color: [0.75, 0.12, 0.05], emissive: [0.5 * pu, 0.08 * pu, 0], spec: 1.4, shine: 80, rim: 0.5 });
+          E.draw(A3.core, M.mul(m, M.trs([0, 0, 7], [0, 0, 0], [0.9, 0.55, 1])), { color: [1, 0.85, 0.3], emissive: [0.6 * pu, 0.4 * pu, 0.05], spec: 0.6, noShadow: true });
+        } else if (k.kind === 'ghost') {
+          const sh = reduceMotion ? 0.6 : 0.45 + 0.25 * Math.sin(clock * 4 + k.y);
+          E.draw(A3.brick, m, { color: [0.55, 0.5, 0.85], emissive: [0.25 * sh, 0.2 * sh, 0.5 * sh], spec: 1.6, shine: 100, rim: 1, alpha: 0.7, blend: true });
+        } else if (k.max > 1) {
+          E.draw(A3.frame, m, k.kind === 'gold' ? { color: [1, 0.78, 0.25], emissive: [0.15, 0.1, 0], spec: 2, shine: 120, rim: 0.5 } : { color: [0.78, 0.8, 0.88], spec: 1.6, shine: 90, rim: 0.5 });
           E.draw(A3.core, M.mul(m, M.trs([0, 0, 6])), { color: c, emissive: c.map(v => v * (k.hp < k.max ? 0.35 + 0.25 * Math.sin(clock * 14) : 0.6)), spec: 1.2, shine: 60 });
           for (const [rx, ry] of [[-21, 6], [21, 6], [-21, -6], [21, -6]]) E.draw(A3.rivet, M.mul(m, M.trs([rx, ry, 6], [0, 0, 0], 1.8)), { color: [1, 1, 1], spec: 2, shine: 100, noShadow: true });
           if (k.hp < k.max) E.draw(A3.quad, M.mul(m, M.trs([0, 0, 9.2], [0, 0, 0], [52, 20, 1])), { tex: A3.tCrack, blend: true, unlit: true, color: [1, 1, 1], noShadow: true });
@@ -399,8 +507,18 @@
       ctx.restore();
       overlay2D();
     }
+    function brickMarks(){
+      ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const k of st.bricks) {
+        if (k.hp > 0 && k.kind === 'tnt') { ctx.font = `900 11px ${DISPLAY}`; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(60,0,0,.8)'; ctx.lineWidth = 3; ctx.strokeText('TNT', k.x + k.w / 2, k.y + k.h / 2 + 1); ctx.fillText('TNT', k.x + k.w / 2, k.y + k.h / 2 + 1); }
+        if (k.hp > 0 && k.max >= 3) for (let i = 0; i < k.hp; i++) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(k.x + k.w / 2 + (i - (k.hp - 1) / 2) * 8, k.y + k.h / 2, 2.6, 0, 7); ctx.fill(); }
+      }
+      for (const g of st.ghosts) { const k = g.k; ctx.globalAlpha = 0.5; ctx.strokeStyle = '#b9a8ff'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.roundRect(k.x + 1, k.y + 1, k.w - 2, k.h - 2, 5); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#b9a8ff'; ctx.fillRect(k.x + 4, k.y + k.h - 4, (k.w - 8) * (1 - g.t / 7), 2); }
+      ctx.restore();
+    }
     function overlay2D(){
-      const fx = st.fx;
+      const fx = st.fx; if (st.classic) brickMarks();
       if (st.flash > 0) { ctx.fillStyle = `rgba(255,220,255,${st.flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
       // finger zone under the paddle
       const zy = PADDLE_Y + 34;
@@ -429,20 +547,29 @@
       }
     }
     return {
-      id:'bricks', music:'bricks', touchAnywhere: true, title:'BRICK BASH', W, H, statLabel:'Level', maxLives: MAX_LIVES, type:'endless', scoreKey:'bb-scores',
-      tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker', art(g){ if (!bgC) paintBg(); if (assets3D()) { const keep = st; fresh('classic', Math.random, 3, 'menu'); const b = st.balls[0]; b.held = false; b.x = 300; b.y = 330; for (let i=0;i<8;i++) b.trail.push({ x: 300 - i * 7, y: 330 + i * 9 }); draw3D(0, true); g.drawImage(E3.canvas, 0, 50 * E3.canvas.height / H, E3.canvas.width, 360 * E3.canvas.height / H, 0, 0, 240, 180); st = keep; return; } const { rr, dot } = PB; if (!bgC) paintBg(); g.drawImage(bgC, 0, 150, 480, 360, 0, 0, 240, 180); g.shadowBlur = 10; const cols=[N.pink,'#ff9f1c',N.yellow,N.lime]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,14+r*17,32,12,4,cols[r]); rr(g,88,156,64,9,5,N.cyan); const hg = g.createRadialGradient(150,120,1,150,120,26); hg.addColorStop(0,'rgba(34,228,255,.7)'); hg.addColorStop(1,'rgba(34,228,255,0)'); g.fillStyle = hg; g.fillRect(120,90,60,60); dot(g,150,120,7,'#fff'); } },
-      controls: ['Slide your finger anywhere (the strip at the bottom is easiest) and the paddle follows.', 'Tap to launch the ball.', 'Break bricks in a row without touching the paddle to multiply your points.', 'Every 3,000 points earns a bonus life.'],
+      id:'bricks', music:'bricks', touchAnywhere: true, title:'BRICK BASH', W, H, statLabel:'Bricks', maxLives: MAX_LIVES, type:'levels', levels: 500, scoreKey:'bb-scores',
+      failTitle: 'Out of balls!', dailyText: 'Endless run: 3 lives, how far can you go?',
+      reviveText: '+1 ball', reviveIcon: '\u{1F3D0}', reviveTitle: 'Out of balls!',
+      revive(){ st.phase = 'play'; st.lives = 1; clearRound(); updatePaddleW(); st.msg = 'Keep going! Tap to launch'; },
+      tile:{ order:1, name:'Brick Bash', kind:'Neon brick breaker \u00b7 500 levels', art(g){ if (!bgC) paintBg(); if (assets3D()) { const keep = st; fresh('classic', Math.random, 3, 'menu'); const b = st.balls[0]; b.held = false; b.x = 300; b.y = 330; for (let i=0;i<8;i++) b.trail.push({ x: 300 - i * 7, y: 330 + i * 9 }); draw3D(0, true); g.drawImage(E3.canvas, 0, 50 * E3.canvas.height / H, E3.canvas.width, 360 * E3.canvas.height / H, 0, 0, 240, 180); st = keep; return; } const { rr, dot } = PB; if (!bgC) paintBg(); g.drawImage(bgC, 0, 150, 480, 360, 0, 0, 240, 180); g.shadowBlur = 10; const cols=[N.pink,'#ff9f1c',N.yellow,N.lime]; for(let r=0;r<4;r++)for(let c=0;c<6;c++) rr(g,14+c*36,14+r*17,32,12,4,cols[r]); rr(g,88,156,64,9,5,N.cyan); const hg = g.createRadialGradient(150,120,1,150,120,26); hg.addColorStop(0,'rgba(34,228,255,.7)'); hg.addColorStop(1,'rgba(34,228,255,0)'); g.fillStyle = hg; g.fillRect(120,90,60,60); dot(g,150,120,7,'#fff'); } },
+      controls: ['Slide your finger anywhere (the strip at the bottom is easiest) and the paddle follows.', 'Tap to launch the ball.', 'Break every brick to win the level. You have 3 balls: keep them all for 3 stars!', 'TNT bricks blow up their neighbors. Steel bricks never break. Gold bricks take 3 hits. Ghost bricks grow back!', 'Break bricks in a row without touching the paddle to multiply your points.'],
       powers: Object.entries(POWERS).map(([k,p]) => ({ name:p.name, desc:p.desc, icon: (g) => capsule(g, 0, 3, 46, 22, k, false) })),
       init(){ if (!bgC) paintBg(); assets3D(); },
-      preview(){ fresh('classic', Math.random, 3, 'menu'); },
-      start(mode, rand, lives, msg){ fresh(mode, rand, lives, 'play'); st.msg = msg ? msg + ' Tap to launch' : 'Tap to launch!'; },
+      preview(){ fresh('classic', Math.random, 3, 'menu', 1); },
+      start(mode, rand, lives, msg, level){
+        const daily = mode === 'daily';
+        fresh(mode, rand, daily ? 3 : 3, 'play', daily ? 0 : level);
+        if (daily) { st.msg = 'Daily run \u00b7 Tap to launch'; return; }
+        const t = st.spec.tier, tag = t === 'super' ? 'SUPER HARD! ' : t === 'hard' ? 'HARD! ' : '';
+        st.msg = NEW_MSG[level] ? NEW_MSG[level] + ' \u00b7 Tap' : `${tag}Level ${level} \u00b7 Tap to launch`;
+      },
       frame(dt, clock){
         if (st.phase === 'play') { for (let i=0;i<3;i++) { step(dt/3); if (st.phase !== 'play') break; } }
         effects(dt); draw(clock);
       },
-      hud(){ return { lives: st.lives, stat: st.level, score: st.score }; },
-      debug(){ return { st, speed: baseSpeed }; },
-      metrics(){ return { score: st.score, level: st.level }; },
+      hud(){ return st.classic ? { lives: st.lives, stat: st.bricks.filter(k => k.hp > 0 && k.kind !== 'steel').length, score: st.score } : { lives: st.lives, stat: st.level, score: st.score, statLabel: 'Level' }; },
+      debug(){ return { st, speed: baseSpeed, step, launch }; },
+      metrics(){ return { score: st.score, level: st.level, won: st.classic && st.phase === 'over' && st.bricks.every(k => k.hp <= 0 || k.kind === 'steel') ? 1 : 0 }; },
       dailyGoals: [
         { text:'Score {n} points', m:'score', n:[2500, 4000, 6000] },
         { text:'Reach level {n}', m:'level', n:[3, 4, 5] },

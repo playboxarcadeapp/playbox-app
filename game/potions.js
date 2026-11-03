@@ -34,15 +34,18 @@
       const k = n <= 3 ? 3 + n : Math.max(5, Math.min(MAX_K, 4 + Math.round(c * 10)));
       const hidden = n < 15 ? 'none' : c >= 0.5 ? 'all' : c >= 0.15 ? 'bottom' : 'none';
       const tier = PB.levels.tier(n);
-      const undos = tier === 'super' ? 1 : tier === 'hard' || c >= 0.55 ? 2 : 3;
+      // HARD and SUPER HARD levels use the classic rule: pour only onto the same color or into an empty flask.
+      // That makes them a real puzzle, so they get more time and undos than a level of the same size would.
+      const strict = n > 3 && (tier === 'hard' || tier === 'super');
+      const undos = strict ? (tier === 'super' ? 2 : 3) : c >= 0.55 ? 2 : 3;
       const tries = n <= 3 ? 1 : 1 + Math.min(2, Math.round(c * 2.5));
       // the hourglass gives a set time per color, and less of it as levels get harder. HARD and SUPER HARD levels
       // cut it further (gently in the first 40 levels), so a quick, careful player earns 3 stars on normal levels
       // and has to really hurry on the hard ones. Never less than a minute.
       const tierCut = { easy: 1.2, normal: 1, hard: 0.85, super: 0.74 }[tier] || 1, ramp = Math.min(1, n / 40);
-      const time = n <= 3 ? TIME : Math.max(TIME, Math.round(k * (14.5 - 4.5 * c) * (hidden === 'all' ? 1.3 : hidden === 'bottom' ? 1.1 : 1) * (1 - (1 - tierCut) * ramp)));
+      const time = n <= 3 ? TIME : Math.max(TIME, Math.round(k * (14.5 - 4.5 * c) * (hidden === 'all' ? 1.3 : hidden === 'bottom' ? 1.1 : 1) * (1 - (1 - tierCut) * ramp) * (strict ? 1.6 : 1)));
       // big shelves get a third empty flask to work with
-      return { n, k, hidden, time, undos, tries, spare: k >= 9 ? 3 : 2, mixed: n >= 4, seed: 'potions-' + n };
+      return { n, k, hidden, time, undos, tries, strict, tier, spare: k >= 9 ? 3 : 2, mixed: n >= 4, seed: 'potions-' + n };
     }
     function dailySpec(){ return { n:'daily', k: 9, hidden:'bottom', time: 145, undos: 3, tries: 2, spare: 3, mixed: true, seed: 'potions-daily-' + PB.today() }; }
 
@@ -134,18 +137,23 @@
     function canPour(i, j){
       if (i === j) return false;
       const s = st.bottles[i], d = st.bottles[j];
-      return s.length > 0 && d.length < CAP && !isSealed(s);
+      if (!(s.length > 0 && d.length < CAP && !isSealed(s))) return false;
+      return !st.spec.strict || !d.length || d[d.length - 1].c === s[s.length - 1].c;
     }
+    // on matching-color levels: is there any pour left at all?
+    const anyPour = () => st.bottles.some((_, i) => st.bottles.some((__, j) => canPour(i, j)));
     function tap(i){
       if (st.anim || st.over) return;
       if (st.sel < 0) { if (st.bottles[i].length && !isSealed(st.bottles[i])) { st.sel = i; if (PB.sfx) PB.sfx('pick'); } return; }
       if (st.sel === i) { st.sel = -1; return; }
+      if (st.intro > 0) st.intro = 0;
       if (canPour(st.sel, i)) { startPour(st.sel, i); st.sel = -1; }
+      else if (st.spec.strict && st.bottles[i].length < CAP && st.bottles[i].length && st.bottles[st.sel].length) { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = -1; pop(W / 2, 152, 'Same color only!', '#ff9a3d', 1.2); if (PB.sfx) PB.sfx('nope'); }
       else if (st.bottles[i].length && !isSealed(st.bottles[i])) { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = i; if (PB.sfx) PB.sfx('nope'); }
       else { st.wiggle = { i: st.sel, t: 0.3 }; st.sel = -1; if (PB.sfx) PB.sfx('nope'); }
     }
     function startPour(i, j){ if (PB.sfx) PB.sfx('pour');
-      const s = st.bottles[i], d = st.bottles[j]; st.pours = (st.pours || 0) + 1;
+      const s = st.bottles[i], d = st.bottles[j]; st.pours = (st.pours || 0) + 1; st.stuckSaid = false;
       const amt = Math.min(topRun(s), CAP - d.length);
       st.undo.push(st.bottles.map(b => b.map(l => ({ ...l }))));
       if (st.undo.length > 30) st.undo.shift();
@@ -188,13 +196,13 @@
     }
     function doUndo(){
       if (st.anim || st.over || !st.undo.length || st.undos <= 0) return;
-      st.bottles = st.undo.pop(); st.undos--; st.sel = -1; st.sealFx = [];
+      st.bottles = st.undo.pop(); st.undos--; st.sel = -1; st.sealFx = []; st.stuckSaid = false;
       st.sealed = new Set(st.bottles.map((b, i) => isSealed(b) ? i : -1).filter(i => i >= 0));
     }
     function restart(){
       if (st.anim || st.over) return;
       const time = st.time, spec = st.spec;
-      st.bottles = makeBottles(spec); st.sel = -1; st.undo = []; st.undos = spec.undos || 3; st.sealed = new Set(); st.score = 0;
+      st.bottles = makeBottles(spec); st.sel = -1; st.undo = []; st.undos = spec.undos || 3; st.sealed = new Set(); st.score = 0; st.stuckSaid = false;
       st.time = time; layout();
     }
     function sparkle(x, y, color, n){
@@ -205,8 +213,10 @@
 
     function update(dt){
       st.clock += dt;
-      if (!st.over && st.phase === 'play') {
+      if (st.intro > 0) st.intro = Math.max(0, st.intro - dt);
+      if (!st.over && st.phase === 'play' && !(st.intro > 0)) {
         st.time = Math.max(0, st.time - dt);
+        if (st.spec.strict && !st.anim && !st.stuckSaid && !anyPour()) { st.stuckSaid = true; pop(W / 2, 152, st.undos > 0 ? 'No pours left! Try Undo' : 'No pours left! Tap Restart', '#ff9a3d', 2.2); }
         if (st.time <= 0) timeUp();
       }
       if (st.anim) {
@@ -999,6 +1009,7 @@
       drawHourglass(190, 55, 62, frac, st.clock);
       drawButton(W - 64, 32, 'Undo', st.undos, st.undos > 0 && st.undo.length > 0 && !st.anim);
       drawButton(W - 64, 74, 'Restart', null, !st.anim);
+      if (st.spec.strict) drawRule();
       if (!in3D) for (const c of CANDLES) floatingCandle(c, st.clock);
 
       // shelves
@@ -1094,12 +1105,37 @@
       for (const q of st.glints) { const a = Math.min(1, q.life) * 0.9; ctx.globalAlpha = a; ctx.fillStyle = q.col; star(ctx, q.x, q.y, 3.2, 1.2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(q.x, q.y, 0.9, 0, 7); ctx.fill(); }
       ctx.restore(); ctx.globalAlpha = 1;
       if (!st.over && st.time <= 10 && st.time > 0) { const p = 0.5 + 0.5 * Math.sin(st.clock * 8); const vg = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.72); vg.addColorStop(0, 'rgba(255,40,60,0)'); vg.addColorStop(1, `rgba(255,40,60,${0.18 + p * 0.22})`); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H); }
-      drawDone(); drawBoosts();
+      drawDone(); drawBoosts(); if (st.intro > 0) drawRuleIntro();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const q of st.pops) {
         ctx.save(); ctx.globalAlpha = Math.min(1, q.life * 2); ctx.font = `900 20px ${FONT}`;
         ctx.shadowColor = q.color; ctx.shadowBlur = 12; ctx.fillStyle = q.color; ctx.fillText(q.text, Math.min(W - 80, Math.max(80, q.x)), q.y); ctx.restore();
       }
+    }
+    // the banner on HARD and SUPER HARD levels: a ribbon under the level card for the whole level
+    function drawRule(){
+      const sup = st.spec.tier === 'super', y = 104, w = 330, x = W / 2 - w / 2;
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+      const g = ctx.createLinearGradient(x, 0, x + w, 0); if (sup) { g.addColorStop(0, '#d4145a'); g.addColorStop(1, '#7a1fff'); } else { g.addColorStop(0, '#ff7a1a'); g.addColorStop(1, '#ff4d2e'); }
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(x - 14, y); ctx.lineTo(x + w + 14, y); ctx.lineTo(x + w + 4, y + 13); ctx.lineTo(x + w + 14, y + 26); ctx.lineTo(x - 14, y + 26); ctx.lineTo(x - 4, y + 13); ctx.closePath(); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = '#fff3d6'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `900 13px ${BODY}`;
+      ctx.fillText(`${sup ? 'SUPER HARD' : 'HARD'} \u00b7 Pour onto the SAME COLOR or an empty flask`, W / 2, y + 14, w - 10);
+    }
+    // a big card at the start that explains the rule (the hourglass waits until it goes away or you tap)
+    function drawRuleIntro(){
+      const sup = st.spec.tier === 'super', a = Math.min(1, st.intro * 2), bw = 380, bh = 200, x = W / 2 - bw / 2, y = 250;
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(10,0,25,.55)'; ctx.fillRect(0, 0, W, H);
+      ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+      const g = ctx.createLinearGradient(0, y, 0, y + bh); if (sup) { g.addColorStop(0, '#d4145a'); g.addColorStop(1, '#5a14a8'); } else { g.addColorStop(0, '#ff8a2a'); g.addColorStop(1, '#c2340f'); }
+      ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 22); ctx.fill(); ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = '#ffd86a'; ctx.lineWidth = 4; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `900 30px ${FONT}`; ctx.fillText(sup ? 'SUPER HARD LEVEL!' : 'HARD LEVEL!', W / 2, y + 44, bw - 30);
+      ctx.font = `800 17px ${BODY}`; ctx.fillText('Pour only onto the SAME color', W / 2, y + 96, bw - 30); ctx.fillText('or into an EMPTY flask.', W / 2, y + 122, bw - 30);
+      ctx.font = `700 13px ${BODY}`; ctx.fillStyle = '#ffe9c2'; ctx.fillText('Think before you pour! Tap to start.', W / 2, y + 166, bw - 30);
+      ctx.restore();
     }
     // power-ups sit in the gap between the level card and the Undo button
     const boostList = () => (PB.meta && PB.meta.boostsFor && PB.meta.boostsFor('potions')) || [];
@@ -1182,7 +1218,7 @@
       id:'potions', sfxScore:false, music:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:500, maxLives:0,
       failTitle:"Time's up!", dailyText:'One big brew, one try a day', powersTitle:'Magic tips',
       tile:{ order:4, name:'Potion Sort', kind:"Wizard's potion puzzle \u00b7 500 levels", art: artTile },
-      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out. Watch out for HARD and SUPER HARD levels: less time!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
+      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out.', 'On HARD and SUPER HARD levels you can only pour onto the same color or into an empty flask. Think ahead!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: [
         { name:'Undo', desc:'Take back a pour. You get 3 per level', icon: g => { g.fillStyle = '#2a1a4a'; g.strokeStyle = GOLD; g.lineWidth = 1.5; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#fff3d6'; g.font = `800 10px ${BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Undo', 23, 14); } },
         { name:'Corked flask', desc:'A full flask of one color seals itself', icon: g => { g.fillStyle = COLORS[0]; g.fillRect(15, 6, 16, 20); g.fillStyle = '#b07a45'; g.fillRect(16, 1, 14, 6); } },
@@ -1190,7 +1226,7 @@
       ],
       init(){ assets3D(); },
       preview(){ fresh('classic', 1); st.phase = 'menu'; },
-      start(mode, rand, lives, msg, level){ fresh(mode, level); pop(W / 2, 236, SCENES[st.scene].name, GOLD, 2.4); },
+      start(mode, rand, lives, msg, level){ fresh(mode, level); st.intro = st.spec.strict ? 4 : 0; if (!st.spec.strict) pop(W / 2, 236, SCENES[st.scene].name, GOLD, 2.4); },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: timeStr(st.time), score: st.score }; },
       debug(){ return st; }, debugBoost(id){ const b = boostList().find(q => q.id === id); if (b) useBoost(b); },
@@ -1204,6 +1240,7 @@
       ],
       pointerDown(x, y){
         if (st.over) return;
+        if (st.intro > 0) { st.intro = 0; return; }
         if (x > W - 122 && y < 94) { if (y < 53) doUndo(); else restart(); return; }
         { const bz = boostAt(x, y); if (bz) { useBoost(bz); return; } }
         for (let i=0;i<st.pos.length;i++) { const p = st.pos[i]; if (x > p.x - 8 && x < p.x + p.w + 8 && y > p.y - 40 && y < p.y + p.h + 14) { tap(i); return; } }

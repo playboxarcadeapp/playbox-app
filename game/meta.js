@@ -132,7 +132,7 @@
     { id: 'gems',    game: 'sweets',  text: 'Mine {n} gems in Gem Mine',           n: [80, 150],       add: i => i.m.gems || 0 },
     { id: 'cube',    game: 'cubes',   text: 'Beat {n} Cube Escape levels',         n: [1, 2, 3],       add: i => i.win ? 1 : 0 },
     { id: 'fruit',   game: 'snake',   text: 'Eat {n} fruit in Anaconda',           n: [20, 35, 50],    add: i => i.m.eaten || 0 },
-    { id: 'brick',   game: 'bricks',  text: 'Score {n} in one Brick Bash game',    n: [1500, 3000],    max: i => i.score || 0 },
+    { id: 'brick',   game: 'bricks',  text: 'Beat {n} Brick Bash levels',          n: [1, 2, 3],       add: i => i.win ? 1 : 0 },
   ];
   const MISSION_COINS = 15, MISSION_BONUS = 30;
   function missions(){
@@ -215,7 +215,7 @@
     { id: 'race10',   icon: '\u{1F680}', name: 'Star pilot',             desc: 'Win 10 Galaxy Racer races',            test: () => levelWins('racer') >= 10 },
     { id: 'cube8',    icon: '\u{1F9CA}', name: 'Puzzle box pro',         desc: 'Beat Cube Escape level 8',             test: s => levelWins('cubes') >= 8 || (s.best.cubeLevel || 0) >= 8 },
     { id: 'snake50',  icon: '\u{1F40D}', name: 'Mega anaconda',          desc: 'Grow Anaconda to 50 long',             test: s => (s.best.snakeLen || 0) >= 50 },
-    { id: 'brick10k', icon: '\u{1F9F1}', name: 'Brick smasher',          desc: 'Score 10,000 in Brick Bash',           test: () => bestOf('bricks') >= 10000 },
+    { id: 'brick10k', icon: '\u{1F9F1}', name: 'Brick smasher',          desc: 'Beat Brick Bash level 20',             test: () => levelWins('bricks') >= 20 || bestOf('bricks') >= 10000 },
     { id: 'stars50',  icon: '⭐',    name: 'Star collector',         desc: 'Collect 50 level stars',               test: () => starsAll() >= 50 },
   ];
   const TROPHY_COINS = 20;
@@ -233,9 +233,9 @@
   // ---------------- sticker album: 3 stickers to collect in every game ----------------
   const len = () => stats().best.snakeLen || 0, dist = () => stats().best.dashDist || 0;
   const STICKERS = [
-    { id: 'st_brick1', game: 'bricks',  e: '\u{1F9F1}', name: 'Brick Buster',   desc: 'Score 2,000 in Brick Bash',     test: () => bestOf('bricks') >= 2000 },
-    { id: 'st_brick2', game: 'bricks',  e: '\u{1F3D3}', name: 'Paddle Pro',     desc: 'Score 6,000 in Brick Bash',     test: () => bestOf('bricks') >= 6000 },
-    { id: 'st_brick3', game: 'bricks',  e: '\u{1F308}', name: 'Rainbow Smash',  desc: 'Score 15,000 in Brick Bash',    test: () => bestOf('bricks') >= 15000 },
+    { id: 'st_brick1', game: 'bricks',  e: '\u{1F9F1}', name: 'Brick Buster',   desc: 'Beat Brick Bash level 5',       test: () => levelWins('bricks') >= 5 || bestOf('bricks') >= 2000 },
+    { id: 'st_brick2', game: 'bricks',  e: '\u{1F3D3}', name: 'Paddle Pro',     desc: 'Beat Brick Bash level 25',      test: () => levelWins('bricks') >= 25 || bestOf('bricks') >= 6000 },
+    { id: 'st_brick3', game: 'bricks',  e: '\u{1F308}', name: 'Rainbow Smash',  desc: 'Beat Brick Bash level 60',      test: () => levelWins('bricks') >= 60 || bestOf('bricks') >= 15000 },
     { id: 'st_dash1',  game: 'dash',    e: '\u{1F99D}', name: 'Little Runner',  desc: 'Run 300 m in Zoom Dash',        test: () => dist() >= 300 },
     { id: 'st_dash2',  game: 'dash',    e: '\u{1F68C}', name: 'Bus Hopper',     desc: 'Run 800 m in Zoom Dash',        test: () => dist() >= 800 },
     { id: 'st_dash3',  game: 'dash',    e: '\u{1F306}', name: 'City Lights',    desc: 'Reach the Big City in Zoom Dash', test: () => dist() >= 1350 },

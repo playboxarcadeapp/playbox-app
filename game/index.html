@@ -398,7 +398,20 @@ ol.scores li.empty { display: block; text-align: center; color: var(--pmuted); b
 #play[data-game="cubes"] .lvlmap .lvl .tier { border-color: #1b1b3a; }
 #play[data-game="cubes"] .lvlmap .lvl.t-hard { box-shadow: 0 4px 0 #1b1b3a, 0 0 0 4px #ff7a1a; }
 #play[data-game="cubes"] .lvlmap .lvl.t-super { box-shadow: 0 4px 0 #1b1b3a, 0 0 0 4px #d4145a; }
-#play:is([data-game="bricks"]) .lvlmap { background: linear-gradient(#1b3a7a, #0d1d45); border: 2px solid rgba(255,255,255,.35); }
+/* Brick Bash: a synthwave arcade with a neon grid */
+#play[data-game="bricks"] .lvlmap { background:
+  repeating-linear-gradient(0deg, transparent 0 38px, rgba(255,61,220,.22) 38px 40px),
+  repeating-linear-gradient(90deg, transparent 0 38px, rgba(34,228,255,.16) 38px 40px),
+  radial-gradient(circle at 50% 0%, rgba(255,90,170,.35), transparent 55%),
+  linear-gradient(#1b0b48, #07051c); border: 2px solid #ff3ddc; box-shadow: 0 0 18px rgba(255,61,220,.35), inset 0 0 24px rgba(34,228,255,.2); }
+#play[data-game="bricks"] .lvlmap .p-edge { stroke: rgba(255,61,220,.35); stroke-width: 22px; }
+#play[data-game="bricks"] .lvlmap .p-base { stroke: #2a0f5a; stroke-width: 14px; }
+#play[data-game="bricks"] .lvlmap .p-dots { stroke: #22e4ff; stroke-dasharray: 6 6; stroke-linecap: butt; }
+#play[data-game="bricks"] .lvlmap .p-done { stroke: #ff3ddc; filter: drop-shadow(0 0 5px #ff3ddc); opacity: 1; }
+#play[data-game="bricks"] .lvlmap .lvl { background: #12082e; color: #22e4ff; border: 2px solid #22e4ff; box-shadow: 0 0 10px rgba(34,228,255,.5); font-family: "Orbitron", var(--body); }
+#play[data-game="bricks"] .lvlmap .lvl.current { background: #ff3ddc; color: #fff; border-color: #fff; }
+#play[data-game="bricks"] .lvlmap .mdecor { filter: drop-shadow(0 0 6px rgba(255,61,220,.8)); }
+#play[data-game="bricks"] .lvlmap .msign { background: #12082e; color: #ff3ddc; border: 1px solid #ff3ddc; font-family: "Orbitron", var(--body); text-shadow: 0 0 6px #ff3ddc; }
 
 /* Castle Crash: a medieval kingdom with a cobblestone road */
 #play[data-game="castle"] .lvlmap { background:
