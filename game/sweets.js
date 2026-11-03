@@ -11,35 +11,48 @@
     let st = null, uid = 1;
 
     // ---------- Level design ----------
+    // ---------- level difficulty ----------
+    // Every level gets a challenge rating c from 0 (easy) to 1 (the hardest we ever ask for).
+    // Each group of 10 has a baseline that rises group by group, levels off after level 70 and then only
+    // creeps up very slowly, so every level stays winnable without power-ups. Inside each group the levels
+    // go easy, easy, normal, HARD, easy, normal, HARD, normal, SUPER HARD, SUPER HARD (the chest level).
+    // The numbers for each kind of level were tuned with a test bot that plays without power-ups.
+    const SLOT = [-0.25, -0.15, 0, 0.1, -0.2, 0.03, 0.12, -0.05, 0.25, 0.33];
+    function challenge(n){
+      if (PB.__gemC) return PB.__gemC(n);   // test hook for tuning
+      const g = Math.floor((n - 1) / 10), base = Math.min(0.45, g * 0.07) + Math.max(0, g - 7) * 0.004;
+      return Math.max(0, Math.min(1, base + SLOT[(n - 1) % 10]));
+    }
+    const tierOf = n => { const o = SLOT[(n - 1) % 10]; return o >= 0.25 ? 'super' : o >= 0.1 ? 'hard' : 'normal'; };
     function levelSpec(n, R){
-      // difficulty climbs to level 100, then only gently (level 500 plays like level 120) so every level stays winnable
-      const d = n <= 100 ? n : 100 + Math.floor((n - 100) / 20);
+      const c = challenge(n), lerp = (a, b) => a + (b - a) * c;
       const colors = n <= 5 ? 5 : 6;
       let type = n === 1 ? 'score' : n === 2 ? 'collect' : n === 3 ? 'frost' : ['score','collect','frost','mix'][n % 4];
       if (type === 'mix' && n < 12) type = 'collect';
-      let moves = n <= 3 ? 18 : Math.max(12, 22 - Math.floor(d / 8));
-      const spec = { n, colors, type, moves, collect: null, frost: null, target: 0 };
-      if (type === 'score') spec.target = Math.round(moves * 120 * (1 + d / 50) / 50) * 50;
+      const spec = { n, c, tier: n <= 3 ? 'normal' : tierOf(n), colors, type, moves: 0, collect: null, frost: null, target: 0 };
+      if (type === 'score') { spec.moves = Math.round(lerp(20, 16)); spec.target = Math.round(spec.moves * lerp(190, 420) / 50) * 50; }
       if (type === 'collect' || type === 'mix') {
-        const kinds = d < 25 ? 1 : d < 60 ? 2 : 3;
-        const pool = shuffle([...Array(colors).keys()], R).slice(0, kinds);
-        const each = Math.round((kinds === 1 ? 15 + d * 0.45 : 11 + d * 0.3) * (type === 'mix' ? 0.75 : 1));
+        const two = type === 'collect' && c >= 0.4, pool = shuffle([...Array(colors).keys()], R).slice(0, two ? 2 : 1);
+        const each = type === 'mix' ? Math.round(lerp(7, 14)) : two ? Math.round(17 + 3 * (c - 0.4) / 0.6) : Math.round(16 + 10 * c);
         spec.collect = {}; pool.forEach(t => spec.collect[t] = each);
+        spec.moves = Math.round(type === 'mix' ? lerp(26, 24) : lerp(22, 18));
       }
       if (type === 'frost' || type === 'mix') {
-        moves += 4; spec.moves = moves;
-        const count = Math.min(type === 'mix' ? 30 : 48, 12 + Math.floor(d * 0.55));
-        const dbl = d < 20 ? 0 : Math.min(0.55, (d - 20) / 110);
+        if (type === 'frost') spec.moves = Math.round(lerp(27, 23));
+        const count = Math.round(type === 'mix' ? lerp(6, 16) : lerp(8, 22)), dbl = c > 0.5 ? (c - 0.5) * 0.3 : 0;
         const f = Array.from({length:N}, () => Array(N).fill(0));
         let placed = 0, guard = 0;
         while (placed < count && guard++ < 500) {
-          const r = Math.floor(R() * N), c = Math.floor(R() * N / 2);
-          if (f[r][c]) continue;
+          // easier levels keep rocks in the lower part of the board (top rows and corners are hardest to reach)
+          const minRow = Math.round(lerp(4, 0)), r = minRow + Math.floor(R() * (N - minRow)), cc = Math.floor(R() * N / 2);
+          if (f[r][cc]) continue;
           const layers = R() < dbl ? 2 : 1;
-          f[r][c] = layers; f[r][N-1-c] = layers; placed += 2;
+          f[r][cc] = layers; f[r][N-1-cc] = layers; placed += 2;
         }
         spec.frost = f;
       }
+      if (n <= 3) spec.moves = 18;   // the first three levels teach each goal
+      const moves = spec.moves;
       spec.star2 = type === 'score' ? Math.round(spec.target * 1.3) : moves * 150;
       spec.star3 = type === 'score' ? Math.round(spec.target * 1.7) : moves * 230;
       return spec;
@@ -712,7 +725,7 @@
       const gx = 130;
       ctx.textAlign = 'left';
       ctx.font = `600 13px ${FONT}`; ctx.fillStyle = '#ffd86a';
-      ctx.fillText(s.type === 'daily' ? 'DAILY CHALLENGE \u00b7 SCORE ATTACK' : `LEVEL ${s.n} \u00b7 GOAL`, gx, 60);
+      ctx.fillText(s.type === 'daily' ? 'DAILY CHALLENGE \u00b7 SCORE ATTACK' : `LEVEL ${s.n} \u00b7 ${s.tier === 'super' ? 'SUPER HARD!' : s.tier === 'hard' ? 'HARD' : 'GOAL'}`, gx, 60);
       const items = [];
       if (s.type === 'score' || s.type === 'daily') items.push({ text: s.type === 'daily' ? `Score as much as you can!` : `Reach ${fmt(s.target)} points`, done: s.type === 'score' && st.score >= s.target });
       if (st.collect) for (const k in st.collect) items.push({ icon: +k, n: Math.max(0, st.collect[k]) });
@@ -859,7 +872,7 @@
         if (st.sel && Math.abs(st.sel[0] - cell[0]) + Math.abs(st.sel[1] - cell[1]) === 1) trySwap(st.sel, cell);
         else st.sel = (st.sel && st.sel[0] === cell[0] && st.sel[1] === cell[1]) ? null : cell;
       },
-      key(){}, debug(){ return st; }, debugStep(n){ for (let i=0;i<n;i++) update(1 / 60); }, debugMove(){ const m = findMove(); if (m) trySwap(m[0], m[1]); return m; }, debugBoost(id, r, c){ const b = boostList().find(q => q.id === id); pressBoost(b); if (st.tool && r != null) useTool(r, c); },
+      key(){}, debug(){ return st; }, debugStep(n){ for (let i=0;i<n;i++) update(1 / 60); }, debugMove(){ const m = findMove(); if (m) trySwap(m[0], m[1]); return m; }, debugSwap(a, b){ trySwap(a, b); }, debugBoost(id, r, c){ const b = boostList().find(q => q.id === id); pressBoost(b); if (st.tool && r != null) useTool(r, c); },
     };
   }
   PB.register(createSweets);
