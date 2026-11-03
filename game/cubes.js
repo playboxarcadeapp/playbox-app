@@ -95,12 +95,14 @@
     function loadLevel(){
       COLS.splice(0, COLS.length, ...(PALS[PB.meta && PB.meta.look('cubes', 'colors')] || COLS0));
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.endless ? st.rand : mulberry(seedFrom('cubes-level-' + st.level));
-      const lv = genLevel(st.level + 9, R);
+      // classic levels follow the shared groups-of-10 pattern: easy, HARD and SUPER HARD levels in every 10
+      const c = st.mode === 'daily' ? 0.3 : PB.levels.challenge(st.level);
+      const lv = genLevel(st.mode === 'daily' ? st.level + 9 : st.level <= 3 ? st.level + 6 : 8 + Math.round(c * 6), R);
       st.size = lv.size; st.exits = lv.exits;
       st.blocks = lv.blocks.map((b, i) => ({ ...b, id: i, vx: b.c, vy: b.r, out: null }));
       st.cell = Math.min(54, Math.floor(400 / st.size));
       st.bx = Math.round((W - st.cell * st.size) / 2); st.by = 160 + Math.round((440 - st.cell * st.size) / 2);
-      st.timeMax = Math.round((10 + st.blocks.length * 3.7) * Math.max(0.7, 1 - st.level * 0.012));
+      st.timeMax = Math.round((10 + st.blocks.length * 3.7) * (st.mode === 'daily' ? Math.max(0.7, 1 - st.level * 0.012) : st.level <= 3 ? 1 : 1.05 - 0.38 * c));
       st.time = st.timeMax; st.running = false; st.drag = null; st.freezes = 1; st.freezeT = 0;
     }
     const occupied = (self) => { const g = Array.from({length:st.size}, () => Array(st.size).fill(-1)); st.blocks.forEach(b => { if (!b.out && b.id !== self) b.cells.forEach(([dr,dc]) => g[b.r+dr][b.c+dc] = b.id); }); return g; };

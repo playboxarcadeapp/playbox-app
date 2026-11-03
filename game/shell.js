@@ -312,6 +312,15 @@
   }
   // A winding trail of levels from the bottom up, with a treasure chest after every 10 levels
   const lockSvg = '<svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z"/></svg>';
+  // themed scenery along each game's trail, and a sign at the start of every group of 10 levels
+  const MAP_THEME = {
+    sweets:  { decor: ['\u26CF\uFE0F', '\u{1F48E}', '\u{1FAA8}', '\u{1F526}', '\u{1F9E8}', '\u{1F4B0}', '\u{1FA94}', '\u{1F6D2}', '\u{1FA99}', '\u{1F4A0}'], sign: g => `\u26CF\uFE0F Depth ${g}` },
+    potions: { decor: ['\u{1F52E}', '\u2728', '\u{1F344}', '\u{1F56F}\uFE0F', '\u{1F319}', '\u{1F4DC}', '\u{1FA84}', '\u{1F989}', '\u{1F438}', '\u2B50', '\u{1F9EA}'], sign: g => `\u2728 Chamber ${g}` },
+    cubes:   { decor: ['\u{1F388}', '\u{1F308}', '\u2601\uFE0F', '\u{1F36D}', '\u2B50', '\u{1F9F8}', '\u{1F36C}', '\u{1F3A8}', '\u{1FA80}', '\u{1F9C1}'], sign: g => `\u2B50 World ${g}` },
+    castle:  { decor: ['\u{1F3F0}', '\u{1F6A9}', '\u2694\uFE0F', '\u{1F6E1}\uFE0F', '\u{1F9CC}', '\u{1F451}', '\u{1F3F9}', '\u{1F409}', '\u{1F332}', '\u{1F344}'], sign: g => `\u{1F3F0} Realm ${g}` },
+    racer:   { decor: ['\u{1FA90}', '\u{1F31F}', '\u2604\uFE0F', '\u{1F6F8}', '\u{1F319}', '\u{1F6F0}\uFE0F', '\u{1F30C}', '\u2B50', '\u{1F47D}', '\u{1F680}'], sign: g => `\u{1F680} Sector ${g}` },
+  };
+  const TIER_TEXT = { hard: 'HARD', super: 'SUPER HARD' };
   function openLevels(keepScroll){
     const p = progress(G), box = $('levelGrid'), prevScroll = box.scrollTop;
     box.className = 'lvlmap'; box.innerHTML = '';
@@ -320,7 +329,21 @@
     const trail = document.createElement('div'); trail.className = 'trail'; trail.style.height = H + 'px';
     let d = ''; for (let n = 1; n <= G.levels; n++) d += (n === 1 ? 'M' : 'L') + xOf(n).toFixed(2) + ' ' + yOf(n);
     const done = Math.min(p.unlocked, G.levels); let dd = ''; for (let n = 1; n <= done; n++) dd += (n === 1 ? 'M' : 'L') + xOf(n).toFixed(2) + ' ' + yOf(n);
-    trail.innerHTML = `<svg class="path" viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><path d="${d}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${dd}" fill="none" stroke="#ffd23f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity=".85"/></svg>`;
+    trail.innerHTML = `<svg class="path" viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path class="p-edge" d="${d}" fill="none" stroke="transparent" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><path class="p-base" d="${d}" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><path class="p-dots" d="${d}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path class="p-done" d="${dd}" fill="none" stroke="#ffd23f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity=".85"/></svg>`;
+    // scenery: one decoration between each pair of levels, on the side away from the trail (none where a chest sits)
+    const theme = MAP_THEME[G.id];
+    if (theme) {
+      const R = PB.mulberry(PB.seedFrom('map-' + G.id)), frag = document.createDocumentFragment();
+      for (let n = 1; n < G.levels; n++) {
+        const roll = R(), size = R(), tilt = R(), jig = R(); if (n % 10 === 0) continue;
+        const m = xOf(n + 0.5), x = m > 50 ? Math.max(9, m - 36 + jig * 8) : Math.min(91, m + 28 + jig * 8), y = (yOf(n) + yOf(n + 1)) / 2;
+        const el = document.createElement('span'); el.setAttribute('aria-hidden', 'true'); el.style.left = x + '%'; el.style.top = y + 'px';
+        if (n % 10 === 1) { el.className = 'msign'; el.textContent = theme.sign(Math.floor(n / 10) + 1); }
+        else { el.className = 'mdecor'; el.textContent = theme.decor[Math.floor(roll * theme.decor.length)]; el.style.fontSize = (1.3 + size * 0.9).toFixed(2) + 'rem'; el.style.transform = `translate(-50%, -50%) rotate(${Math.round((tilt - 0.5) * 30)}deg)`; }
+        frag.appendChild(el);
+      }
+      trail.appendChild(frag);
+    }
     for (let n = 1; n <= G.levels; n++) {
       const b = document.createElement('button');
       b.className = 'lvl'; b.id = 'lvl-' + n; b.style.left = xOf(n) + '%'; b.style.top = yOf(n) + 'px';
@@ -329,6 +352,8 @@
       if (n === done) b.classList.add('current');
       b.innerHTML = locked ? `<span class="num">${n}</span>${lockSvg}` : `<span class="num">${n}</span><span class="stars">${'★'.repeat(st)}<i>${'★'.repeat(3 - st)}</i></span>`;
       b.setAttribute('aria-label', locked ? `Level ${n}, locked` : `Level ${n}, ${st} stars`);
+      const tier = PB.levels.tier(n);
+      if (TIER_TEXT[tier]) { b.classList.add('t-' + tier); b.insertAdjacentHTML('afterbegin', `<i class="tier">${TIER_TEXT[tier]}</i>`); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', ' + TIER_TEXT[tier].toLowerCase()); }
       if (G.gateNeed) { const nd = G.gateNeed(n); if (nd > 0 && nd !== G.gateNeed(n - 1)) { b.insertAdjacentHTML('beforeend', `<i class="gtag" title="Needs Ship Power ${nd}">\u26A1${nd}</i>`); b.setAttribute('aria-label', b.getAttribute('aria-label') + `, needs Ship Power ${nd}`); } }
       if (!locked) b.addEventListener('click', () => startGame('classic', n));
       trail.appendChild(b);

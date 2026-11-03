@@ -91,8 +91,19 @@
     } catch (e) {}
   }
 
+  // Difficulty for every level game, in groups of 10: each group has easy levels, normal ones, two HARD ones
+  // and two SUPER HARD ones. Each group starts a little harder than the one before, and it levels off after
+  // about level 80 so later levels never become impossible. c goes from 0 (easiest) to about 0.95 (level 500's hardest).
+  const LEVEL_SLOT = [-0.25, -0.15, 0, 0.1, -0.2, 0.03, 0.12, -0.05, 0.25, 0.33];
+  const levels = {
+    SLOT: LEVEL_SLOT,
+    challenge(n){ const g = Math.floor((n - 1) / 10), base = Math.min(0.45, g * 0.07) + Math.max(0, g - 7) * 0.004; return Math.max(0, Math.min(1, base + LEVEL_SLOT[(n - 1) % 10])); },
+    // the first three levels of every game teach it, so they are never marked hard
+    tier(n){ if (typeof n !== 'number' || n <= 3) return 'normal'; const o = LEVEL_SLOT[(n - 1) % 10]; return o >= 0.25 ? 'super' : o >= 0.1 ? 'hard' : o <= -0.15 ? 'easy' : 'normal'; },
+  };
+
   const factories = [];
   window.PB = { $, N, INK, fmt, reduceMotion, store, today, yesterday, mulberry, seedFrom, shuffle, cv, ctx, dpr, layer, soften, neonBg, rr, dot, shade,
-    prefs, setPref, symbol, SYMBOL_NAMES, buzz,
+    prefs, setPref, symbol, SYMBOL_NAMES, buzz, levels,
     factories, register(f){ factories.push(f); } };
 })();

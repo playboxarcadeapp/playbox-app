@@ -36,8 +36,7 @@
     const HIT_WORD = { triple: 'CHOP!', iron: 'SMASH!', fire: 'MELT!' };
     // difficulty in groups of 10 (like Gem Mine): easy, easy, normal, HARD, easy, normal, HARD, normal, SUPER HARD, SUPER HARD,
     // each group a little harder than the one before, levelling off after level 80
-    const SLOT = [-0.25, -0.15, 0, 0.1, -0.2, 0.03, 0.12, -0.05, 0.25, 0.33];
-    const challenge = n => n <= 3 ? 0 : Math.max(0, Math.min(1, Math.min(0.45, Math.floor((n - 1) / 10) * 0.07) + Math.max(0, Math.floor((n - 1) / 10) - 7) * 0.004 + SLOT[(n - 1) % 10]));
+    const challenge = n => n <= 3 ? 0 : PB.levels.challenge(n);
     const BANNERS = ['#b3261e','#1f4fa8','#e0a800','#2e7d32','#6a1b9a'];
     const ROOFS = ['#9e2a22','#2b4f9a','#3f6b45','#7a3d8f'];
     const INK = { color: [0.16, 0.09, 0.05], unlit: true, outline: 0.0055, noShadow: true };
@@ -1408,7 +1407,7 @@
       preview(){ fresh('classic', 1); st.phase = 'menu'; },
       start(mode, rand, lives, msg, level){ fresh(mode, level === 'daily' ? 1 : level);
         const tn = st.blocks.filter(b => b.data.mat === 'tnt').length, ch = st.blocks.some(b => b.data.mat === 'chest');
-        st.callout = { text: st.hasKing ? 'GOBLIN KING!' : mode === 'daily' ? 'DAILY SIEGE' : `LEVEL ${st.level}${st.spec.c >= 0.6 || (st.level % 10 === 9 || st.level % 10 === 0) && st.level > 3 ? ' \u00b7 SUPER HARD!' : (st.level % 10 === 4 || st.level % 10 === 7) && st.level > 3 ? ' \u00b7 HARD' : ''}`, sub: st.hasKing ? 'Knock his crown off to win!' : `${st.goblins} goblin${st.goblins === 1 ? '' : 's'} to bonk${tn ? ' \u00b7 watch out for TNT!' : ch ? ' \u00b7 find the treasure!' : ''}`, col: st.hasKing ? '#ffd23f' : '#ffffff', t: 0, life: 2.3 }; },
+        st.callout = { text: st.hasKing ? 'GOBLIN KING!' : mode === 'daily' ? 'DAILY SIEGE' : `LEVEL ${st.level}${PB.levels.tier(st.level) === 'super' ? ' \u00b7 SUPER HARD!' : PB.levels.tier(st.level) === 'hard' ? ' \u00b7 HARD' : ''}`, sub: st.hasKing ? 'Knock his crown off to win!' : `${st.goblins} goblin${st.goblins === 1 ? '' : 's'} to bonk${tn ? ' \u00b7 watch out for TNT!' : ch ? ' \u00b7 find the treasure!' : ''}`, col: st.hasKing ? '#ffd23f' : '#ffffff', t: 0, life: 2.3 }; },
       frame(dt){ update(dt); updateCam(dt); draw(); },
       hud(){ return { lives: null, stat: ammoLeft(), score: st.score }; },
       metrics(){ return { score: st.score, blocks: st.knocked - (st.gobs || 0), goblins: st.gobs || 0, left: st.over && st.win ? ammoLeft() : 0, won: st.over && st.win ? 1 : 0 }; },

@@ -211,7 +211,7 @@
       st.objs = []; st.bolts = []; st.nextSpawn = 70; st.powIn = 5;
       st.fx = { turbo:0, shield:0, magnet:0, blaster:0, mini:0 }; st.boost = 0; st.hitSlow = 0; st.inv = 0; st.fireCD = 0;
       st.p = { x: 0, y: 0, tx: 0, ty: 0, bank: 0 };
-      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([1.02, 1.06, 1.1][i], [0.92, 0.95, 0.98][i] + (st.level - 1) * 0.004) + needPower(st.level) * 0.009, ph: R() * 6, boostT: 0, boostIn: 3 + i * 1.5 + R() * 4 }));
+      st.rivals = RIVALS.map((r, i) => ({ ...r, d: [1, 3, 8][i], x: [-4.2, 4.2, 0][i], y: [0.4, -0.4, 2.2][i], tx: 0, ty: 0, skill: Math.min([1.02, 1.06, 1.1][i], [0.92, 0.95, 0.98][i] + (st.level - 1) * 0.004) + needPower(st.level) * 0.009 + (typeof st.level === 'number' && st.level > 3 ? PB.levels.SLOT[(st.level - 1) % 10] * 0.1 : 0), ph: R() * 6, boostT: 0, boostIn: 3 + i * 1.5 + R() * 4 }));
       st.count = 2.6; st.finished = false; st.place = 4; st.raceStars = 0; st.planetSpin = R() * 6;
       st.drag = null;
       st.dust = Array.from({ length: 90 }, () => ({ x: (Math.random() - .5) * 40, y: (Math.random() - .5) * 26, z: -Math.random() * 160 }));

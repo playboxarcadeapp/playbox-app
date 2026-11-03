@@ -28,11 +28,13 @@
     // One minute on the hourglass for every level. A new color joins every 3 levels (up to 12),
     // then mystery layers, fewer undos and trickier shuffles keep it tough. Some levels you will fail!
     const TIME = 60, MAX_K = 12;
+    // Difficulty follows the shared groups-of-10 pattern (easy, HARD and SUPER HARD levels in every 10, levelling off later)
     function levelSpec(n){
-      const k = Math.min(4 + Math.floor((n - 1) / 3), MAX_K);
-      const hidden = n >= 55 ? 'all' : n >= 15 ? 'bottom' : 'none';
-      const undos = n >= 60 ? 2 : 3;
-      const tries = 1 + Math.min(2, Math.floor(n / 10));
+      const c = PB.levels.challenge(n);
+      const k = n <= 3 ? 3 + n : Math.max(5, Math.min(MAX_K, 4 + Math.round(c * 10)));
+      const hidden = n < 15 ? 'none' : c >= 0.5 ? 'all' : c >= 0.15 ? 'bottom' : 'none';
+      const undos = c >= 0.55 ? 2 : 3;
+      const tries = n <= 3 ? 1 : 1 + Math.min(2, Math.round(c * 2.5));
       // more colors = more pouring, so the hourglass grows with every new color (about 3.5 minutes at the top)
       const time = Math.round(TIME + (k - 4) * 15 + (hidden === 'bottom' ? 10 : hidden === 'all' ? 30 : 0));
       // big shelves get a third empty flask to work with
