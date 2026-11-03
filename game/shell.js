@@ -339,7 +339,7 @@
         const roll = R(), size = R(), tilt = R(), jig = R(); if (n % 10 === 0) continue;
         const m = xOf(n + 0.5), x = m > 50 ? Math.max(9, m - 36 + jig * 8) : Math.min(91, m + 28 + jig * 8), y = (yOf(n) + yOf(n + 1)) / 2;
         const el = document.createElement('span'); el.setAttribute('aria-hidden', 'true'); el.style.left = x + '%'; el.style.top = y + 'px';
-        if (n % 10 === 1) { el.className = 'msign'; el.textContent = theme.sign(Math.floor(n / 10) + 1); }
+        if (n % 10 === 1) { el.className = 'msign'; el.textContent = G.mapSign ? G.mapSign(n) : theme.sign(Math.floor(n / 10) + 1); }
         else { el.className = 'mdecor'; el.textContent = theme.decor[Math.floor(roll * theme.decor.length)]; el.style.fontSize = (1.3 + size * 0.9).toFixed(2) + 'rem'; el.style.transform = `translate(-50%, -50%) rotate(${Math.round((tilt - 0.5) * 30)}deg)`; }
         frag.appendChild(el);
       }
