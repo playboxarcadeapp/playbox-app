@@ -33,10 +33,14 @@
       const c = PB.levels.challenge(n);
       const k = n <= 3 ? 3 + n : Math.max(5, Math.min(MAX_K, 4 + Math.round(c * 10)));
       const hidden = n < 15 ? 'none' : c >= 0.5 ? 'all' : c >= 0.15 ? 'bottom' : 'none';
-      const undos = c >= 0.55 ? 2 : 3;
+      const tier = PB.levels.tier(n);
+      const undos = tier === 'super' ? 1 : tier === 'hard' || c >= 0.55 ? 2 : 3;
       const tries = n <= 3 ? 1 : 1 + Math.min(2, Math.round(c * 2.5));
-      // more colors = more pouring, so the hourglass grows with every new color (about 3.5 minutes at the top)
-      const time = Math.round(TIME + (k - 4) * 15 + (hidden === 'bottom' ? 10 : hidden === 'all' ? 30 : 0));
+      // the hourglass gives a set time per color, and less of it as levels get harder. HARD and SUPER HARD levels
+      // cut it further (gently in the first 40 levels), so a quick, careful player earns 3 stars on normal levels
+      // and has to really hurry on the hard ones. Never less than a minute.
+      const tierCut = { easy: 1.2, normal: 1, hard: 0.85, super: 0.74 }[tier] || 1, ramp = Math.min(1, n / 40);
+      const time = n <= 3 ? TIME : Math.max(TIME, Math.round(k * (14.5 - 4.5 * c) * (hidden === 'all' ? 1.3 : hidden === 'bottom' ? 1.1 : 1) * (1 - (1 - tierCut) * ramp)));
       // big shelves get a third empty flask to work with
       return { n, k, hidden, time, undos, tries, spare: k >= 9 ? 3 : 2, mixed: n >= 4, seed: 'potions-' + n };
     }
@@ -1178,7 +1182,7 @@
       id:'potions', sfxScore:false, music:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:500, maxLives:0,
       failTitle:"Time's up!", dailyText:'One big brew, one try a day', powersTitle:'Magic tips',
       tile:{ order:4, name:'Potion Sort', kind:"Wizard's potion puzzle \u00b7 500 levels", art: artTile },
-      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out. You get 1 minute!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
+      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out. Watch out for HARD and SUPER HARD levels: less time!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: [
         { name:'Undo', desc:'Take back a pour. You get 3 per level', icon: g => { g.fillStyle = '#2a1a4a'; g.strokeStyle = GOLD; g.lineWidth = 1.5; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#fff3d6'; g.font = `800 10px ${BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Undo', 23, 14); } },
         { name:'Corked flask', desc:'A full flask of one color seals itself', icon: g => { g.fillStyle = COLORS[0]; g.fillRect(15, 6, 16, 20); g.fillStyle = '#b07a45'; g.fillRect(16, 1, 14, 6); } },
