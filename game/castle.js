@@ -6,15 +6,15 @@
 
   function createCastle(shell){
     const W = 480, H = 720, G = 900, S = 0.01, GROUND = 600, DEPTH = 46;
-    const SLX = 112, REST = { x: SLX, y: GROUND - 146 }, MAXPULL = 96, VMAX = 880, SPK = 3;
+    const SLX = 112, REST = { x: SLX, y: GROUND - 146 }, MAXPULL = 96, VMAX = 935, SPK = 3;
     const FONT = '"MedievalSharp", "Georgia", serif';
     const BODY = '"Nunito", "Segoe UI", sans-serif';
     const MAT = {
-      sand: { d: 1.7, hp: 95,  base: '#d99c52', name:'Wood', look:'wood' },
-      gray: { d: 2.6, hp: 150, base: '#a9e6ff', name:'Ice', look:'ice' },
-      dark: { d: 4.2, hp: 270, base: '#b9bec8', name:'Stone', look:'stone' },
-      wood: { d: 1.1, hp: 75,  base: '#d98f4a', name:'Oak', look:'wood' },
-      goblin: { d: 1.0, hp: 115, base: '#7ccf4a', name:'Goblin', look:'goblin' },
+      sand: { d: 1.7, hp: 70,  base: '#d99c52', name:'Wood', look:'wood' },
+      gray: { d: 2.6, hp: 105, base: '#a9e6ff', name:'Ice', look:'ice' },
+      dark: { d: 4.2, hp: 215, base: '#b9bec8', name:'Stone', look:'stone' },
+      wood: { d: 1.1, hp: 50,  base: '#d98f4a', name:'Oak', look:'wood' },
+      goblin: { d: 1.0, hp: 38,  base: '#7ccf4a', name:'Goblin', look:'goblin' },
       tnt:    { d: 1.3, hp: 45,  base: '#d8402a', name:'TNT', look:'tnt' },
       chest:  { d: 2.2, hp: 70,  base: '#e0a83a', name:'Chest', look:'chest' },
     };
@@ -56,17 +56,31 @@
         bridge(x, k, y){ const h = 60 + Math.min(40, k * 8); add(x - 56, y, 24, h, 'tower'); add(x + 56, y, 24, h, 'tower'); y = add(x, y - h, 140, 16, 'wall'); goblin(x - 36, y); goblin(x + 36, y); return add(x, y, 26, 34, 'keep'); },
         // a platform on stilts with little battlements and a goblin in the middle
         stilts(x, k, y){ const h = 56 + Math.min(36, k * 6); for (const dx of [-44, 0, 44]) add(x + dx, y, 14, h, 'post'); y = add(x, y - h, 112, 16, 'wall'); add(x - 42, y, 24, 30, 'keep'); goblin(x, y); return add(x + 42, y, 24, 30, 'keep'); },
+        // ---- weak-spot castles: one good shot in the right place brings the whole thing down ----
+        // a tall, top-heavy tower of thin wood with a stone block on top, and goblins standing where it will fall
+        topple(x, k, y){ const segs = 3 + Math.min(2, Math.floor(k / 3)); let t = y; for (let i=0;i<segs;i++) t = add(x - 42, t, 20, 54, 'tower', i < 2 ? 'wood' : 'sand');
+          t = add(x - 42, t, 46, 40, 'keep', 'dark'); goblin(x + 14, y); goblin(x + 56, y); return t; },
+        // a heavy stone slab resting on two thin oak posts with goblins sheltering underneath
+        slab(x, k, y){ add(x - 46, y, 14, 60, 'post', 'wood'); add(x + 46, y, 14, 60, 'post', 'wood'); goblin(x - 18, y); if (k >= 3) goblin(x + 18, y);
+          let t = add(x, y - 60, 124, 22, 'wall', 'dark'); if (k >= 4) t = add(x, t, 44, 40, 'keep', 'dark'); return t; },
+        // goblins on a plank floor right above a TNT barrel
+        cellar(x, k, y){ blocks.push({ x, y: y - 17, w: 30, h: 34, type: 'tnt', mat: 'tnt' }); add(x - 44, y, 18, 42, 'post', 'wood'); add(x + 44, y, 18, 42, 'post', 'wood');
+          let t = add(x, y - 42, 112, 14, 'wall', 'sand'); goblin(x - 26, t); goblin(x + 26, t); return t; },
         fortress(x, k, y){ const y1 = add(x - 46, y, 28, 72, 'tower'); add(x + 46, y, 28, 72, 'tower'); add(x, y, 40, 40, 'keep'); y = add(x, y1, 136, 18, 'wall'); add(x - 44, y, 32, 32, 'keep'); add(x + 44, y, 32, 32, 'keep'); y = add(x, y, 36, 58, 'tower'); for (let i=1;i<k;i++) y = add(x, y, 34, 34, 'keep'); return y; },
       };
       const groups = n < 3 ? 1 : n < 10 ? 2 : (n % 3 === 0 || n >= 30 && n % 2 === 0) ? 3 : 2;
       const kinds = n < 3 ? ['tower'] : n < 6 ? ['tower', 'rooms', 'walls'] : n < 10 ? ['rooms', 'bunker', 'arch', 'stilts', 'tower'] : n < 18 ? ['rooms', 'bunker', 'arch', 'pyramid', 'stilts', 'bridge'] : ['bunker', 'fortress', 'rooms', 'pyramid', 'bridge', 'stilts', 'bunker'];
       // castles stand a good way from the slingshot (VMAX is tuned so the far side of the field is still reachable)
-      const FAR = 90, xs = (groups === 1 ? [n < 3 ? 470 : 510] : groups === 2 ? [445, 590] : [405, 530, 655]).map(x => x + FAR);
+      const FAR = 150, xs = (groups === 1 ? [n < 3 ? 470 : 510] : groups === 2 ? [445, 590] : [405, 530, 655]).map(x => x + FAR);
       const size = 2 + Math.min(6, Math.floor(n / 5));
       const wantGobs = Math.min(9, n < 3 ? n : 1 + Math.floor(n / 3));
       const freeTop = b => !blocks.some(o => o !== b && Math.abs((o.y + o.h / 2) - (b.y - b.h / 2)) < 3 && Math.abs(o.x - b.x) < (o.w + b.w) / 2 - 4);
+      // from level 3 at least one castle has a weak spot to find (two, more often, later on)
+      const weak = n < 6 ? ['slab', 'topple'] : ['slab', 'topple', 'cellar'], wg = n >= 3 ? Math.floor(R() * groups) : -1;
+      const wg2 = n >= 12 && groups >= 2 && R() < Math.min(0.6, n / 60) ? (wg + 1) % groups : -1;
       for (let g=0; g<groups; g++) {
         let kind = kinds[Math.floor(R() * kinds.length)];
+        if (g === wg || g === wg2) { kind = weak[Math.floor(R() * weak.length)]; const k = Math.max(1, size + Math.floor(R() * 2)), top = B[kind](xs[g], k, GROUND); if (kind === 'slab' && k >= 4) goblin(xs[g], top); continue; }
         if (groups >= 2 && (kind === 'fortress' || kind === 'pyramid') && g > 0 && R() < 0.6) kind = 'tower';
         if (groups === 3 && (kind === 'bridge' || kind === 'fortress')) kind = 'bunker';
         let base = GROUND;
@@ -141,7 +155,7 @@
           shot.data.thud = true; st.shake = Math.max(st.shake, Math.min(22, 8 + vn / 40)); if (st.impactX == null) st.impactX = shot.x;
           if (vn > 300) st.kick = Math.max(st.kick || 0, Math.min(0.07, vn / 6000));
           const p = [shot.x, shot.y]; dust(p, MAT[other.data.mat].base, 10); chunks(p, MAT[other.data.mat].base, 8);
-          if (vn > 220 && !reduceMotion) { if (!shot.data.slowed && shot.data.main) { shot.data.slowed = true; st.slow = vn > 380 ? 0.6 : 0.4; } comic(p, ['POW!', 'BAM!', 'CRASH!', 'WHAM!', 'KA-BOOM!'][Math.floor(Math.random() * 5)], ['#ffd23f', '#ff7a2a', '#5ee0ff', '#ff4f8b'][Math.floor(Math.random() * 4)], vn > 380); }
+          if (vn > 360 && !reduceMotion) { comic(p, ['POW!', 'BAM!', 'CRASH!', 'WHAM!', 'KA-BOOM!'][Math.floor(Math.random() * 5)], ['#ffd23f', '#ff7a2a', '#5ee0ff', '#ff4f8b'][Math.floor(Math.random() * 4)], vn > 380); }
           if (!reduceMotion) st.waves.push({ p, t: 0, big: vn > 320 });
           if (PB.sfx) PB.sfx('crash');
         }
@@ -152,7 +166,8 @@
       const d = body.data; if (!d || !d.block || d.off || d.broken) return;
       const mO = other.invM ? 1 / other.invM : 40, mS = body.invM ? 1 / body.invM : 40;
       const k = other.data && other.data.shot ? (AMMO[other.data.type].hit || 1) : 1;
-      const dmg = Math.max(0, vn - 110) * (mO / (mO + mS)) * 0.5 * k;
+      // goblins are the softest thing in the castle: a falling plank or a rolling block is enough
+      const dmg = Math.max(0, vn - (d.mat === 'goblin' ? 45 : 95)) * (mO / (mO + mS)) * 0.5 * k;
       if (dmg <= 0) return;
       d.hp -= dmg; d.hitT = 0.3; d.wob = 1;
       if (d.hp <= 0) d.broken = true;
@@ -211,7 +226,7 @@
       const RR = 120 * pw;
       for (const b of st.blocks) { const dx = b.x - x, dy = b.y - y, d = Math.hypot(dx, dy);
         if (d < RR && d > 0 && !b.data.off) { const k = (1 - d / RR) * 520 * pw; b.vx += dx / d * k; b.vy += dy / d * k - 160 * (1 - d / RR); b.w += (Math.random() - .5) * 6; b.data.hp -= 150 * pw * (1 - d / RR); b.data.hitT = 0.3; if (b.data.hp <= 0) b.data.broken = true; } }
-      st.shake = 16 * pw; st.flash = 0.25; st.kick = Math.max(st.kick || 0, 0.08); if (st.impactX == null) st.impactX = x; if (!reduceMotion) st.slow = Math.max(st.slow, tnt ? 0.45 : 0.3);
+      st.shake = 12 * pw; st.flash = 0.25; st.kick = Math.max(st.kick || 0, 0.08); if (st.impactX == null) st.impactX = x; 
       const p = [x, y];
       if (!reduceMotion) for (let i=0;i<46;i++) { const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 260; st.parts.push({ p: [p[0], p[1], 0], v: [Math.cos(a) * s, Math.sin(a) * s, (Math.random() - .5) * 120], life: 0.8, max: 0.8, color: [[1, 0.7, 0.15], [1, 0.35, 0.1], [1, 0.9, 0.5]][i % 3], size: 0.13 + Math.random() * 0.14, add: true, g: 300 }); }
       for (let i=0;i<14;i++) st.parts.push({ p: [p[0] + (Math.random() - .5) * 30, p[1], 0], v: [(Math.random() - .5) * 60, -60 - Math.random() * 60, 0], life: 1.6, max: 1.6, color: [0.35, 0.33, 0.32], size: 0.3 + Math.random() * 0.3, grow: 0.5, g: 0 });
@@ -315,7 +330,7 @@
         if (d.ouch) d.ouch = Math.max(0, d.ouch - dt) || 0;
         if (d.mat === 'goblin') {
           if (!st.lastFire) { d.hp = d.maxHp; d.broken = false; d.y0 = b.y; d.a0 = b.a; continue; }
-          if (d.broken || b.y > d.y0 + (d.king ? 28 : 14) || Math.abs(b.a - d.a0) > (d.king ? 1.1 : 0.9) || b.x < -100 || b.x > st.spec.maxX + 400) { bonk(b); continue; }
+          if (d.broken || b.y > d.y0 + (d.king ? 28 : 12) || Math.abs(b.a - d.a0) > (d.king ? 1.0 : 0.75) || b.x < -100 || b.x > st.spec.maxX + 400) { bonk(b); continue; }
           continue;
         }
         if (d.mat === 'tnt' && st.lastFire && d.broken) {
@@ -1131,7 +1146,7 @@
       let x = (c.x0 + c.x1) / 2; if (focus != null) x = x * 0.65 + focus * 0.35;
       return view(x, w);
     }
-    function aimView(){ const w = Math.max(700, Math.min(1000, st.spec.maxX + 110)); return view(w / 2 - 30, w); }
+    function aimView(){ const w = Math.max(700, Math.min(1070, st.spec.maxX + 110)); return view(w / 2 - 30, w); }
     function camTarget(){
       if (st.camLock) return st.camLock;
       if (st.phase === 'menu') return aimView();
