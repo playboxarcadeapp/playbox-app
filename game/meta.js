@@ -4,8 +4,8 @@
   const { store, today, fmt, seedFrom, mulberry } = PB;
   const $ = id => document.getElementById(id);
   const coin = '<svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#ffc21a" stroke="#b77800" stroke-width="2"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#ffe27a" stroke-width="1.5"/></svg>';
-  const NAME = { bricks: 'Brick Bash', dash: 'Zoom Dash', sweets: 'Gem Mine', potions: 'Potion Sort', cubes: 'Cube Escape', racer: 'Galaxy Racer', castle: 'Castle Crash', snake: 'Anaconda', dots: 'Dot Friends' };
-  const STK_COL = { bricks: '#ff3ddc', dash: '#ff9f1c', sweets: '#5ce1ff', potions: '#c77dff', cubes: '#3dffb5', racer: '#ff7a2f', castle: '#e0b43c', snake: '#7dd85a', dots: '#ff5fb8' };
+  const NAME = { bricks: 'Brick Bash', dash: 'Zoom Dash', sweets: 'Gem Mine', potions: 'Potion Sort', cubes: 'Cube Escape', racer: 'Galaxy Racer', castle: 'Castle Crash', snake: 'Anaconda', dots: 'Dot Friends', tank: 'My Fish Tank' };
+  const STK_COL = { bricks: '#ff3ddc', dash: '#ff9f1c', sweets: '#5ce1ff', potions: '#c77dff', cubes: '#3dffb5', racer: '#ff7a2f', castle: '#e0b43c', snake: '#7dd85a', dots: '#ff5fb8', tank: '#5ec8f2' };
   const dayNum = d => Math.floor(new Date(d + 'T12:00:00').getTime() / 86400000);
 
   // ---------------- Swag Shop ----------------
@@ -240,6 +240,9 @@
     { id: 'st_dots1',  game: 'dots',    e: '\u{1F534}', name: 'Dot Dabber',     desc: 'Solve Dot Friends level 5',     test: () => levelWins('dots') >= 5 },
     { id: 'st_dots2',  game: 'dots',    e: '\u{1F58D}\uFE0F', name: 'Line Artist', desc: 'Solve Dot Friends level 25', test: () => levelWins('dots') >= 25 },
     { id: 'st_dots3',  game: 'dots',    e: '\u{1F308}', name: 'Rainbow Master', desc: 'Solve Dot Friends level 75',    test: () => levelWins('dots') >= 75 },
+    { id: 'st_tank1',  game: 'tank',    e: '\u{1F41F}', name: 'Fish Friend',    desc: 'Reach tank level 3',            test: () => PB.tank && PB.tank.level() >= 3 },
+    { id: 'st_tank2',  game: 'tank',    e: '\u{1F420}', name: 'Reef Keeper',    desc: 'Reach tank level 10',           test: () => PB.tank && PB.tank.level() >= 10 },
+    { id: 'st_tank3',  game: 'tank',    e: '\u{1F433}', name: 'Ocean Master',   desc: 'Reach tank level 25',           test: () => PB.tank && PB.tank.level() >= 25 },
     { id: 'st_dash1',  game: 'dash',    e: '\u{1F99D}', name: 'Little Runner',  desc: 'Run 300 m in Zoom Dash',        test: () => dist() >= 300 },
     { id: 'st_dash2',  game: 'dash',    e: '\u{1F68C}', name: 'Bus Hopper',     desc: 'Run 800 m in Zoom Dash',        test: () => dist() >= 800 },
     { id: 'st_dash3',  game: 'dash',    e: '\u{1F306}', name: 'City Lights',    desc: 'Reach the Big City in Zoom Dash', test: () => dist() >= 1350 },
@@ -397,7 +400,7 @@
       const have = stickers(), fresh = store.get('pb-stickers-new') || [];
       h.textContent = `Sticker album ${have.length}/${STICKERS.length}`;
       const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = 'Every game has 3 stickers to find. Play to fill your album!'; body.appendChild(p);
-      for (const gid of ['dash', 'castle', 'racer', 'potions', 'snake', 'sweets', 'bricks', 'cubes', 'dots']) {
+      for (const gid of ['dash', 'castle', 'racer', 'potions', 'snake', 'sweets', 'bricks', 'cubes', 'dots', 'tank']) {
         const sec = document.createElement('div'); sec.className = 'stkpage'; sec.innerHTML = '<h4></h4><div class="stkrow"></div>'; sec.querySelector('h4').textContent = NAME[gid];
         for (const t of STICKERS.filter(x => x.game === gid)) { const got = have.includes(t.id), c = document.createElement('div');
           c.className = 'stk' + (got ? ' got' : '') + (fresh.includes(t.id) ? ' new' : ''); c.style.setProperty('--sc', STK_COL[gid]);
@@ -445,6 +448,67 @@
     body.appendChild(sec);
   }
   function openHangar(done){ openModal('hangar'); afterClose = done || null; }
+  // ---------- the Pet Shop for My Fish Tank ----------
+  let petTab = 'fish', byeAsk = null;
+  function thumb(draw){ const c = document.createElement('canvas'), d = window.devicePixelRatio || 1; c.width = 72 * d; c.height = 54 * d; c.className = 'pthumb'; const g = c.getContext('2d'); g.scale(d, d); draw(g); return c; }
+  function openPetShop(tab){
+    const T = PB.tank; if (!T) return;
+    if (tab) petTab = tab;
+    const m = $('metaModal'), body = $('mmBody'); m.hidden = false; body.innerHTML = '';
+    const S = T.load(), L = T.levelOf(S.xp), tank = T.tankOf(S), plus = hasPlus();
+    const h = document.createElement('h3'); h.innerHTML = `\u{1F420} Pet Shop <span class="mmcoins">${coin}<b>${fmt(PB.wallet.get())}</b></span>`; body.appendChild(h);
+    const sub = document.createElement('p'); sub.className = 'mmsub'; sub.textContent = `Tank level ${L} \u00b7 ${S.fish.length}/${tank.fish} fish \u00b7 ${S.decor.length}/${tank.decor} decorations. Care for your tank every day to level up and unlock more!`; body.appendChild(sub);
+    const tabs = document.createElement('div'); tabs.className = 'ptabs';
+    for (const [id, label] of [['fish', '\u{1F41F} Fish'], ['decor', '\u{1F3F0} Decor'], ['tank', '\u{1FAE7} Tanks'], ['water', '\u{1F30A} Water'], ['mine', '\u2B50 My Tank']]) {
+      const b = document.createElement('button'); b.className = 'ptab' + (petTab === id ? ' on' : ''); b.textContent = label; b.onclick = () => { petTab = id; byeAsk = null; openPetShop(); }; tabs.appendChild(b); }
+    body.appendChild(tabs);
+    if (!plus && petTab !== 'mine') {
+      const box = document.createElement('div'); box.className = 'mmlock'; box.innerHTML = '<span class="ml">\u{1F6CD}\uFE0F</span><p class="mmsub">The Pet Shop is part of Playbox Plus. Ask a grown-up! You can still feed, clean and play with your fish every day.</p>';
+      const b = document.createElement('button'); b.className = 'mmbtn'; b.textContent = 'See Playbox Plus'; b.onclick = () => { closeModal(); if (PB.openPlus) PB.openPlus(); }; box.appendChild(b); body.appendChild(box);
+    }
+    const grid = document.createElement('div'); grid.className = 'shopgrid pgrid'; body.appendChild(grid);
+    const card = (pic, name, line, btn, cls, onClick, disabled) => { const c = document.createElement('div'); c.className = 'item pitem ' + (cls || ''); c.appendChild(pic); const b = document.createElement('b'); b.textContent = name; c.appendChild(b);
+      const p = document.createElement('span'); p.className = 'pr'; p.innerHTML = line; c.appendChild(p);
+      if (btn) { const bt = document.createElement('button'); bt.className = 'pbtn'; bt.innerHTML = btn; bt.disabled = !!disabled; bt.onclick = onClick; c.appendChild(bt); } grid.appendChild(c); };
+    const result = (r, okText) => {
+      if (r === 'ok' || r === 'worn' || r === 'stored') { if (PB.sfx) PB.sfx(r === 'worn' ? 'pick' : 'power'); if (r !== 'worn') banner(r === 'stored' ? `${okText}! It's in storage until you have room.` : okText + '!', true); }
+      else if (r === 'coins') { banner('Not enough coins yet. Play games to earn more!', false); if (PB.sfx) PB.sfx('nope'); }
+      else if (r === 'full') { banner('Your tank is full! Get a bigger tank, or make room in My Tank.', false); if (PB.sfx) PB.sfx('nope'); }
+      else if (r === 'level') { banner('Keep caring for your tank to reach that level!', false); if (PB.sfx) PB.sfx('nope'); }
+      openPetShop();
+    };
+    const lock = lv => `\u{1F512} Tank level ${lv}`, price = n => n ? `${coin}${fmt(n)}` : 'Free';
+    if (petTab === 'fish') for (const f of T.FISH) {
+      const have = S.fish.filter(x => x.sp === f.id).length, locked = L < f.lv;
+      card(thumb(g => T.drawFish(g, f.id, 36, 27, Math.min(15, 15 * 22 / f.s))),
+        f.name, locked ? lock(f.lv) : `${price(f.price)}${have ? ` \u00b7 you have ${have}` : ''}`, locked ? null : 'Buy', locked ? 'locked' : have ? 'have' : '', () => result(T.buy('fish', f.id), `Welcome, new ${f.name}`), !plus);
+    }
+    if (petTab === 'decor') for (const d of T.DECOR) {
+      const own = S.owned.includes(d.id), inTank = S.decor.includes(d.id), locked = L < d.lv;
+      card(thumb(g => { const sc = Math.min(0.5, 60 / Math.max(40, d.w + 20)); if (d.id === 'lights') { g.font = '26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u2728', 36, 27); } else T.drawDecor(g, d.id, 36, 50, sc); }),
+        d.name, locked ? lock(d.lv) : own ? (inTank ? 'In your tank' : 'In storage') : price(d.price),
+        locked ? null : own ? (inTank ? 'Take out' : 'Put in tank') : 'Buy', locked ? 'locked' : own ? 'have' : '',
+        () => own ? result(T.toggleDecor(d.id), inTank ? 'Taken out' : 'Put in your tank') : result(T.buy('decor', d.id), `${d.name} added`), !plus && !own);
+    }
+    if (petTab === 'tank') T.TANKS.forEach((t, i) => {
+      const own = i <= S.tank, cur = i === S.tank, locked = L < t.lv;
+      card(thumb(g => { g.fillStyle = '#5ec8f2'; const w = 20 + i * 8, hh = 16 + i * 5; if (t.round) { g.beginPath(); g.arc(36, 30, 18, 0, 7); g.fill(); } else g.fillRect(36 - w / 2, 46 - hh, w, hh); g.strokeStyle = '#2a3a5a'; g.lineWidth = 2; if (t.round) { g.beginPath(); g.arc(36, 30, 18, 0, 7); g.stroke(); } else g.strokeRect(36 - w / 2, 46 - hh, w, hh); }),
+        t.name, locked ? lock(t.lv) : `${t.fish} fish \u00b7 ${t.decor} decorations${own ? '' : ' \u00b7 ' + price(t.price)}`, locked || own ? null : 'Upgrade', cur ? 'have on' : own ? 'have' : locked ? 'locked' : '',
+        () => result(T.buy('tank', t.id), `Your fish moved into the ${t.name}`), !plus || i !== S.tank + 1);
+    });
+    if (petTab === 'water') for (const w of T.WATERS) {
+      const own = S.waters.includes(w.id), on = S.water === w.id, locked = L < w.lv;
+      card(thumb(g => { const q = g.createLinearGradient(0, 6, 0, 50); q.addColorStop(0, w.top); q.addColorStop(1, w.bot); g.fillStyle = q; g.fillRect(10, 6, 52, 44); g.fillStyle = w.sand; g.fillRect(10, 42, 52, 8); }),
+        w.name, locked ? lock(w.lv) : on ? 'Using now' : own ? 'Yours' : price(w.price), locked || on ? null : own ? 'Use' : 'Buy', on ? 'have on' : own ? 'have' : locked ? 'locked' : '',
+        () => result(T.buy('water', w.id), `${w.name} water`), !plus && !own);
+    }
+    if (petTab === 'mine') {
+      S.fish.forEach((f, i) => { const sp = T.FISH.find(x => x.id === f.sp);
+        card(thumb(g => T.drawFish(g, f.sp, 36, 27, Math.min(15, 15 * 22 / sp.s))), f.name, sp.name, S.fish.length > 1 ? (byeAsk === i ? 'Tap again to say goodbye' : 'Let it swim to the ocean') : null, 'have',
+          () => { if (byeAsk === i) { byeAsk = null; T.release(i); banner(`${f.name} swam off to the big ocean. Bye bye!`, true); openPetShop(); } else { byeAsk = i; openPetShop(); } }); });
+      const tip = document.createElement('p'); tip.className = 'mmsub'; tip.textContent = 'Tip: in the Decor tab you can put decorations in your tank or take them out.'; body.appendChild(tip);
+    }
+  }
   let afterClose = null;
   function openShop(game, done){ openModal('shop'); afterClose = done || null; }
   function closeModal(){ $('metaModal').hidden = true; render(); const f = afterClose; afterClose = null; if (f) f(); }
@@ -456,5 +520,5 @@
     if (!giftState().claimed && hasPlus()) setTimeout(() => { if (!document.getElementById('hub').hidden) openModal('gift'); }, 900);
   }
 
-  PB.meta = { openShop, openHangar, STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
+  PB.meta = { openShop, openHangar, openPetShop, STICKERS, openChest, checkStickers, BOOSTS, boostsFor, boostCount, addBoost, useBoost, randomBoost, look, coinMult, event, onPlay, onRun, render, initUI, banner, checkTrophies, SHOP, TROPHIES };
 })();

@@ -139,12 +139,13 @@
     if (PB.meta) PB.meta.render();
     for (const g of ordered) {
       const el = $('best-' + g.id); if (!el) continue;
+      if (g.toy) { el.textContent = g.tileNote ? g.tileNote() : ''; continue; }
       if (g.type === 'levels') { const p = progress(g); el.textContent = `Level ${Math.min(p.unlocked, g.levels)} \u00b7 \u2605 ${totalStars(p)}`; }
       else { const b = bestFor(g, 'classic'); el.textContent = b ? 'Best ' + fmtScore(g, b) : ''; }
     }
   }
   const grid = $('grid');
-  const ACC = { bricks:'#ff3ddc', dash:'#ff9f1c', sweets:'#5ce1ff', potions:'#c77dff', cubes:'#3dffb5', racer:'#ff7a2f', castle:'#e0b43c', snake:'#7dd85a', dots:'#ff5fb8' };
+  const ACC = { bricks:'#ff3ddc', dash:'#ff9f1c', sweets:'#5ce1ff', potions:'#c77dff', cubes:'#3dffb5', racer:'#ff7a2f', castle:'#e0b43c', snake:'#7dd85a', dots:'#ff5fb8', tank:'#5ec8f2' };
   ordered.forEach((g, gi) => {
     const b = document.createElement('button');
     b.className = 'tile'; b.id = 'tile-' + g.id;
@@ -173,7 +174,7 @@
   refreshHub(); buildHero();
   if (PB.meta) PB.meta.initUI();
   // used by the continue card and daily missions
-  PB.openAndStart = (id, lv) => { openGame(id); startGame('classic', lv || undefined); };
+  PB.openAndStart = (id, lv) => { openGame(id); if (!GAMES[id].toy) startGame('classic', lv || undefined); };
 
   // ---------- Play screen ----------
   function fit(){
@@ -234,6 +235,8 @@
   }
   function openMenu(){
     clearTimeout(overTimer); paused = false; hideCoach();
+    // a toy (My Fish Tank) has no menu, levels or score: it opens straight into play
+    if (G.toy) { phase = 'play'; mode = 'classic'; level = null; showView(null); G.start('classic'); if (PB.meta) PB.meta.onPlay(G.id, 'classic', null); if (PB.music) PB.music.duck(false); return; }
     phase = 'menu'; mode = 'classic'; G.preview(); cachedBest = 0;
     const s = streakInfo(), shown = s.playedToday ? s.count : s.count + 1, b = streakBonus(shown);
     const lives = G.type !== 'levels' && !G.fixedLives;
@@ -375,6 +378,7 @@
     place(); requestAnimationFrame(place); setTimeout(place, 60);
   }
   function startGame(m, lvl){
+    if (G && G.toy) { openMenu(); return; }
     clearTimeout(overTimer);
     // games with gates (Galaxy Racer's Ship Power): a new level the player isn't ready for yet
     if (m !== 'daily' && G.gate && G.type === 'levels') {

@@ -203,6 +203,7 @@
     cubes:   { bpm: 118, root: 55, scale: 'dorian', prog: [0, 6, 3, 4], lead: 'chip', bass: 'synth', pad: 'strings', drums: ['k..k..k.k..k..k.', '....s.......s...', 'hhhhhhhhhhhhhhhh'], seed: 51, density: 0.6, arp: true },
     racer:   { bpm: 132, root: 52, scale: 'minor', prog: [0, 5, 6, 4], lead: 'synth', bass: 'synth', pad: 'strings', drums: ['k...k...k...k...', '....s.......s...', '..o...o...o...o.'], seed: 61, density: 0.6, arp: true, eighthBass: true },
     castle:  { bpm: 112, root: 62, scale: 'dorian', prog: [0, 6, 0, 4, 0, 6, 3, 4], lead: 'flute', bass: 'pluck', pad: null, drums: ['B.....b.B.b.....', '................'], seed: 71, density: 0.6, lute: true },
+    tank:    { bpm: 80, root: 62, scale: 'major', prog: [0, 4, 5, 3], lead: 'bell', bass: 'round', pad: 'glass', drums: ['k...............', '........h.......'], seed: 103, density: 0.35 },
     dots:    { bpm: 92, root: 64, scale: 'major', prog: [0, 3, 5, 4], lead: 'marimba', bass: 'round', pad: 'soft', drums: ['k.......k.......', '..h...h...h...h.'], seed: 97, density: 0.45 },
     snake:   { bpm: 116, root: 60, scale: 'penta', prog: [0, 4, 5, 3], lead: 'marimba', bass: 'round', pad: null, drums: ['k.....k...k.....', 'b..b..B.b..b.B..', '..t...t...t...t.'], seed: 81, density: 0.7, sc: 'major' },
   };

@@ -135,6 +135,10 @@ h2 { font-family: var(--display); font-weight: 700; font-size: .95rem; letter-sp
 #play[data-game="dots"] .lvlmap .lvl { background: #ffffff; color: #2b1d6b; border: 3px solid #2b1d6b; font-family: var(--toon); }
 #play[data-game="dots"] .lvlmap .lvl.current { background: #ffd400; }
 #play[data-game="dots"] .lvlmap .msign { background: #ff5fb8; color: #fff; border: 2px solid #fff; font-family: var(--toon); font-weight: 400; }
+#play[data-game="tank"] {
+  --pbg: #f2c89a; --ppanel: #ffffff; --pline: #1d3a6a; --ptext: #1d3a6a; --pmuted: #4a6a9a; --pacc: #5ec8f2; --pacc-ink: #0b2a4a; --pgold: #ffd23f; --pgold-ink: #2a1e00; --pfont: var(--toon); --pweight: 400;
+  background: linear-gradient(#ffe9c8, #f2c89a);
+}
 #play[data-game="dash"] {
   --pbg: #6f93b8; --ppanel: #ffffff; --pline: #2b2140; --ptext: #2b2140; --pmuted: #5e5577;
   --pacc: #ff7a2f; --pacc-ink: #ffffff; --pgold: #ffd23f; --pgold-ink: #2b2140; --pheart: #ff3d6e;
@@ -691,6 +695,14 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 
 /* Galaxy Racer Hangar */
 .lvlmap .lvl .gtag { position: absolute; top: -9px; right: -12px; font-style: normal; font-size: .62rem; font-weight: 900; padding: 2px 5px; border-radius: 8px; background: #5ee0ff; color: #04223a; box-shadow: 0 2px 0 rgba(0,0,0,.3); white-space: nowrap; }
+.ptabs { display: flex; gap: 6px; overflow-x: auto; margin: 6px 0 10px; padding-bottom: 2px; }
+.ptab { appearance: none; font: inherit; flex: 0 0 auto; padding: 8px 12px; border-radius: 999px; border: 2px solid var(--line); background: var(--panel-2); color: inherit; font-weight: 900; font-size: .82rem; cursor: pointer; }
+.ptab.on { background: #5ec8f2; border-color: #fff; color: #0b2a4a; }
+.pgrid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.pitem { cursor: default; } .pitem.locked { opacity: .6; } .pitem.locked .pthumb { filter: grayscale(.85); } .pitem.on { border-color: #5ec8f2; }
+.pthumb { width: 72px; height: 54px; border-radius: 10px; background: linear-gradient(#bfe9ff, #7cc4ea); }
+.pbtn { appearance: none; font: inherit; width: 100%; margin-top: 4px; padding: 8px 6px; border-radius: 10px; border: 0; background: var(--yellow); color: #2a1e00; font-weight: 900; font-size: .8rem; cursor: pointer; }
+.pbtn:disabled { opacity: .45; cursor: default; }
 .hangar { border: 2px solid #5ee0ff; border-radius: 16px; padding: 10px; margin-bottom: 12px; background: linear-gradient(180deg, rgba(94,224,255,.12), transparent); }
 .hangar h4 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 4px; }
 .hangar h4 span { color: #5ee0ff; font-size: .85rem; }
@@ -927,6 +939,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 <script src="castle.js"></script>
 <script src="snake.js"></script>
 <script src="dots.js"></script>
+<script src="tank.js"></script>
 <script src="plus.js"></script>
 <script src="meta.js"></script>
 <script src="shell.js"></script>
