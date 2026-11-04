@@ -12,7 +12,7 @@
       balloon:{ name:'Balloon bunch', color:'#ff5fa2', time:6,  weight:12, desc:'Float up high and grab the coins in the sky' },
       double: { name:'Double coins',  color:'#ffb800', time:12, weight:16, desc:'Every coin counts twice' },
       zoom:   { name:'Zoom boots',    color:'#ff7a2f', time:5,  weight:11, desc:'Super speed! Smash through anything' },
-      spring: { name:'Spring shoes',  color:'#4cc96a', time:10, weight:14, desc:'Mega high jumps' },
+      spring: { name:'Spring shoes',  color:'#4cc96a', time:10, weight:14, desc:'Mega jumps that bounce right over cars' },
       slow:   { name:'Slow-mo',       color:'#9a6bff', time:8,  weight:12, desc:'Everything slows down' },
       gift:   { name:'Mystery box',   color:'#c77dff', time:0,  weight:13, desc:'A surprise inside: coins, a heart or a power-up!' },
       gold:   { name:'Gold rush',     color:'#ffc21a', time:10, weight:12, desc:'Extra coin trails pop up in every open lane' },
@@ -555,7 +555,7 @@
       if ((dir === 'left' || dir === 'right') && s.arms && st.dist > s.J - 18) { p.turnQ = dir; p.lane = 1; if (PB.sfx) PB.sfx('pick'); return; }
       if (dir === 'left' && p.lane > 0) { p.prevLane = p.lane; p.lane--; }
       else if (dir === 'right' && p.lane < 2) { p.prevLane = p.lane; p.lane++; }
-      else if (dir === 'up') { if (!p.air) { if (PB.sfx) { PB.sfx('jump'); PB.sfx(['woohoo', 'yippee', 'wahoo'][Math.floor(Math.random() * 3)]); } p.slide = 0; p.vy = st.fx.spring > 0 ? 13.4 : 9.85; if (st.rig) { st.rig.jk = 0; st.rig.jturns = st.fx.spring > 0 ? 2 : 1; } } }
+      else if (dir === 'up') { if (!p.air) { if (PB.sfx) { PB.sfx('jump'); PB.sfx(['woohoo', 'yippee', 'wahoo'][Math.floor(Math.random() * 3)]); } p.slide = 0; p.vy = st.fx.spring > 0 ? 15.2 : 9.85; if (st.fx.spring > 0) pop(playerPos(), 'BOING!', '#4cc96a', 0.7); if (st.rig) { st.rig.jk = 0; st.rig.jturns = st.fx.spring > 0 ? 2 : 1; } } }
       else if (dir === 'down') { if (PB.sfx) { PB.sfx('whoosh'); PB.sfx('wheee'); } if (p.air) { p.vy = -16; p.queueSlide = true; } else p.slide = 0.62; }
     }
     function pop(wp, text, color, life){ st.pops.push({ wp, text, color, life: life || 1, rise: 0 }); }
@@ -660,12 +660,21 @@
       if (p.inv > 0) p.inv = Math.max(0, p.inv - dt);
       p.run += dt * sp * 0.9;
       st.lookT = (st.lookT || 0) - dt;
+      keepALaneOpen(dt);
+      // landing safely after the balloon: clear what's right under you, and a moment of safety
+      if (st.wasBalloon && !(fx.balloon > 0)) {
+        const reach = st.speed * 1.8 + 6;
+        for (const o of st.objs) if (o.kind === 'obs' && o.seg === st.cur && !o.hit && !o.gone && o.at + (o.len || 0) - st.dist > -1 && o.at - st.dist < reach) o.gone = true;
+        p.inv = Math.max(p.inv, 1.2); sparkle([p.x, p.h + 0.4, -0.3], [1, 0.75, 0.9], 20); pop(playerPos(), 'Safe landing!', '#ff5fa2');
+      }
+      st.wasBalloon = fx.balloon > 0;
       for (const o of st.objs) {
         if (o.gone) continue;
         const rel = o.at - st.dist;
         if (o.seg !== st.cur) continue;
+        if (o.exit) { o.exit = Math.min(1, o.exit + dt * 1.6); if (o.exit >= 1) o.gone = true; continue; }
         if (o.type === 'bar' && !st.slideTip && rel < 26 && rel > 0) { st.slideTip = true; if (!PB.store.get('pb-dash-slidetip')) { PB.store.set('pb-dash-slidetip', 1); pop(playerPos(), 'Swipe down to slide under!', '#5ee0ff', 2.2); } }
-        if (o.moving && !o.hit) { driveCar(o, dt); if (o.oncoming && !o.honked && rel < 34) { o.honked = true; if (PB.sfx) PB.sfx('honk'); pop(playerPos(), 'Beep beep! Watch out!', '#ffd23f'); } }
+        if (o.moving && !o.hit && !o.exit) { driveCar(o, dt); if (o.oncoming && !o.honked && rel < 34) { o.honked = true; if (PB.sfx) PB.sfx('honk'); pop(playerPos(), 'Beep beep! Watch out!', '#ffd23f'); } }
         if (o.kind === 'obs' && o.type === 'bus') {
           const inLane = Math.abs(laneX(o.lane) - p.x) < 1.15;
           if (!o.hit && inLane && rel < 0.35 && rel > -o.len && p.h < BUS_H - 0.4 && fx.giant > 0) { o.hit = true; o.squash = 1; addCoins(1); pop(playerPos(), 'STOMP!', '#ff5a4a'); st.shake = 10; if (PB.sfx) PB.sfx('boom'); }
@@ -688,7 +697,8 @@
         if (o.kind === 'obs' && !o.hit) {
           if (rel < DEPTH[o.type] && rel > -0.6 && Math.abs(laneX(o.lane) - p.x) < 1.25) {
             // floating with the balloon (or bouncing high) carries you over vans too
-            const blocked = o.type === 'cone' ? p.h < 0.8 : o.type === 'can' ? p.h < 1.05 : o.type === 'bar' ? !(p.slide > 0 && p.h < 0.3) && p.h < 2.3 : p.h < 2.4;
+            // spring shoes bounce you right over parked cars and vans
+            const blocked = o.type === 'cone' ? p.h < 0.8 : o.type === 'can' ? p.h < 1.05 : o.type === 'bar' ? !(p.slide > 0 && p.h < 0.3) && p.h < 2.3 : p.h < (fx.spring > 0 ? 1.3 : 2.4);
             if (blocked) { if (o.type === 'cone' || o.type === 'can') stumble(o); else crash(o, o.type === 'bar' ? 'Slide under it next time!' : undefined); }
             if (st.phase !== 'play') return;
           }
@@ -710,11 +720,23 @@
       const step = o.moving * dt, GAP = 1.2;
       let stopAt = -Infinity;
       for (const b of st.objs) {
-        if (b === o || b.gone || b.hit || b.fly || b.kind !== 'obs' || b.seg !== o.seg || (b.lane !== o.lane && b.lane !== -1) || b.at >= o.at) continue;
+        if (b === o || b.gone || b.hit || b.fly || b.exit || b.kind !== 'obs' || b.seg !== o.seg || (b.lane !== o.lane && b.lane !== -1) || b.at >= o.at) continue;
         const e = farEnd(b) + GAP; if (e > stopAt && o.at - e < 30) stopAt = e;
       }
       o.at = Math.max(o.at - step, stopAt);
       o.braked = o.at === stopAt;
+    }
+    // A van or bus front you can't get past. If a moving car would end up next to two of them (all three lanes
+    // shut), it honks and pulls off the road instead, so there is always a way through.
+    function keepALaneOpen(){
+      const near = st.objs.filter(o => o.kind === 'obs' && o.seg === st.cur && !o.hit && !o.gone && !o.fly && !o.exit && (o.type === 'truck' || (o.type === 'bus' && !o.ramp)) && o.at - st.dist < 70 && o.at + (o.len || DEPTH.truck) - st.dist > -2);
+      const span = o => o.type === 'bus' ? [o.at, o.at + o.len] : [o.at - 1, o.at + DEPTH.truck + 0.5];
+      for (const m of near) {
+        if (!m.moving) continue;
+        const [a, b] = span(m), A = a - 4, B = b + 4;
+        const shut = [0, 1, 2].filter(l => l !== m.lane).every(l => near.some(o => o !== m && o.lane === l && !o.exit && span(o)[0] < B && span(o)[1] > A));
+        if (shut) { m.exit = 0.01; m.exitSide = m.lane === 0 ? -1 : m.lane === 2 ? 1 : (Math.round(m.at) % 2 ? 1 : -1); if (PB.sfx && m.at - st.dist < 40) PB.sfx('honk'); }
+      }
     }
     function keepObj(o){
       if (o.gone) return false;
@@ -1671,7 +1693,7 @@
     function drawObstacle(o, z){
       if (o.type === 'bus') { drawBus(o, z); return; }
       if (o.type === 'gap') { drawGap(o, z); return; }
-      const M = E.M; let x = laneX(o.lane), y = 0, rot = 0;
+      const M = E.M; let x = laneX(o.lane) + (o.exit ? o.exitSide * 5 * o.exit * o.exit : 0), y = 0, rot = o.exit ? -o.exitSide * o.exit * 0.5 : 0;
       if (o.fly) { y = Math.max(-2, o.fly.y); rot = o.fly.rot; x += o.fly.x || 0; }
       const mv = o.moving && o.type === 'truck', at = (dx, dy, dz) => [x + dx, y + dy, z + (mv ? -4.6 - dz : dz)], R3 = [rot, 0, rot * 0.5];
       const ow = WORLDS[zoneAt(o.at)];
@@ -2249,7 +2271,7 @@
       },
       hud(){ return { lives: st.lives, stat: st.coins || 0, score: st.tally ? st.tally.base + st.tally.bonus : Math.floor(st.dist) }; },
       debugStep(n){ for (let i=0;i<n;i++) { if (st.phase === 'play') update(1 / 60); effects(1 / 60); } },
-      debug(){ return { st, curSeg, zones: ZONES, startTally, skipTally, zoneIdx, zoneInfo, nextZoneFrom, lapAt, ensureWorld, LAP }; },
+      debug(){ return { st, update, curSeg, zones: ZONES, startTally, skipTally, zoneIdx, zoneInfo, nextZoneFrom, lapAt, ensureWorld, LAP }; },
       metrics(){ return { score: st.score, food: st.food, dist: Math.floor(st.dist), turns: st.turns || 0, coins: st.coins || 0 }; },
       pointerDown(x, y){ down = { x, y, used:false }; },
       pointerMove(x, y){ if (!down || down.used) return; const dx = x - down.x, dy = y - down.y; if (Math.hypot(dx, dy) > 34) { down.used = true; swipe(dx, dy); } },
