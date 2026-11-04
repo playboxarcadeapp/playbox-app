@@ -3,7 +3,7 @@
 ## App name (both stores, 30 characters max)
 Playbox Arcade
 
-(If that name is taken, try: "Playbox Arcade: Kids Games" or "Playbox Arcade - 8 Games".)
+(If that name is taken, try: "Playbox Arcade: Kids Games" or "Playbox Arcade - 9 Games".)
 
 The name under the icon on the phone stays "Playbox" so it is not cut off on small home screens.
 
@@ -11,10 +11,10 @@ The name under the icon on the phone stays "Playbox" so it is not cut off on sma
 8 fun games. No ads.
 
 ## Google short description (80 characters max)
-Eight fun, ad-free games in one app: run, race, match gems, sort potions & more!
+Nine fun, ad-free games in one app: run, race, match gems, connect dots & more!
 
 ## Full description (both stores)
-Playbox Arcade puts eight fun games in one app, so kids have one safe place to play.
+Playbox Arcade puts nine fun games in one app, so kids have one safe place to play.
 
 THE GAMES
 - Zoom Dash: run as a cheeky raccoon from the farm to the big city, then on to the beach, desert, jungle, snowy mountains, a neon night city and a volcano. Jump, slide, grab snacks, and see how many laps you can go.
@@ -22,9 +22,10 @@ THE GAMES
 - Castle Crash: aim a catapult at cartoon castles and knock every block off the table. 500 levels.
 - Gem Mine: swap and match sparkling gems deep in the mine. Every gem has its own shape. 500 levels.
 - Potion Sort: help the wizard sort magic potions before the timer runs out. 500 levels.
-- Brick Bash: classic neon brick breaking with power-ups.
+- Brick Bash: neon brick breaking with picture puzzles, TNT and steel bricks, and 8 themed worlds. 500 levels.
 - Cube Escape: slide colored blocks out through the matching exit. 500 levels.
 - Anaconda: the classic snake game in the jungle.
+- Dot Friends: connect each little dot to its twin without crossing lines. No timer, so it's perfect for little kids and quiet time. 500 levels.
 
 MADE FOR FAMILIES
 - No ads, ever
@@ -34,7 +35,7 @@ MADE FOR FAMILIES
 - Purchases are behind a grown-ups-only question
 
 FREE TO PLAY EVERY DAY
-Every game is free to play each day: 2 new levels a day in each level game, 3 plays a day in Zoom Dash, Brick Bash and Anaconda, plus the Daily Challenge. Replaying levels you've beaten is always free.
+Every game is free to play each day: 2 new levels a day in each level game, 3 plays a day in Zoom Dash and Anaconda, plus the Daily Challenge. Replaying levels you've beaten is always free.
 
 PLAYBOX PLUS
 Unlock everything with Playbox Plus:

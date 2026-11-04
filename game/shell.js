@@ -144,7 +144,7 @@
     }
   }
   const grid = $('grid');
-  const ACC = { bricks:'#ff3ddc', dash:'#ff9f1c', sweets:'#5ce1ff', potions:'#c77dff', cubes:'#3dffb5', racer:'#ff7a2f', castle:'#e0b43c', snake:'#7dd85a' };
+  const ACC = { bricks:'#ff3ddc', dash:'#ff9f1c', sweets:'#5ce1ff', potions:'#c77dff', cubes:'#3dffb5', racer:'#ff7a2f', castle:'#e0b43c', snake:'#7dd85a', dots:'#ff5fb8' };
   ordered.forEach((g, gi) => {
     const b = document.createElement('button');
     b.className = 'tile'; b.id = 'tile-' + g.id;
@@ -319,6 +319,7 @@
     cubes:   { decor: ['\u{1F388}', '\u{1F308}', '\u2601\uFE0F', '\u{1F36D}', '\u2B50', '\u{1F9F8}', '\u{1F36C}', '\u{1F3A8}', '\u{1FA80}', '\u{1F9C1}'], sign: g => `\u2B50 World ${g}` },
     castle:  { decor: ['\u{1F3F0}', '\u{1F6A9}', '\u2694\uFE0F', '\u{1F6E1}\uFE0F', '\u{1F9CC}', '\u{1F451}', '\u{1F3F9}', '\u{1F409}', '\u{1F332}', '\u{1F344}'], sign: g => `\u{1F3F0} Realm ${g}` },
     bricks:  { decor: ['\u{1F579}\uFE0F', '\u{1F47E}', '\u{1F3AE}', '\u26A1', '\u{1F4BF}', '\u{1F306}', '\u{1F3A7}', '\u{1F537}', '\u{1F49C}', '\u{1F334}'], sign: g => `\u{1F579}\uFE0F Arcade ${g}` },
+    dots:    { decor: ['\u{1F388}', '\u{1F58D}\uFE0F', '\u2B50', '\u{1F3A8}', '\u{1F9E9}', '\u{1F308}', '\u{1F36D}', '\u{1F43B}', '\u{1F98B}', '\u{1F33C}'], sign: g => `\u{1F534} Dot Land ${g}` },
     racer:   { decor: ['\u{1FA90}', '\u{1F31F}', '\u2604\uFE0F', '\u{1F6F8}', '\u{1F319}', '\u{1F6F0}\uFE0F', '\u{1F30C}', '\u2B50', '\u{1F47D}', '\u{1F680}'], sign: g => `\u{1F680} Sector ${g}` },
   };
   const TIER_TEXT = { hard: 'HARD', super: 'SUPER HARD' };

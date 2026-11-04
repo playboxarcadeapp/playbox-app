@@ -4,8 +4,8 @@
   const { store, today, fmt, seedFrom, mulberry } = PB;
   const $ = id => document.getElementById(id);
   const coin = '<svg class="coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#ffc21a" stroke="#b77800" stroke-width="2"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#ffe27a" stroke-width="1.5"/></svg>';
-  const NAME = { bricks: 'Brick Bash', dash: 'Zoom Dash', sweets: 'Gem Mine', potions: 'Potion Sort', cubes: 'Cube Escape', racer: 'Galaxy Racer', castle: 'Castle Crash', snake: 'Anaconda' };
-  const STK_COL = { bricks: '#ff3ddc', dash: '#ff9f1c', sweets: '#5ce1ff', potions: '#c77dff', cubes: '#3dffb5', racer: '#ff7a2f', castle: '#e0b43c', snake: '#7dd85a' };
+  const NAME = { bricks: 'Brick Bash', dash: 'Zoom Dash', sweets: 'Gem Mine', potions: 'Potion Sort', cubes: 'Cube Escape', racer: 'Galaxy Racer', castle: 'Castle Crash', snake: 'Anaconda', dots: 'Dot Friends' };
+  const STK_COL = { bricks: '#ff3ddc', dash: '#ff9f1c', sweets: '#5ce1ff', potions: '#c77dff', cubes: '#3dffb5', racer: '#ff7a2f', castle: '#e0b43c', snake: '#7dd85a', dots: '#ff5fb8' };
   const dayNum = d => Math.floor(new Date(d + 'T12:00:00').getTime() / 86400000);
 
   // ---------------- Swag Shop ----------------
@@ -132,6 +132,7 @@
     { id: 'gems',    game: 'sweets',  text: 'Mine {n} gems in Gem Mine',           n: [80, 150],       add: i => i.m.gems || 0 },
     { id: 'cube',    game: 'cubes',   text: 'Beat {n} Cube Escape levels',         n: [1, 2, 3],       add: i => i.win ? 1 : 0 },
     { id: 'fruit',   game: 'snake',   text: 'Eat {n} fruit in Anaconda',           n: [20, 35, 50],    add: i => i.m.eaten || 0 },
+    { id: 'dotw',    game: 'dots',    text: 'Solve {n} Dot Friends puzzles',       n: [1, 2, 3],       add: i => i.win ? 1 : 0 },
     { id: 'brick',   game: 'bricks',  text: 'Beat {n} Brick Bash levels',          n: [1, 2, 3],       add: i => i.win ? 1 : 0 },
   ];
   const MISSION_COINS = 15, MISSION_BONUS = 30;
@@ -194,7 +195,7 @@
   const streak = () => { const s = store.get('pb-streak') || {}; return Math.max(s.best || 0, s.count || 0); };
   const TROPHIES = [
     { id: 'first',    icon: '\u{1F3AE}', name: 'Let’s play!',      desc: 'Play your first game',                test: s => Object.keys(s.plays).length >= 1 },
-    { id: 'explorer', icon: '\u{1F308}', name: 'Game explorer',          desc: 'Play all 8 games',                     test: s => Object.keys(s.plays).length >= 8 },
+    { id: 'explorer', icon: '\u{1F308}', name: 'Game explorer',          desc: 'Play every game',                      test: s => Object.keys(s.plays).length >= Object.keys(PB.games || {}).length },
     { id: 'streak3',  icon: '\u{1F525}', name: 'On fire',                desc: 'Play 3 days in a row',                 test: () => streak() >= 3 },
     { id: 'streak7',  icon: '\u{1F4C5}', name: 'Week warrior',           desc: 'Play 7 days in a row',                 test: () => streak() >= 7 },
     { id: 'streak30', icon: '\u{1F3C5}', name: 'Superfan',               desc: 'Play 30 days in a row',                test: () => streak() >= 30 },
@@ -236,6 +237,9 @@
     { id: 'st_brick1', game: 'bricks',  e: '\u{1F9F1}', name: 'Brick Buster',   desc: 'Beat Brick Bash level 5',       test: () => levelWins('bricks') >= 5 || bestOf('bricks') >= 2000 },
     { id: 'st_brick2', game: 'bricks',  e: '\u{1F3D3}', name: 'Paddle Pro',     desc: 'Beat Brick Bash level 25',      test: () => levelWins('bricks') >= 25 || bestOf('bricks') >= 6000 },
     { id: 'st_brick3', game: 'bricks',  e: '\u{1F308}', name: 'Rainbow Smash',  desc: 'Beat Brick Bash level 60',      test: () => levelWins('bricks') >= 60 || bestOf('bricks') >= 15000 },
+    { id: 'st_dots1',  game: 'dots',    e: '\u{1F534}', name: 'Dot Dabber',     desc: 'Solve Dot Friends level 5',     test: () => levelWins('dots') >= 5 },
+    { id: 'st_dots2',  game: 'dots',    e: '\u{1F58D}\uFE0F', name: 'Line Artist', desc: 'Solve Dot Friends level 25', test: () => levelWins('dots') >= 25 },
+    { id: 'st_dots3',  game: 'dots',    e: '\u{1F308}', name: 'Rainbow Master', desc: 'Solve Dot Friends level 75',    test: () => levelWins('dots') >= 75 },
     { id: 'st_dash1',  game: 'dash',    e: '\u{1F99D}', name: 'Little Runner',  desc: 'Run 300 m in Zoom Dash',        test: () => dist() >= 300 },
     { id: 'st_dash2',  game: 'dash',    e: '\u{1F68C}', name: 'Bus Hopper',     desc: 'Run 800 m in Zoom Dash',        test: () => dist() >= 800 },
     { id: 'st_dash3',  game: 'dash',    e: '\u{1F306}', name: 'City Lights',    desc: 'Reach the Big City in Zoom Dash', test: () => dist() >= 1350 },
@@ -393,7 +397,7 @@
       const have = stickers(), fresh = store.get('pb-stickers-new') || [];
       h.textContent = `Sticker album ${have.length}/${STICKERS.length}`;
       const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = 'Every game has 3 stickers to find. Play to fill your album!'; body.appendChild(p);
-      for (const gid of ['dash', 'castle', 'racer', 'potions', 'snake', 'sweets', 'bricks', 'cubes']) {
+      for (const gid of ['dash', 'castle', 'racer', 'potions', 'snake', 'sweets', 'bricks', 'cubes', 'dots']) {
         const sec = document.createElement('div'); sec.className = 'stkpage'; sec.innerHTML = '<h4></h4><div class="stkrow"></div>'; sec.querySelector('h4').textContent = NAME[gid];
         for (const t of STICKERS.filter(x => x.game === gid)) { const got = have.includes(t.id), c = document.createElement('div');
           c.className = 'stk' + (got ? ' got' : '') + (fresh.includes(t.id) ? ' new' : ''); c.style.setProperty('--sc', STK_COL[gid]);

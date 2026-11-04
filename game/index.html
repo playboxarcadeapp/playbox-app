@@ -117,6 +117,24 @@ h2 { font-family: var(--display); font-weight: 700; font-size: .95rem; letter-sp
   --pbg: #050a14; --ppanel: #0c1828; --pline: #1f3b5c; --pacc: #3dffb5; --pacc-ink: #01281a; --pgold: #ff3ddc; --pgold-ink: #fff;
   background: radial-gradient(90% 50% at 50% 0%, rgba(61,255,181,.12), transparent 70%), var(--pbg);
 }
+#play[data-game="dots"] {
+  --pbg: #1d1550; --ppanel: #2b1d6b; --pline: #5a46c0; --pacc: #ffd400; --pacc-ink: #2b1d6b; --pgold: #ff5fb8; --pgold-ink: #fff; --pfont: var(--toon); --pweight: 400;
+  background: radial-gradient(90% 50% at 50% 0%, rgba(255,95,184,.18), transparent 70%), radial-gradient(80% 40% at 50% 100%, rgba(47,123,255,.18), transparent 70%), var(--pbg);
+}
+/* Dot Friends level map: a bright playroom with polka dots */
+#play[data-game="dots"] .lvlmap { background:
+  radial-gradient(circle at 20% 30%, rgba(255,59,59,.35) 0 7px, transparent 8px) 0 0 / 90px 120px,
+  radial-gradient(circle at 70% 60%, rgba(47,123,255,.35) 0 6px, transparent 7px) 0 0 / 110px 90px,
+  radial-gradient(circle at 40% 80%, rgba(34,197,94,.35) 0 5px, transparent 6px) 0 0 / 70px 140px,
+  radial-gradient(circle at 85% 15%, rgba(255,212,0,.4) 0 6px, transparent 7px) 0 0 / 130px 100px,
+  linear-gradient(#3a2a8a, #1d1550); border: 3px solid #fff; box-shadow: 0 4px 0 #5a46c0; }
+#play[data-game="dots"] .lvlmap .p-edge { stroke: #ffffff; stroke-width: 20px; }
+#play[data-game="dots"] .lvlmap .p-base { stroke: #ff5fb8; stroke-width: 12px; }
+#play[data-game="dots"] .lvlmap .p-dots { stroke: #ffffff; stroke-width: 5px; stroke-dasharray: 1 12; }
+#play[data-game="dots"] .lvlmap .p-done { stroke: #ffd400; opacity: 1; }
+#play[data-game="dots"] .lvlmap .lvl { background: #ffffff; color: #2b1d6b; border: 3px solid #2b1d6b; font-family: var(--toon); }
+#play[data-game="dots"] .lvlmap .lvl.current { background: #ffd400; }
+#play[data-game="dots"] .lvlmap .msign { background: #ff5fb8; color: #fff; border: 2px solid #fff; font-family: var(--toon); font-weight: 400; }
 #play[data-game="dash"] {
   --pbg: #6f93b8; --ppanel: #ffffff; --pline: #2b2140; --ptext: #2b2140; --pmuted: #5e5577;
   --pacc: #ff7a2f; --pacc-ink: #ffffff; --pgold: #ffd23f; --pgold-ink: #2b2140; --pheart: #ff3d6e;
@@ -908,6 +926,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 <script src="physics.js"></script>
 <script src="castle.js"></script>
 <script src="snake.js"></script>
+<script src="dots.js"></script>
 <script src="plus.js"></script>
 <script src="meta.js"></script>
 <script src="shell.js"></script>
