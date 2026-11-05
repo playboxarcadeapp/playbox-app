@@ -27,8 +27,39 @@
       }
       return path;
     }
-    function makePuzzle(n, k, seed){
-      const R = mulberry(seedFrom(seed));
+    // How hard is a puzzle to *solve* (not just to fill)? A quick player connects each pair the shortest way it
+    // can, in some order. We try that many times in random orders: the more often it gets stuck (a pair can't
+    // reach its twin), the more you have to think ahead and route lines around each other.
+    function stuckRate(n, pairs, R, tries){
+      const dotAt = new Map(); pairs.forEach((p, i) => { dotAt.set(p.a[0] * n + p.a[1], i); dotAt.set(p.b[0] * n + p.b[1], i); });
+      let stuck = 0;
+      for (let t = 0; t < tries; t++) {
+        const used = new Uint8Array(n * n), order = PB.shuffle(pairs.map((_, i) => i), R); let ok = true;
+        for (const i of order) {
+          const { a, b } = pairs[i], start = a[0] * n + a[1], goal = b[0] * n + b[1], prev = new Int32Array(n * n).fill(-1), q = [start]; prev[start] = start;
+          while (q.length) { const c = q.shift(); if (c === goal) break; const r = Math.floor(c / n), col = c % n;
+            const nb = PB.shuffle([[r - 1, col], [r + 1, col], [r, col - 1], [r, col + 1]], R);
+            for (const [rr, cc] of nb) { if (rr < 0 || cc < 0 || rr >= n || cc >= n) continue; const k2 = rr * n + cc; if (prev[k2] >= 0 || used[k2]) continue; const d = dotAt.get(k2); if (d != null && d !== i) continue; prev[k2] = c; q.push(k2); } }
+          if (prev[goal] < 0) { ok = false; break; }
+          for (let c = goal; c !== start; c = prev[c]) used[c] = 1; used[start] = 1;
+        }
+        if (!ok) stuck++;
+      }
+      return stuck / tries;
+    }
+    // Make several puzzles and keep the one whose difficulty is closest to what this level wants
+    function makePuzzle(n, k, seed, want){
+      const R = mulberry(seedFrom(seed)); let best = null;
+      for (let cand = 0; cand < (want == null ? 1 : want > 0.6 ? 70 : 30); cand++) {
+        const pz = makeOne(n, k, R); if (!pz) continue;
+        if (want == null) return pz;
+        pz.stuck = stuckRate(n, pz.pairs, R, 24);
+        if (!best || Math.abs(pz.stuck - want) < Math.abs(best.stuck - want)) best = pz;
+        if (Math.abs(best.stuck - want) < 0.04) break;
+      }
+      return best;
+    }
+    function makeOne(n, k, R){
       for (let tries = 0; tries < 60; tries++) {
         const path = snakePath(n, R), len = Array(k).fill(3);
         for (let left = n * n - 3 * k; left > 0; left--) len[Math.floor(R() * k)]++;
@@ -39,18 +70,20 @@
         return { n, k, pairs: pieces.map((p, i) => ({ color: order[i], a: p[0], b: p[p.length - 1], sol: p })) };
       }
     }
+    // The board only ever grows as you go up (it never shrinks on an easy level). What changes from level to level
+    // is how tangled the puzzle is: easy ones mostly connect the obvious way, SUPER HARD ones almost never do.
     function levelSize(n){
-      if (n === 'daily') return { n: 8, k: 7 };
-      if (n <= 3) return [{ n: 4, k: 3 }, { n: 4, k: 3 }, { n: 5, k: 4 }][n - 1];
-      const c = PB.levels.challenge(n), size = Math.max(5, Math.min(9, 4 + Math.round(c * 5.3)));
-      const k = Math.max(3, Math.min(9, Math.floor(size * size / 3), Math.round(size * (1.12 - 0.35 * c))));
-      return { n: size, k };
+      if (n === 'daily') return { n: 8, k: 8, want: 0.75 };
+      if (n <= 3) return [{ n: 4, k: 3, want: 0 }, { n: 4, k: 3, want: 0.1 }, { n: 5, k: 4, want: 0.2 }][n - 1];
+      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(9, size + (n > 200 ? 1 : 0));
+      const c = PB.levels.challenge(n), want = Math.min(1, 0.1 + c * 1.0);
+      return { n: size, k, want };
     }
 
     // ---------- state ----------
     function fresh(mode, level){
       const daily = mode === 'daily', L = daily ? 'daily' : level || 1, sz = levelSize(L);
-      const pz = makePuzzle(sz.n, sz.k, daily ? 'dots-daily-' + PB.today() : 'dots-level-' + L);
+      const pz = makePuzzle(sz.n, sz.k, daily ? 'dots-daily-' + PB.today() : 'dots-level-' + L, sz.want);
       st = { mode, level: L, n: pz.n, k: pz.k, pairs: pz.pairs, paths: pz.pairs.map(() => []), done: pz.pairs.map(() => false), draw: null,
         hints: HINTS, hinted: 0, moves: 0, time: 0, over: false, parts: [], pops: [], joy: pz.pairs.map(() => 0), shake: 0, msg: null, won: false, look: [W / 2, BY + BW / 2], blink: 0 };
       st.cs = BW / st.n;
@@ -262,7 +295,7 @@
         { text: 'Solve the daily puzzle', m: 'won', n: [1] },
         { text: 'Solve it and fill every square', m: 'full', n: [1] },
       ],
-      debug(){ return { st, makePuzzle, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
+      debug(){ return { st, makePuzzle, stuckRate, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
       pointerDown(x, y){
         if (st.over) return;
         if (inBtn(BTN.hint, x, y)) { hint(); return; }

@@ -93,11 +93,14 @@
 
   // Difficulty for every level game, in groups of 10: each group has easy levels, normal ones, two HARD ones
   // and two SUPER HARD ones. Each group starts a little harder than the one before, and it levels off after
-  // about level 80 so later levels never become impossible. c goes from 0 (easiest) to about 0.95 (level 500's hardest).
+  // level 300 so later levels never become impossible. c goes from 0 (easiest) to 1 (the hardest levels after 300).
   const LEVEL_SLOT = [-0.25, -0.15, 0, 0.1, -0.2, 0.03, 0.12, -0.05, 0.25, 0.33];
   const levels = {
     SLOT: LEVEL_SLOT,
-    challenge(n){ const g = Math.floor((n - 1) / 10), base = Math.min(0.45, g * 0.07) + Math.max(0, g - 7) * 0.004; return Math.max(0, Math.min(1, base + LEVEL_SLOT[(n - 1) % 10])); },
+    challenge(n){
+      // every group of 10 starts harder than the last: quickly up to level 70, then slowly on to level 300, then it holds
+      const g = Math.floor((n - 1) / 10), base = Math.min(0.45, g * 0.07) + Math.min(23, Math.max(0, g - 6)) * 0.012;
+      return Math.max(0, Math.min(1, base + LEVEL_SLOT[(n - 1) % 10])); },
     // the first three levels of every game teach it, so they are never marked hard
     tier(n){ if (typeof n !== 'number' || n <= 3) return 'normal'; const o = LEVEL_SLOT[(n - 1) % 10]; return o >= 0.25 ? 'super' : o >= 0.1 ? 'hard' : o <= -0.15 ? 'easy' : 'normal'; },
   };

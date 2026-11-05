@@ -25,27 +25,25 @@
     // ---------- Level design ----------
     // Every few levels adds a new potion color (up to 14). Later levels hide layers, give less time,
     // fewer undos, and pick the trickiest shuffle out of several.
-    // One minute on the hourglass for every level. A new color joins every 3 levels (up to 12),
-    // then mystery layers, fewer undos and trickier shuffles keep it tough. Some levels you will fail!
+    // A new color joins every 3 levels (12 colors from level 25 on, and never fewer after that), hidden layers
+    // come in at level 15 and 40, and the hourglass gets a little shorter as you go. In each group of 10 levels the
+    // HARD and SUPER HARD ones use the matching-color rule, fewer undos and (on SUPER HARD) less time and one less
+    // empty flask, so a quick, careful player still fails a SUPER HARD level now and then.
     const TIME = 60, MAX_K = 12;
-    // Difficulty follows the shared groups-of-10 pattern (easy, HARD and SUPER HARD levels in every 10, levelling off later)
     function levelSpec(n){
-      const c = PB.levels.challenge(n);
-      const k = n <= 3 ? 3 + n : Math.max(5, Math.min(MAX_K, 4 + Math.round(c * 10)));
-      const hidden = n < 15 ? 'none' : c >= 0.5 ? 'all' : c >= 0.15 ? 'bottom' : 'none';
-      const tier = PB.levels.tier(n);
-      // HARD and SUPER HARD levels use the classic rule: pour only onto the same color or into an empty flask.
-      // That makes them a real puzzle, so they get more time and undos than a level of the same size would.
-      const strict = n > 3 && (tier === 'hard' || tier === 'super');
-      const undos = strict ? (tier === 'super' ? 2 : 3) : c >= 0.55 ? 2 : 3;
-      const tries = n <= 3 ? 1 : 1 + Math.min(2, Math.round(c * 2.5));
-      // the hourglass gives a set time per color, and less of it as levels get harder. HARD and SUPER HARD levels
-      // cut it further (gently in the first 40 levels), so a quick, careful player earns 3 stars on normal levels
-      // and has to really hurry on the hard ones. Never less than a minute.
-      const tierCut = { easy: 1.2, normal: 1, hard: 0.85, super: 0.74 }[tier] || 1, ramp = Math.min(1, n / 40);
-      const time = n <= 3 ? TIME : Math.max(TIME, Math.round(k * (14.5 - 4.5 * c) * (hidden === 'all' ? 1.3 : hidden === 'bottom' ? 1.1 : 1) * (1 - (1 - tierCut) * ramp) * (strict ? 1.6 : 1)));
-      // big shelves get a third empty flask to work with
-      return { n, k, hidden, time, undos, tries, strict, tier, spare: k >= 9 ? 3 : 2, mixed: n >= 4, seed: 'potions-' + n };
+      const tier = PB.levels.tier(n), p = Math.min(1, (n - 1) / 300);
+      const k = Math.min(MAX_K, n <= 3 ? 3 + n : 4 + Math.floor((n - 1) / 3));
+      const hidden = n < 15 ? 'none' : n < 40 ? 'bottom' : 'all';
+      // HARD and SUPER HARD levels use the classic rule: pour only onto the same color or into an empty flask
+      const strict = n > 3 && (tier === 'hard' || tier === 'super'), sup = tier === 'super';
+      const undos = sup ? (n >= 30 ? 1 : 2) : tier === 'hard' ? 2 : 3;
+      const tries = n <= 3 ? 1 : strict ? 3 : 2;
+      // seconds per color (for a shelf with every layer hidden); fewer seconds as the levels go up
+      const per = sup ? 11.8 - 2.8 * p : tier === 'hard' ? 15 - 3.5 * p : (12.6 - 3 * p) * (tier === 'easy' ? 1.18 : 1);
+      const hid = hidden === 'all' ? 1 : hidden === 'bottom' ? 0.9 : 0.8, early = n < 40 ? 1 + 0.35 * (1 - n / 40) : 1;
+      const time = n <= 3 ? TIME : Math.max(TIME, Math.round(k * per * hid * early));
+      const spare = k >= 9 && !(sup && n >= 40) ? 3 : 2;
+      return { n, k, hidden, time, undos, tries, strict, tier, spare, mixed: n >= 4, seed: 'potions-' + n };
     }
     function dailySpec(){ return { n:'daily', k: 9, hidden:'bottom', time: 145, undos: 3, tries: 2, spare: 3, mixed: true, seed: 'potions-daily-' + PB.today() }; }
 

@@ -35,7 +35,7 @@
     const vs = (type, mat) => (VS[type] && VS[type][mat]) || 1;
     const HIT_WORD = { triple: 'CHOP!', iron: 'SMASH!', fire: 'MELT!' };
     // difficulty in groups of 10 (like Gem Mine): easy, easy, normal, HARD, easy, normal, HARD, normal, SUPER HARD, SUPER HARD,
-    // each group a little harder than the one before, levelling off after level 80
+    // each group a little harder than the one before, levelling off after level 300
     const challenge = n => n <= 3 ? 0 : PB.levels.challenge(n);
     const BANNERS = ['#b3261e','#1f4fa8','#e0a800','#2e7d32','#6a1b9a'];
     const ROOFS = ['#9e2a22','#2b4f9a','#3f6b45','#7a3d8f'];

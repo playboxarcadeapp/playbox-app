@@ -28,10 +28,10 @@
       let type = n === 1 ? 'score' : n === 2 ? 'collect' : n === 3 ? 'frost' : ['score','collect','frost','mix'][n % 4];
       if (type === 'mix' && n < 12) type = 'collect';
       const spec = { n, c, tier: n <= 3 ? 'normal' : tierOf(n), colors, type, moves: 0, collect: null, frost: null, target: 0 };
-      if (type === 'score') { spec.moves = Math.round(lerp(20, 16)); spec.target = Math.round(spec.moves * lerp(190, 420) / 50) * 50; }
+      if (type === 'score') { spec.moves = Math.round(lerp(20, 16)); spec.target = Math.round(spec.moves * lerp(195, 450) / 50) * 50; }
       if (type === 'collect' || type === 'mix') {
         const two = type === 'collect' && c >= 0.4, pool = shuffle([...Array(colors).keys()], R).slice(0, two ? 2 : 1);
-        const each = type === 'mix' ? Math.round(lerp(7, 14)) : two ? Math.round(17 + 3 * (c - 0.4) / 0.6) : Math.round(16 + 10 * c);
+        const each = type === 'mix' ? Math.round(lerp(7, 14)) : two ? Math.round(17 + 6 * (c - 0.4) / 0.6) : Math.round(16 + 10 * c);
         spec.collect = {}; pool.forEach(t => spec.collect[t] = each);
         spec.moves = Math.round(type === 'mix' ? lerp(26, 24) : lerp(22, 18));
       }
