@@ -50,10 +50,10 @@
     // Make several puzzles and keep the one whose difficulty is closest to what this level wants
     function makePuzzle(n, k, seed, want){
       const R = mulberry(seedFrom(seed)); let best = null;
-      for (let cand = 0; cand < (want == null ? 1 : want > 0.6 ? 70 : 30); cand++) {
+      for (let cand = 0; cand < (want == null ? 1 : want > 0.4 ? 80 : 30); cand++) {
         const pz = makeOne(n, k, R); if (!pz) continue;
         if (want == null) return pz;
-        pz.stuck = stuckRate(n, pz.pairs, R, 24);
+        pz.stuck = stuckRate(n, pz.pairs, R, 40);
         if (!best || Math.abs(pz.stuck - want) < Math.abs(best.stuck - want)) best = pz;
         if (Math.abs(best.stuck - want) < 0.04) break;
       }
@@ -75,8 +75,8 @@
     function levelSize(n){
       if (n === 'daily') return { n: 8, k: 8, want: 0.75 };
       if (n <= 3) return [{ n: 4, k: 3, want: 0 }, { n: 4, k: 3, want: 0.1 }, { n: 5, k: 4, want: 0.2 }][n - 1];
-      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(9, size + (n > 200 ? 1 : 0));
-      const c = PB.levels.challenge(n), want = Math.min(1, 0.1 + c * 1.0);
+      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(9, size + 1);
+      const c = PB.levels.challenge(n), want = n <= 10 ? 0.15 + c : Math.min(0.99, 0.55 + 0.5 * c + 0.15 * Math.min(1, n / 200));
       return { n: size, k, want };
     }
 
@@ -155,14 +155,13 @@
     function checkWin(){
       if (st.over || !st.done.every(Boolean)) return;
       st.over = true; st.won = true;
-      const full = filled() === st.n * st.n, stars = (full ? 1 : 0) + (st.hinted === 0 ? 1 : 0) + 1;
-      st.score = st.k * 100 + (full ? 300 : 0) + (HINTS - st.hints) * -50 + 200;
+      st.score = st.k * 100 + 200 - st.hinted * 50;
       if (PB.sfx) PB.sfx('fanfare');
       for (let i = 0; i < 5; i++) setTimeout(() => st && sparkle(60 + Math.random() * 360, BY + Math.random() * BW, COLS[Math.floor(Math.random() * COLS.length)], 22), i * 160);
-      st.msg = full ? 'Every square filled. Perfect!' : 'All friends together!';
+      st.msg = st.hinted ? 'All friends together!' : 'Solved with no hints!';
       setTimeout(() => {
-        if (st.mode === 'daily') { shell.gameOver(st.score, full ? 'Daily puzzle solved with every square filled!' : 'Daily puzzle solved!'); return; }
-        shell.levelDone({ win: true, stars, score: st.score, summary: full ? (st.hinted ? 'Every square filled (with a hint)' : 'Every square filled, no hints. Perfect!') : 'Tip: fill every square for 3 stars' });
+        if (st.mode === 'daily') { shell.gameOver(st.score, st.hinted ? 'Daily puzzle solved!' : 'Daily puzzle solved with no hints!'); return; }
+        shell.levelDone({ win: true, stars: 3, score: st.score, summary: st.hinted ? `Solved with ${st.hinted} hint${st.hinted === 1 ? '' : 's'}` : 'Solved with no hints. Great thinking!' });
       }, 1300);
     }
     // a hint draws one color's line for you (and moves any line that was in its way)
@@ -192,10 +191,10 @@
       const t = PB.levels.tier(st.level);
       ctx.fillText(st.mode === 'daily' ? 'Daily Puzzle' : `Level ${st.level}`, 32, 52);
       if (t === 'hard' || t === 'super') { const tw = ctx.measureText(st.mode === 'daily' ? 'Daily Puzzle' : `Level ${st.level}`).width; ctx.font = `900 12px ${BODY}`; const lab = t === 'super' ? 'SUPER HARD' : 'HARD', lw = ctx.measureText(lab).width + 14; ctx.fillStyle = t === 'super' ? '#d4145a' : '#ff7a1a'; ctx.beginPath(); ctx.roundRect(40 + tw, 32, lw, 22, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(lab, 47 + tw, 48); }
-      const together = st.done.filter(Boolean).length, pct = Math.round(100 * filled() / (st.n * st.n));
+      const together = st.done.filter(Boolean).length;
       ctx.font = `800 15px ${BODY}`; ctx.fillStyle = '#dcd4ff';
       ctx.fillText(`${together} of ${st.k} friends together`, 32, 80);
-      ctx.fillText(`Board filled: ${pct}%`, 32, 100);
+      ctx.fillText(st.hinted ? `Hints used: ${st.hinted}` : 'No hints used yet', 32, 100);
       // a row of little faces: one per color, smiling once they're joined
       for (let i = 0; i < st.k; i++) { const x = W - 40 - (st.k - 1 - i) * 26, y = 80; face(x, y, 10, COLS[st.pairs[i].color], st.done[i], 0, i); }
       ctx.restore();
@@ -276,10 +275,10 @@
     }
 
     return {
-      id: 'dots', sfxScore: false, music: 'dots', title: 'DOT FRIENDS', W, H, statLabel: 'Friends', type: 'levels', levels: 500, maxLives: 0,
+      id: 'dots', sfxScore: false, music: 'dots', title: 'DOT FRIENDS', W, H, statLabel: 'Friends', type: 'levels', levels: 500, maxLives: 0, noStars: true,
       tile: { order: 9, name: 'Dot Friends', kind: 'Connect the dots · no timer', art: artTile, isNew: true },
       dailyText: 'One big puzzle a day. Take your time!',
-      controls: ['Put your finger on a dot and draw a line to the dot of the same color.', 'Lines can’t cross, and they can’t go through another color.', 'Go back over your line to rub it out, or tap a dot to start that color again.', 'Connect every pair to win. Fill every square too for 3 stars!', 'There’s no timer, so take your time. You can stop and come back any time.', 'Stuck? Tap Hint and a friend will show you one line.'],
+      controls: ['Put your finger on a dot and draw a line to the dot of the same color.', 'Lines can’t cross, and they can’t go through another color.', 'Go back over your line to rub it out, or tap a dot to start that color again.', 'Connect every pair to win. You don\u2019t have to fill the board.', 'There’s no timer, so take your time. You can stop and come back any time.', 'Stuck? Tap Hint and a friend will show you one line.'],
       powersTitle: 'Helpers',
       powers: [
         { name: 'Hint', desc: 'Draws one line for you. 3 per puzzle', icon: g => { g.font = '20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u{1F4A1}', 23, 15); } },
@@ -290,10 +289,10 @@
       start(mode, rand, lives, msg, level){ fresh(mode, level); st.intro = st.level === 1 || st.level === 'daily' ? 5 : 2.5; },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: `${st.done.filter(Boolean).length}/${st.k}`, score: st.score || 0 }; },
-      metrics(){ return { score: st.score || 0, won: st.won ? 1 : 0, full: st.won && filled() === st.n * st.n ? 1 : 0, hints: st.hinted }; },
+      metrics(){ return { score: st.score || 0, won: st.won ? 1 : 0, nohint: st.won && !st.hinted ? 1 : 0, hints: st.hinted }; },
       dailyGoals: [
         { text: 'Solve the daily puzzle', m: 'won', n: [1] },
-        { text: 'Solve it and fill every square', m: 'full', n: [1] },
+        { text: 'Solve it without a hint', m: 'nohint', n: [1] },
       ],
       debug(){ return { st, makePuzzle, stuckRate, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
       pointerDown(x, y){

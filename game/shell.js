@@ -140,7 +140,7 @@
     for (const g of ordered) {
       const el = $('best-' + g.id); if (!el) continue;
       if (g.toy) { el.textContent = g.tileNote ? g.tileNote() : ''; continue; }
-      if (g.type === 'levels') { const p = progress(g); el.textContent = `Level ${Math.min(p.unlocked, g.levels)} \u00b7 \u2605 ${totalStars(p)}`; }
+      if (g.type === 'levels') { const p = progress(g); el.textContent = `Level ${Math.min(p.unlocked, g.levels)}` + (g.noStars ? '' : ` \u00b7 \u2605 ${totalStars(p)}`); }
       else { const b = bestFor(g, 'classic'); el.textContent = b ? 'Best ' + fmtScore(g, b) : ''; }
     }
   }
@@ -249,7 +249,7 @@
     if (G.type === 'levels') {
       const p = progress(G), next = Math.min(p.unlocked, G.levels);
       $('btnClassicLabel').textContent = `Play level ${next}`;
-      $('mClassicBest').textContent = `\u2605 ${totalStars(p)} of ${G.levels * 3} stars` + (bestFor(G, 'classic') ? ` \u00b7 Best: ${G.boardFmt ? G.boardFmt(bestFor(G, 'classic')) : fmtScore(G, bestFor(G, 'classic'))}` : '');
+      $('mClassicBest').textContent = (G.noStars ? `${p.unlocked - 1} of ${G.levels} puzzles solved` : `\u2605 ${totalStars(p)} of ${G.levels * 3} stars`) + (bestFor(G, 'classic') ? ` \u00b7 Best: ${G.boardFmt ? G.boardFmt(bestFor(G, 'classic')) : fmtScore(G, bestFor(G, 'classic'))}` : '');
       $('btnLevels').hidden = false;
     } else {
       $('btnClassicLabel').textContent = 'Play';
@@ -329,7 +329,7 @@
   function openLevels(keepScroll){
     const p = progress(G), box = $('levelGrid'), prevScroll = box.scrollTop;
     box.className = 'lvlmap'; box.innerHTML = '';
-    $('levelsStars').textContent = `★ ${totalStars(p)} of ${G.levels * 3} stars`;
+    $('levelsStars').textContent = G.noStars ? `${p.unlocked - 1} of ${G.levels} solved` : `★ ${totalStars(p)} of ${G.levels * 3} stars`;
     const STEP = 82, PAD = 60, H = G.levels * STEP + PAD * 2, xOf = n => 50 + Math.sin(n * 0.85) * 30, yOf = n => H - PAD - (n - 1) * STEP;
     const trail = document.createElement('div'); trail.className = 'trail'; trail.style.height = H + 'px';
     let d = ''; for (let n = 1; n <= G.levels; n++) d += (n === 1 ? 'M' : 'L') + xOf(n).toFixed(2) + ' ' + yOf(n);
@@ -355,8 +355,8 @@
       const locked = n > p.unlocked, st = p.stars[n] || 0;
       b.disabled = locked;
       if (n === done) b.classList.add('current');
-      b.innerHTML = locked ? `<span class="num">${n}</span>${lockSvg}` : `<span class="num">${n}</span><span class="stars">${'★'.repeat(st)}<i>${'★'.repeat(3 - st)}</i></span>`;
-      b.setAttribute('aria-label', locked ? `Level ${n}, locked` : `Level ${n}, ${st} stars`);
+      b.innerHTML = locked ? `<span class="num">${n}</span>${lockSvg}` : G.noStars ? `<span class="num">${n}</span>${n < p.unlocked ? '<span class="stars">\u2713</span>' : ''}` : `<span class="num">${n}</span><span class="stars">${'★'.repeat(st)}<i>${'★'.repeat(3 - st)}</i></span>`;
+      b.setAttribute('aria-label', locked ? `Level ${n}, locked` : G.noStars ? `Level ${n}${n < p.unlocked ? ', solved' : ''}` : `Level ${n}, ${st} stars`);
       const tier = PB.levels.tier(n);
       if (TIER_TEXT[tier]) { b.classList.add('t-' + tier); b.insertAdjacentHTML('afterbegin', `<i class="tier">${TIER_TEXT[tier]}</i>`); b.setAttribute('aria-label', b.getAttribute('aria-label') + ', ' + TIER_TEXT[tier].toLowerCase()); }
       if (G.gateNeed) { const nd = G.gateNeed(n); if (nd > 0 && nd !== G.gateNeed(n - 1)) { b.insertAdjacentHTML('beforeend', `<i class="gtag" title="Needs Ship Power ${nd}">\u26A1${nd}</i>`); b.setAttribute('aria-label', b.getAttribute('aria-label') + `, needs Ship Power ${nd}`); } }
@@ -527,7 +527,7 @@
       refreshHub();
     }
     $('lTitle').textContent = win ? `Level ${level} complete!` : (G.failTitle || 'Out of moves');
-    $('lStars').innerHTML = [1,2,3].map(i => `<span class="${win && i <= stars ? 'on' : ''}">\u2605</span>`).join('');
+    $('lStars').hidden = !!G.noStars; $('lStars').innerHTML = [1,2,3].map(i => `<span class="${win && i <= stars ? 'on' : ''}">\u2605</span>`).join('');
     $('lStars').setAttribute('aria-label', win ? `${stars} of 3 stars` : 'No stars');
     $('lScore').textContent = G.levelScoreText ? G.levelScoreText(lastScore, win) : fmt(lastScore);
     $('lSummary').textContent = summary;
