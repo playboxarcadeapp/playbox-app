@@ -240,9 +240,9 @@
     { id: 'st_dots1',  game: 'dots',    e: '\u{1F534}', name: 'Dot Dabber',     desc: 'Solve Dot Friends level 5',     test: () => levelWins('dots') >= 5 },
     { id: 'st_dots2',  game: 'dots',    e: '\u{1F58D}\uFE0F', name: 'Line Artist', desc: 'Solve Dot Friends level 25', test: () => levelWins('dots') >= 25 },
     { id: 'st_dots3',  game: 'dots',    e: '\u{1F308}', name: 'Rainbow Master', desc: 'Solve Dot Friends level 75',    test: () => levelWins('dots') >= 75 },
-    { id: 'st_tank1',  game: 'tank',    e: '\u{1F41F}', name: 'Fish Friend',    desc: 'Reach tank level 3',            test: () => PB.tank && PB.tank.level() >= 3 },
-    { id: 'st_tank2',  game: 'tank',    e: '\u{1F420}', name: 'Reef Keeper',    desc: 'Reach tank level 10',           test: () => PB.tank && PB.tank.level() >= 10 },
-    { id: 'st_tank3',  game: 'tank',    e: '\u{1F433}', name: 'Ocean Master',   desc: 'Reach tank level 25',           test: () => PB.tank && PB.tank.level() >= 25 },
+    { id: 'st_tank1',  game: 'tank',    e: '\u{1F41F}', name: 'Fish Friend',    desc: 'Have 5 fish in your tank',      test: () => PB.tank && PB.tank.load().fish.length >= 5 },
+    { id: 'st_tank2',  game: 'tank',    e: '\u{1F420}', name: 'Reef Keeper',    desc: 'Visit your fish tank on 30 days', test: () => PB.tank && PB.tank.visits() >= 30 },
+    { id: 'st_tank3',  game: 'tank',    e: '\u{1F433}', name: 'Ocean Master',   desc: 'Get the Grand Aquarium',        test: () => PB.tank && PB.tank.load().tank >= 5 },
     { id: 'st_dash1',  game: 'dash',    e: '\u{1F99D}', name: 'Little Runner',  desc: 'Run 300 m in Zoom Dash',        test: () => dist() >= 300 },
     { id: 'st_dash2',  game: 'dash',    e: '\u{1F68C}', name: 'Bus Hopper',     desc: 'Run 800 m in Zoom Dash',        test: () => dist() >= 800 },
     { id: 'st_dash3',  game: 'dash',    e: '\u{1F306}', name: 'City Lights',    desc: 'Reach the Big City in Zoom Dash', test: () => dist() >= 1350 },
@@ -455,15 +455,15 @@
     const T = PB.tank; if (!T) return;
     if (tab) petTab = tab;
     const m = $('metaModal'), body = $('mmBody'); m.hidden = false; body.innerHTML = '';
-    const S = T.load(), L = T.levelOf(S.xp), tank = T.tankOf(S), plus = hasPlus();
+    const S = T.load(), tank = T.tankOf(S), plus = hasPlus(), ng = T.nextGift(S);
     const h = document.createElement('h3'); h.innerHTML = `\u{1F420} Pet Shop <span class="mmcoins">${coin}<b>${fmt(PB.wallet.get())}</b></span>`; body.appendChild(h);
-    const sub = document.createElement('p'); sub.className = 'mmsub'; sub.textContent = `Tank level ${L} \u00b7 ${S.fish.length}/${tank.fish} fish \u00b7 ${S.decor.length}/${tank.decor} decorations. Care for your tank every day to level up and unlock more!`; body.appendChild(sub);
+    const sub = document.createElement('p'); sub.className = 'mmsub'; sub.textContent = `${tank.name}: ${S.fish.length}/${tank.fish} fish, ${S.decor.length}/${tank.decor} decorations. Earn coins in any game to buy more!`; body.appendChild(sub);
     const tabs = document.createElement('div'); tabs.className = 'ptabs';
-    for (const [id, label] of [['fish', '\u{1F41F} Fish'], ['decor', '\u{1F3F0} Decor'], ['tank', '\u{1FAE7} Tanks'], ['water', '\u{1F30A} Water'], ['mine', '\u2B50 My Tank']]) {
+    for (const [id, label] of [['fish', '\u{1F41F} Fish'], ['decor', '\u{1F3F0} Decor'], ['tank', '\u{1FAE7} Tanks'], ['water', '\u{1F30A} Water'], ['gifts', '\u{1F381} Gifts'], ['mine', '\u2B50 My Tank']]) {
       const b = document.createElement('button'); b.className = 'ptab' + (petTab === id ? ' on' : ''); b.textContent = label; b.onclick = () => { petTab = id; byeAsk = null; openPetShop(); }; tabs.appendChild(b); }
     body.appendChild(tabs);
-    if (!plus && petTab !== 'mine') {
-      const box = document.createElement('div'); box.className = 'mmlock'; box.innerHTML = '<span class="ml">\u{1F6CD}\uFE0F</span><p class="mmsub">The Pet Shop is part of Playbox Plus. Ask a grown-up! You can still feed, clean and play with your fish every day.</p>';
+    if (!plus && !['mine', 'gifts'].includes(petTab)) {
+      const box = document.createElement('div'); box.className = 'mmlock'; box.innerHTML = '<span class="ml">\u{1F6CD}\uFE0F</span><p class="mmsub">The Pet Shop is part of Playbox Plus. Ask a grown-up! You can still feed, clean and play with your fish, and get every visit surprise.</p>';
       const b = document.createElement('button'); b.className = 'mmbtn'; b.textContent = 'See Playbox Plus'; b.onclick = () => { closeModal(); if (PB.openPlus) PB.openPlus(); }; box.appendChild(b); body.appendChild(box);
     }
     const grid = document.createElement('div'); grid.className = 'shopgrid pgrid'; body.appendChild(grid);
@@ -474,41 +474,51 @@
       if (r === 'ok' || r === 'worn' || r === 'stored') { if (PB.sfx) PB.sfx(r === 'worn' ? 'pick' : 'power'); if (r !== 'worn') banner(r === 'stored' ? `${okText}! It's in storage until you have room.` : okText + '!', true); }
       else if (r === 'coins') { banner('Not enough coins yet. Play games to earn more!', false); if (PB.sfx) PB.sfx('nope'); }
       else if (r === 'full') { banner('Your tank is full! Get a bigger tank, or make room in My Tank.', false); if (PB.sfx) PB.sfx('nope'); }
-      else if (r === 'level') { banner('Keep caring for your tank to reach that level!', false); if (PB.sfx) PB.sfx('nope'); }
+      else if (r === 'small') { banner('That one needs a bigger tank first!', false); if (PB.sfx) PB.sfx('nope'); }
       openPetShop();
     };
-    const lock = lv => `\u{1F512} Tank level ${lv}`, price = n => n ? `${coin}${fmt(n)}` : 'Free';
-    if (petTab === 'fish') for (const f of T.FISH) {
-      const have = S.fish.filter(x => x.sp === f.id).length, locked = L < f.lv;
-      card(thumb(g => T.drawFish(g, f.id, 36, 27, Math.min(15, 15 * 22 / f.s))),
-        f.name, locked ? lock(f.lv) : `${price(f.price)}${have ? ` \u00b7 you have ${have}` : ''}`, locked ? null : 'Buy', locked ? 'locked' : have ? 'have' : '', () => result(T.buy('fish', f.id), `Welcome, new ${f.name}`), !plus);
+    const fishPic = f => thumb(g => T.drawFish(g, f.id, 36, 27, Math.min(15, 15 * 22 / f.s)));
+    const decorPic = d => thumb(g => { if (d.id === 'lights') { g.font = '26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u2728', 36, 27); } else T.drawDecor(g, d.id, 36, 50, Math.min(0.5, 60 / Math.max(40, d.w + 20))); });
+    const waterPic = w => thumb(g => { const q = g.createLinearGradient(0, 6, 0, 50); q.addColorStop(0, w.top); q.addColorStop(1, w.bot); g.fillStyle = q; g.fillRect(10, 6, 52, 44); g.fillStyle = w.sand; g.fillRect(10, 42, 52, 8); });
+    const price = n => n ? `${coin}${fmt(n)}` : 'Free', needs = tk => `Needs a ${T.TANKS[tk].name}`;
+    if (petTab === 'fish') for (const f of T.FISH.filter(x => !x.gift)) {
+      const have = S.fish.filter(x => x.sp === f.id).length, small = (f.tk || 0) > S.tank;
+      card(fishPic(f), f.name, `${price(f.price)}${have ? ` \u00b7 you have ${have}` : ''}${small ? `<br><small>${needs(f.tk)}</small>` : ''}`, 'Buy', small ? 'locked' : have ? 'have' : '', () => result(T.buy('fish', f.id), `Welcome, new ${f.name}`), !plus || small);
     }
-    if (petTab === 'decor') for (const d of T.DECOR) {
-      const own = S.owned.includes(d.id), inTank = S.decor.includes(d.id), locked = L < d.lv;
-      card(thumb(g => { const sc = Math.min(0.5, 60 / Math.max(40, d.w + 20)); if (d.id === 'lights') { g.font = '26px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u2728', 36, 27); } else T.drawDecor(g, d.id, 36, 50, sc); }),
-        d.name, locked ? lock(d.lv) : own ? (inTank ? 'In your tank' : 'In storage') : price(d.price),
-        locked ? null : own ? (inTank ? 'Take out' : 'Put in tank') : 'Buy', locked ? 'locked' : own ? 'have' : '',
-        () => own ? result(T.toggleDecor(d.id), inTank ? 'Taken out' : 'Put in your tank') : result(T.buy('decor', d.id), `${d.name} added`), !plus && !own);
+    if (petTab === 'decor') for (const d of T.DECOR.filter(x => !x.gift || S.owned.includes(x.id))) {
+      const own = S.owned.includes(d.id), inTank = S.decor.includes(d.id), small = !own && (d.tk || 0) > S.tank;
+      card(decorPic(d), d.name, own ? (inTank ? 'In your tank' : 'In storage') : price(d.price) + (small ? `<br><small>${needs(d.tk)}</small>` : ''),
+        own ? (inTank ? 'Take out' : 'Put in tank') : 'Buy', own ? 'have' : small ? 'locked' : '',
+        () => own ? result(T.toggleDecor(d.id), inTank ? 'Taken out' : 'Put in your tank') : result(T.buy('decor', d.id), `${d.name} added`), (!plus && !own) || small);
     }
     if (petTab === 'tank') T.TANKS.forEach((t, i) => {
-      const own = i <= S.tank, cur = i === S.tank, locked = L < t.lv;
+      const own = i <= S.tank, cur = i === S.tank, next = i === S.tank + 1;
       card(thumb(g => { g.fillStyle = '#5ec8f2'; const w = 20 + i * 8, hh = 16 + i * 5; if (t.round) { g.beginPath(); g.arc(36, 30, 18, 0, 7); g.fill(); } else g.fillRect(36 - w / 2, 46 - hh, w, hh); g.strokeStyle = '#2a3a5a'; g.lineWidth = 2; if (t.round) { g.beginPath(); g.arc(36, 30, 18, 0, 7); g.stroke(); } else g.strokeRect(36 - w / 2, 46 - hh, w, hh); }),
-        t.name, locked ? lock(t.lv) : `${t.fish} fish \u00b7 ${t.decor} decorations${own ? '' : ' \u00b7 ' + price(t.price)}`, locked || own ? null : 'Upgrade', cur ? 'have on' : own ? 'have' : locked ? 'locked' : '',
-        () => result(T.buy('tank', t.id), `Your fish moved into the ${t.name}`), !plus || i !== S.tank + 1);
+        t.name, `${t.fish} fish \u00b7 ${t.decor} decorations${own ? (cur ? '<br><small>Your tank now</small>' : '') : '<br>' + price(t.price)}${!own && !next ? `<br><small>Get the ${T.TANKS[i - 1].name} first</small>` : ''}`,
+        own ? null : 'Upgrade', cur ? 'have on' : own ? 'have' : next ? '' : 'locked', () => result(T.buy('tank', t.id), `Your fish moved into the ${t.name}`), !plus || !next);
     });
-    if (petTab === 'water') for (const w of T.WATERS) {
-      const own = S.waters.includes(w.id), on = S.water === w.id, locked = L < w.lv;
-      card(thumb(g => { const q = g.createLinearGradient(0, 6, 0, 50); q.addColorStop(0, w.top); q.addColorStop(1, w.bot); g.fillStyle = q; g.fillRect(10, 6, 52, 44); g.fillStyle = w.sand; g.fillRect(10, 42, 52, 8); }),
-        w.name, locked ? lock(w.lv) : on ? 'Using now' : own ? 'Yours' : price(w.price), locked || on ? null : own ? 'Use' : 'Buy', on ? 'have on' : own ? 'have' : locked ? 'locked' : '',
-        () => result(T.buy('water', w.id), `${w.name} water`), !plus && !own);
+    if (petTab === 'water') for (const w of T.WATERS.filter(x => !x.gift || S.waters.includes(x.id))) {
+      const own = S.waters.includes(w.id), on = S.water === w.id;
+      card(waterPic(w), w.name, on ? 'Using now' : own ? 'Yours' : price(w.price), on ? null : own ? 'Use' : 'Buy', on ? 'have on' : own ? 'have' : '', () => result(T.buy('water', w.id), `${w.name} water`), !plus && !own);
+    }
+    if (petTab === 'gifts') {
+      const p = document.createElement('p'); p.className = 'mmsub'; p.textContent = `You've visited your tank on ${S.visits} day${S.visits === 1 ? '' : 's'}. Every new day you visit counts, and it never resets, so missing a day is okay!${ng ? ` Next surprise on visit ${ng.day}.` : ''}`; grid.before(p);
+      for (const g of T.VISIT_GIFTS) {
+        const got = S.gifts.includes(g.day), item = g.fish ? T.FISH.find(f => f.id === g.fish) : g.decor ? T.DECOR.find(d => d.id === g.decor) : g.water ? T.WATERS.find(w => w.id === g.water) : null;
+        const pic = item ? (g.fish ? fishPic(item) : g.decor ? decorPic(item) : waterPic(item)) : thumb(gg => { gg.font = '30px sans-serif'; gg.textAlign = 'center'; gg.textBaseline = 'middle'; gg.fillText('\u{1FA99}', 36, 28); });
+        card(pic, got || g.coins ? T.giftName(g) : 'Mystery surprise', got ? '\u2713 You got it!' : `\u{1F381} Visit ${g.day}`, null, got ? 'have' : 'locked');
+      }
     }
     if (petTab === 'mine') {
       S.fish.forEach((f, i) => { const sp = T.FISH.find(x => x.id === f.sp);
-        card(thumb(g => T.drawFish(g, f.sp, 36, 27, Math.min(15, 15 * 22 / sp.s))), f.name, sp.name, S.fish.length > 1 ? (byeAsk === i ? 'Tap again to say goodbye' : 'Let it swim to the ocean') : null, 'have',
+        card(fishPic(sp), f.name, sp.name, S.fish.length > 1 ? (byeAsk === i ? 'Tap again to say goodbye' : 'Let it swim to the ocean') : null, 'have',
           () => { if (byeAsk === i) { byeAsk = null; T.release(i); banner(`${f.name} swam off to the big ocean. Bye bye!`, true); openPetShop(); } else { byeAsk = i; openPetShop(); } }); });
+      (S.waiting || []).forEach((f, i) => { const sp = T.FISH.find(x => x.id === f.sp);
+        card(fishPic(sp), f.name, `${sp.name}<br><small>Waiting for room</small>`, 'Bring into the tank', 'locked', () => result(T.bringIn(i), `${f.name} jumped into the tank`)); });
       const tip = document.createElement('p'); tip.className = 'mmsub'; tip.textContent = 'Tip: in the Decor tab you can put decorations in your tank or take them out.'; body.appendChild(tip);
     }
   }
+
   let afterClose = null;
   function openShop(game, done){ openModal('shop'); afterClose = done || null; }
   function closeModal(){ $('metaModal').hidden = true; render(); const f = afterClose; afterClose = null; if (f) f(); }

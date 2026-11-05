@@ -26,7 +26,7 @@ THE GAMES
 - Cube Escape: slide colored blocks out through the matching exit. 500 levels.
 - Anaconda: the classic snake game in the jungle.
 - Dot Friends: connect each little dot to its twin without crossing lines. No timer, so it's perfect for little kids and quiet time. 500 levels.
-- My Fish Tank: a calm aquarium to look after and grow. Feed your fish, wipe the glass, collect pearls, and use the coins you earn in every game to buy new fish, decorations and bigger tanks. Nothing bad ever happens to your fish.
+- My Fish Tank: a calm aquarium to look after and grow. Feed your fish, wipe the glass, collect pearls, and use the coins you earn in every game to buy new fish, decorations and bigger tanks. Visiting unlocks special surprises, and missing a day never costs anything.
 
 MADE FOR FAMILIES
 - No ads, ever

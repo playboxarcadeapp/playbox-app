@@ -1,86 +1,102 @@
 // MY FISH TANK: a calm aquarium kids look after and grow over a long time.
-// Feed the fish, wipe the glass, tap fish to see tricks and collect pearls from the clam. Caring for the tank
-// earns Tank XP (a little each day), which raises the tank level and unlocks more in the Pet Shop, where coins
-// from every Playbox game buy new fish, decorations, water and bigger tanks. Nothing can die or be lost.
-// Pacing: a kid who visits most days reaches the top level (25) and can afford everything in about two years.
+// Feed the fish, wipe the glass, tap fish to see tricks and collect pearls from the clam. Everything in the Pet
+// Shop (fish, decorations, water and bigger tanks) is bought with the coins earned in every Playbox game: no
+// levels, no XP, and nothing is ever lost for missing a day. Coming back is rewarded instead: every new day you
+// visit counts toward special gifts you can't buy (the count never resets). Prices are set so a kid who plays
+// fairly often can own everything in about two years.
 (function(){
   const { ctx, mulberry, seedFrom, reduceMotion, store, today, fmt } = PB;
 
   // ---------- the catalog ----------
-  // shape: how a fish is drawn. c1/c2/c3: colors. pat: pattern. s: size. lv: tank level needed. price: coins.
+  // shape: how a fish is drawn. c1/c2/c3: colors. pat: pattern. s: size. price: coins. tk: the smallest tank it fits in (0 bowl, 1 small, 2 medium, 3 big).
   const FISH = [
-    { id: 'goldfish',  name: 'Goldfish',       shape: 'fish',   c1: '#ff9a1f', c2: '#ffd9a0', pat: 'none',    s: 15, lv: 1,  price: 40 },
-    { id: 'guppy',     name: 'Guppy',          shape: 'fish',   c1: '#4fa8ff', c2: '#ff6ec7', pat: 'spots',   s: 11, lv: 1,  price: 60 },
-    { id: 'tetra',     name: 'Neon Tetra',     shape: 'fish',   c1: '#22306e', c2: '#28e0ff', c3: '#ff3b5c', pat: 'neon', s: 10, lv: 1, price: 80 },
-    { id: 'clown',     name: 'Clownfish',      shape: 'fish',   c1: '#ff7a14', c2: '#ffffff', pat: 'bands',   s: 13, lv: 2,  price: 150 },
-    { id: 'tang',      name: 'Blue Tang',      shape: 'fish',   c1: '#1f5dff', c2: '#ffd400', c3: '#0b1f5a', pat: 'tang', s: 15, lv: 2, price: 220 },
-    { id: 'puffer',    name: 'Pufferfish',     shape: 'puffer', c1: '#ffd84a', c2: '#c98a1a', pat: 'spots',   s: 14, lv: 3,  price: 320 },
-    { id: 'star',      name: 'Starfish',       shape: 'star',   c1: '#ff6f91', c2: '#ffd0dc', pat: 'none',    s: 15, lv: 3,  price: 260 },
-    { id: 'angel',     name: 'Angelfish',      shape: 'tall',   c1: '#e8eef8', c2: '#1d2440', pat: 'stripes', s: 16, lv: 4,  price: 420 },
-    { id: 'horse',     name: 'Seahorse',       shape: 'horse',  c1: '#ffc83a', c2: '#ff8a1a', pat: 'none',    s: 14, lv: 4,  price: 480 },
-    { id: 'crab',      name: 'Hermit Crab',    shape: 'crab',   c1: '#ff4a3a', c2: '#ffd2a8', pat: 'none',    s: 13, lv: 5,  price: 520 },
-    { id: 'betta',     name: 'Betta Fish',     shape: 'betta',  c1: '#8a3cff', c2: '#ff4fa8', pat: 'none',    s: 14, lv: 5,  price: 580 },
-    { id: 'jelly',     name: 'Jellyfish',      shape: 'jelly',  c1: '#ff8fd0', c2: '#ffd6f0', pat: 'none',    s: 16, lv: 6,  price: 720 },
-    { id: 'butterfly', name: 'Butterflyfish',  shape: 'tall',   c1: '#ffe14a', c2: '#1d2440', pat: 'eyespot', s: 14, lv: 7,  price: 680 },
-    { id: 'turtle',    name: 'Sea Turtle',     shape: 'turtle', c1: '#3fae5a', c2: '#8a5a2a', pat: 'none',    s: 22, lv: 8,  price: 1250 },
-    { id: 'lion',      name: 'Lionfish',       shape: 'lion',   c1: '#ff5a3a', c2: '#fff1e0', pat: 'stripes', s: 17, lv: 9,  price: 950 },
-    { id: 'octo',      name: 'Octopus',        shape: 'octo',   c1: '#b04aff', c2: '#e2b4ff', pat: 'none',    s: 18, lv: 10, price: 1600 },
-    { id: 'idol',      name: 'Moorish Idol',   shape: 'tall',   c1: '#fff8e0', c2: '#15151f', c3: '#ffd400', pat: 'idol', s: 15, lv: 11, price: 1100 },
-    { id: 'shark',     name: 'Baby Shark',     shape: 'shark',  c1: '#7d93ad', c2: '#eef4fa', pat: 'none',    s: 22, lv: 12, price: 2300 },
-    { id: 'ray',       name: 'Manta Ray',      shape: 'ray',    c1: '#2c3e7a', c2: '#e6ecf8', pat: 'none',    s: 26, lv: 13, price: 2600 },
-    { id: 'rainbow',   name: 'Rainbow Fish',   shape: 'fish',   c1: '#7fd0ff', c2: '#ffffff', pat: 'rainbow', s: 15, lv: 14, price: 2000 },
-    { id: 'glow',      name: 'Glow Jelly',     shape: 'jelly',  c1: '#28f0ff', c2: '#c8ffff', pat: 'glow',    s: 16, lv: 16, price: 2800 },
-    { id: 'koi',       name: 'Golden Koi',     shape: 'koi',    c1: '#ffcf33', c2: '#ffffff', c3: '#ff5a1a', pat: 'koi', s: 20, lv: 18, price: 3200 },
-    { id: 'narwhal',   name: 'Baby Narwhal',   shape: 'whale',  c1: '#8fb4d8', c2: '#e6f0fa', pat: 'horn',    s: 24, lv: 20, price: 4200 },
-    { id: 'whale',     name: 'Baby Whale',     shape: 'whale',  c1: '#3f7fe0', c2: '#dfeaff', pat: 'none',    s: 26, lv: 22, price: 5000 },
-    { id: 'dragon',    name: 'Dragon Fish',    shape: 'dragon', c1: '#ff3d6e', c2: '#ffd400', pat: 'rainbow', s: 24, lv: 25, price: 7500 },
+    { id: 'goldfish',  name: 'Goldfish',       shape: 'fish',   c1: '#ff9a1f', c2: '#ffd9a0', pat: 'none',    s: 15, price: 40 },
+    { id: 'guppy',     name: 'Guppy',          shape: 'fish',   c1: '#4fa8ff', c2: '#ff6ec7', pat: 'spots',   s: 11, price: 60 },
+    { id: 'tetra',     name: 'Neon Tetra',     shape: 'fish',   c1: '#22306e', c2: '#28e0ff', c3: '#ff3b5c', pat: 'neon', s: 10, price: 80 },
+    { id: 'clown',     name: 'Clownfish',      shape: 'fish',   c1: '#ff7a14', c2: '#ffffff', pat: 'bands',   s: 13, price: 150 },
+    { id: 'tang',      name: 'Blue Tang',      shape: 'fish',   c1: '#1f5dff', c2: '#ffd400', c3: '#0b1f5a', pat: 'tang', s: 15, price: 220 },
+    { id: 'puffer',    name: 'Pufferfish',     shape: 'puffer', c1: '#ffd84a', c2: '#c98a1a', pat: 'spots',   s: 14, price: 320 },
+    { id: 'star',      name: 'Starfish',       shape: 'star',   c1: '#ff6f91', c2: '#ffd0dc', pat: 'none',    s: 15, price: 260 },
+    { id: 'angel',     name: 'Angelfish',      shape: 'tall',   c1: '#e8eef8', c2: '#1d2440', pat: 'stripes', s: 16, price: 420 },
+    { id: 'horse',     name: 'Seahorse',       shape: 'horse',  c1: '#ffc83a', c2: '#ff8a1a', pat: 'none',    s: 14, price: 480 },
+    { id: 'crab',      name: 'Hermit Crab',    shape: 'crab',   c1: '#ff4a3a', c2: '#ffd2a8', pat: 'none',    s: 13, price: 520 },
+    { id: 'betta',     name: 'Betta Fish',     shape: 'betta',  c1: '#8a3cff', c2: '#ff4fa8', pat: 'none',    s: 14, price: 580 },
+    { id: 'jelly',     name: 'Jellyfish',      shape: 'jelly',  c1: '#ff8fd0', c2: '#ffd6f0', pat: 'none',    s: 16, price: 720 },
+    { id: 'butterfly', name: 'Butterflyfish',  shape: 'tall',   c1: '#ffe14a', c2: '#1d2440', pat: 'eyespot', s: 14, price: 680 },
+    { id: 'turtle',    name: 'Sea Turtle',     shape: 'turtle', c1: '#3fae5a', c2: '#8a5a2a', pat: 'none',    s: 22, price: 1250, tk: 2 },
+    { id: 'lion',      name: 'Lionfish',       shape: 'lion',   c1: '#ff5a3a', c2: '#fff1e0', pat: 'stripes', s: 17, price: 950 },
+    { id: 'octo',      name: 'Octopus',        shape: 'octo',   c1: '#b04aff', c2: '#e2b4ff', pat: 'none',    s: 18, price: 1600, tk: 1 },
+    { id: 'idol',      name: 'Moorish Idol',   shape: 'tall',   c1: '#fff8e0', c2: '#15151f', c3: '#ffd400', pat: 'idol', s: 15, price: 1100 },
+    { id: 'shark',     name: 'Baby Shark',     shape: 'shark',  c1: '#7d93ad', c2: '#eef4fa', pat: 'none',    s: 22, price: 2300, tk: 2 },
+    { id: 'ray',       name: 'Manta Ray',      shape: 'ray',    c1: '#2c3e7a', c2: '#e6ecf8', pat: 'none',    s: 26, price: 2600, tk: 3 },
+    { id: 'rainbow',   name: 'Rainbow Fish',   shape: 'fish',   c1: '#7fd0ff', c2: '#ffffff', pat: 'rainbow', s: 15, price: 2000 },
+    { id: 'glow',      name: 'Glow Jelly',     shape: 'jelly',  c1: '#28f0ff', c2: '#c8ffff', pat: 'glow',    s: 16, price: 2800 },
+    { id: 'koi',       name: 'Golden Koi',     shape: 'koi',    c1: '#ffcf33', c2: '#ffffff', c3: '#ff5a1a', pat: 'koi', s: 20, price: 3200, tk: 2 },
+    { id: 'narwhal',   name: 'Baby Narwhal',   shape: 'whale',  c1: '#8fb4d8', c2: '#e6f0fa', pat: 'horn',    s: 24, price: 4200, tk: 3 },
+    { id: 'whale',     name: 'Baby Whale',     shape: 'whale',  c1: '#3f7fe0', c2: '#dfeaff', pat: 'none',    s: 26, price: 5000, tk: 3 },
+    // gifts for coming back (these can't be bought)
+    { id: 'sparkle',   name: 'Sparkle Goldfish', shape: 'fish',  c1: '#ffd23f', c2: '#ffffff', pat: 'spots',   s: 15, gift: true },
+    { id: 'babyocto',  name: 'Baby Octopus',   shape: 'octo',   c1: '#ff7ab8', c2: '#ffd0e6', pat: 'none',    s: 13, gift: true },
+    { id: 'rainstar',  name: 'Rainbow Starfish', shape: 'star', c1: '#9a5cff', c2: '#ffe14a', pat: 'none',    s: 15, gift: true },
+    { id: 'royaljelly', name: 'Royal Jelly',   shape: 'jelly',  c1: '#ffd23f', c2: '#fff4c0', pat: 'glow',    s: 17, gift: true },
+    { id: 'unicorn',   name: 'Unicorn Whale',  shape: 'whale',  c1: '#ffb8e0', c2: '#fff0fa', pat: 'horn',    s: 20, gift: true },
+    { id: 'goldnarwhal', name: 'Golden Narwhal', shape: 'whale', c1: '#ffcf33', c2: '#fff6c8', pat: 'horn',   s: 22, gift: true },
+    { id: 'dragon',    name: 'Dragon Fish',    shape: 'dragon', c1: '#ff3d6e', c2: '#ffd400', pat: 'rainbow', s: 24, price: 7500, tk: 3 },
   ];
   // w: how much floor it takes. back: drawn behind the fish.
   const DECOR = [
-    { id: 'plant',    name: 'Green Plant',     lv: 1,  price: 40,   w: 46, back: false },
-    { id: 'clam',     name: 'Pearl Clam',      lv: 1,  price: 300,  w: 56, back: false, pearl: 1 },
-    { id: 'rocks',    name: 'Pebble Pile',     lv: 1,  price: 80,   w: 60, back: false },
-    { id: 'kelp',     name: 'Tall Kelp',       lv: 2,  price: 150,  w: 40, back: true },
-    { id: 'bubbler',  name: 'Bubble Stone',    lv: 3,  price: 250,  w: 40, back: false },
-    { id: 'arch',     name: 'Stone Arch',      lv: 4,  price: 400,  w: 90, back: true },
-    { id: 'chest',    name: 'Treasure Chest',  lv: 5,  price: 450,  w: 62, back: false },
-    { id: 'castle',   name: 'Sand Castle',     lv: 6,  price: 700,  w: 96, back: true },
-    { id: 'diver',    name: 'Little Diver',    lv: 7,  price: 600,  w: 44, back: false },
-    { id: 'coral',    name: 'Coral Garden',    lv: 8,  price: 900,  w: 80, back: true },
-    { id: 'shrooms',  name: 'Glow Mushrooms',  lv: 10, price: 1000, w: 60, back: false },
-    { id: 'ship',     name: 'Sunken Ship',     lv: 12, price: 1600, w: 130, back: true },
-    { id: 'bigclam',  name: 'Giant Clam',      lv: 13, price: 2200, w: 80, back: false, pearl: 2 },
-    { id: 'rocket',   name: 'Toy Rocket',      lv: 15, price: 1800, w: 50, back: true },
-    { id: 'volcano',  name: 'Bubble Volcano',  lv: 17, price: 2000, w: 100, back: true },
-    { id: 'lights',   name: 'Twinkle Lights',  lv: 19, price: 2400, w: 0, back: true },
-    { id: 'palace',   name: 'Mermaid Palace',  lv: 23, price: 4000, w: 140, back: true },
+    { id: 'plant',    name: 'Green Plant',     price: 40,   w: 46, back: false },
+    { id: 'clam',     name: 'Pearl Clam',      price: 300,  w: 56, back: false, pearl: 1 },
+    { id: 'rocks',    name: 'Pebble Pile',     price: 80,   w: 60, back: false },
+    { id: 'kelp',     name: 'Tall Kelp',       price: 150,  w: 40, back: true },
+    { id: 'bubbler',  name: 'Bubble Stone',    price: 250,  w: 40, back: false },
+    { id: 'arch',     name: 'Stone Arch',      price: 400,  w: 90, back: true, tk: 1 },
+    { id: 'chest',    name: 'Treasure Chest',  price: 450,  w: 62, back: false },
+    { id: 'castle',   name: 'Sand Castle',     price: 700,  w: 96, back: true, tk: 1 },
+    { id: 'diver',    name: 'Little Diver',    price: 600,  w: 44, back: false },
+    { id: 'coral',    name: 'Coral Garden',    price: 900,  w: 80, back: true },
+    { id: 'shrooms',  name: 'Glow Mushrooms',  price: 1000, w: 60, back: false },
+    { id: 'ship',     name: 'Sunken Ship',     price: 1600, w: 130, back: true, tk: 2 },
+    { id: 'bigclam',  name: 'Giant Clam',      price: 2200, w: 80, back: false, pearl: 2, tk: 2 },
+    { id: 'rocket',   name: 'Toy Rocket',      price: 1800, w: 50, back: true },
+    { id: 'volcano',  name: 'Bubble Volcano',  price: 2000, w: 100, back: true, tk: 2 },
+    { id: 'lights',   name: 'Twinkle Lights',  price: 2400, w: 0, back: true },
+    { id: 'heartcoral', name: 'Heart Coral',   price: 0, w: 50, back: false, gift: true },
+    { id: 'trophy',   name: 'Golden Trophy',   price: 0, w: 44, back: false, gift: true },
+    { id: 'lighthouse', name: 'Little Lighthouse', price: 0, w: 50, back: true, gift: true },
+    { id: 'pearltower', name: 'Pearl Tower',   price: 0, w: 46, back: true, gift: true },
+    { id: 'palace',   name: 'Mermaid Palace',  price: 4000, w: 140, back: true, tk: 3 },
   ];
   // bigger tanks hold more fish and more decorations
   const TANKS = [
-    { id: 'bowl',   name: 'Fish Bowl',       lv: 1,  price: 0,     fish: 3,  decor: 2,  w: 340, h: 300, round: true },
-    { id: 'small',  name: 'Small Tank',      lv: 2,  price: 400,   fish: 6,  decor: 4,  w: 380, h: 300 },
-    { id: 'medium', name: 'Medium Tank',     lv: 5,  price: 1500,  fish: 10, decor: 6,  w: 420, h: 360 },
-    { id: 'big',    name: 'Big Tank',        lv: 9,  price: 4000,  fish: 15, decor: 8,  w: 450, h: 420 },
-    { id: 'reef',   name: 'Reef Tank',       lv: 14, price: 8000,  fish: 20, decor: 11, w: 460, h: 470 },
-    { id: 'grand',  name: 'Grand Aquarium',  lv: 20, price: 14000, fish: 30, decor: 16, w: 470, h: 520 },
+    { id: 'bowl',   name: 'Fish Bowl',       price: 0,     fish: 3,  decor: 2,  w: 340, h: 300, round: true },
+    { id: 'small',  name: 'Small Tank',      price: 400,   fish: 6,  decor: 4,  w: 380, h: 300 },
+    { id: 'medium', name: 'Medium Tank',     price: 1500,  fish: 10, decor: 6,  w: 420, h: 360 },
+    { id: 'big',    name: 'Big Tank',        price: 4000,  fish: 15, decor: 8,  w: 450, h: 420 },
+    { id: 'reef',   name: 'Reef Tank',       price: 8000,  fish: 20, decor: 11, w: 460, h: 470 },
+    { id: 'grand',  name: 'Grand Aquarium',  price: 14000, fish: 30, decor: 16, w: 470, h: 520 },
   ];
   const WATERS = [
-    { id: 'ocean',   name: 'Ocean Blue',     lv: 1,  price: 0,    top: '#5ec8f2', bot: '#1462a8', sand: '#e8d29a', sand2: '#c9a86a', ray: 0.08 },
-    { id: 'lagoon',  name: 'Sunny Lagoon',   lv: 4,  price: 900,  top: '#7cf0e0', bot: '#1aa2a8', sand: '#fff0c0', sand2: '#e2c98a', ray: 0.12 },
-    { id: 'sunset',  name: 'Sunset Sea',     lv: 8,  price: 1800, top: '#ffb38a', bot: '#7a3a8a', sand: '#f2c9a0', sand2: '#c88a6a', ray: 0.1 },
-    { id: 'arctic',  name: 'Arctic Ice',     lv: 12, price: 2600, top: '#d8f4ff', bot: '#5a9ad0', sand: '#ffffff', sand2: '#cfe2f2', ray: 0.07, ice: true },
-    { id: 'deep',    name: 'Deep Sea Glow',  lv: 16, price: 3500, top: '#123a7a', bot: '#030a26', sand: '#3a3a5a', sand2: '#24243a', ray: 0.03, glow: true },
+    { id: 'ocean',   name: 'Ocean Blue',     price: 0,    top: '#5ec8f2', bot: '#1462a8', sand: '#e8d29a', sand2: '#c9a86a', ray: 0.08 },
+    { id: 'lagoon',  name: 'Sunny Lagoon',   price: 900,  top: '#7cf0e0', bot: '#1aa2a8', sand: '#fff0c0', sand2: '#e2c98a', ray: 0.12 },
+    { id: 'sunset',  name: 'Sunset Sea',     price: 1800, top: '#ffb38a', bot: '#7a3a8a', sand: '#f2c9a0', sand2: '#c88a6a', ray: 0.1 },
+    { id: 'arctic',  name: 'Arctic Ice',     price: 2600, top: '#d8f4ff', bot: '#5a9ad0', sand: '#ffffff', sand2: '#cfe2f2', ray: 0.07, ice: true },
+    { id: 'rainbow', name: 'Rainbow Water',  price: 0, top: '#ffc8f0', bot: '#6a5cff', sand: '#fff0c0', sand2: '#e8c8ff', ray: 0.12, glow: true, gift: true },
+    { id: 'deep',    name: 'Deep Sea Glow',  price: 3500, top: '#123a7a', bot: '#030a26', sand: '#3a3a5a', sand2: '#24243a', ray: 0.03, glow: true },
   ];
   const NAMES = ['Bubbles', 'Finn', 'Nemo', 'Coral', 'Splash', 'Goldie', 'Wiggles', 'Pebble', 'Sunny', 'Ziggy', 'Marina', 'Captain', 'Squiggle', 'Blue', 'Peanut', 'Noodle', 'Twinkle', 'Puddles', 'Sprinkles', 'Mango', 'Pickle', 'Ollie', 'Luna', 'Poppy', 'Waffles', 'Biscuit', 'Jelly', 'Rocket', 'Shelly', 'Tiny', 'Dash', 'Maple', 'Kiwi', 'Bean', 'Sparky', 'Lulu'];
 
-  // ---------- levels: Tank XP comes from caring for the tank, a little each day ----------
-  const MAX_LV = 25, TOTAL_XP = 42000;
-  const xpFor = L => L <= 1 ? 0 : Math.round(TOTAL_XP * Math.pow((L - 1) / (MAX_LV - 1), 1.8));
-  const levelOf = xp => { let L = 1; while (L < MAX_LV && xp >= xpFor(L + 1)) L++; return L; };
-  // daily care limits (so the pace stays about the same however long a visit is)
-  const CARE = { feedXp: 20, feeds: 3, cleanXp: 30, trickXp: 2, tricks: 10, pearlXp: 5, visitXp: 10 };
+  // ---------- gifts for coming back ----------
+  // Every new day you open your tank counts as a visit. Visits add up and never reset, so missing days never costs
+  // anything; you just reach the next gift a little later.
+  const VISIT_GIFTS = [
+    { day: 2, coins: 50 }, { day: 3, fish: 'sparkle' }, { day: 5, coins: 100 }, { day: 7, decor: 'heartcoral' }, { day: 10, fish: 'babyocto' },
+    { day: 14, coins: 200 }, { day: 21, fish: 'rainstar' }, { day: 30, decor: 'trophy' }, { day: 45, coins: 400 }, { day: 60, fish: 'royaljelly' },
+    { day: 90, decor: 'lighthouse' }, { day: 120, fish: 'unicorn' }, { day: 180, water: 'rainbow' }, { day: 250, decor: 'pearltower' }, { day: 365, fish: 'goldnarwhal' },
+  ];
+  // small daily thank-yous for looking after the fish (coins, a couple of times a day at most)
+  const CARE = { feedCoins: 5, feeds: 2, cleanCoins: 10 };
   const HOUR = 3600e3, HUNGRY_AFTER = 20 * HOUR, DIRTY_AFTER = 3 * 24 * HOUR, PEARL_EVERY = 6 * HOUR, PEARL_COINS = 5;
-
   // ---------- saved tank ----------
   const KEY = 'pb-tank';
   function load(){
@@ -88,10 +104,12 @@
     if (!s) {
       const now = Date.now();
       s = { v: 1, tank: 0, fish: [{ sp: 'goldfish', name: 'Goldie' }, { sp: 'goldfish', name: 'Bubbles' }], decor: ['plant', 'clam'], owned: ['plant', 'clam'], water: 'ocean', waters: ['ocean'],
-        xp: 0, lastFed: now - 12 * HOUR, lastClean: now - 2.2 * 24 * HOUR, pearl: now - PEARL_EVERY + 20e3, care: null, seen: 0 };
+        visits: 0, lastVisit: null, gifts: [], waiting: [], lastFed: now - 12 * HOUR, lastClean: now - 2.2 * 24 * HOUR, pearl: now - PEARL_EVERY + 20e3, care: null, seen: 0 };
       store.set(KEY, s);
     }
     if (!s.owned) s.owned = s.decor.slice();
+    if (s.visits == null) { s.visits = 0; s.lastVisit = null; s.gifts = []; s.waiting = []; }
+    delete s.xp;
     if (!s.care || s.care.day !== today()) s.care = { day: today(), feeds: 0, clean: false, tricks: 0, visit: false };
     return s;
   }
@@ -100,22 +118,28 @@
   const waterOf = s => WATERS.find(w => w.id === s.water) || WATERS[0];
   const fishById = id => FISH.find(f => f.id === id);
   const decorById = id => DECOR.find(d => d.id === id);
-  function addXp(s, n){
-    const before = levelOf(s.xp); s.xp += n; const after = levelOf(s.xp);
-    if (after > before) {
-      const coins = 25 * after; if (PB.wallet) PB.wallet.add(coins);
-      if (PB.sfx) PB.sfx('fanfare');
-      if (PB.meta && PB.meta.banner) setTimeout(() => PB.meta.banner(`\u{1F420} Tank level ${after}! +${coins} coins. New things in the Pet Shop!`, true), 300);
-      if (game && game.levelUp) game.levelUp(after);
-    }
-    return after > before;
+  const giftName = g => g.coins ? `${g.coins} coins` : g.fish ? fishById(g.fish).name : g.decor ? decorById(g.decor).name : WATERS.find(w => w.id === g.water).name;
+  const nextGift = s => VISIT_GIFTS.find(g => g.day > s.visits) || null;
+  // count today's visit and hand out any gift it reaches. Returns the gift (or null).
+  function visit(s){
+    if (s.lastVisit === today()) return null;
+    s.visits++; s.lastVisit = today();
+    const g = VISIT_GIFTS.find(x => x.day === s.visits); if (!g) { save(s); return null; }
+    s.gifts.push(g.day);
+    if (g.coins && PB.wallet) PB.wallet.add(g.coins);
+    if (g.fish) { const used = new Set(s.fish.map(f => f.name)), free = NAMES.filter(n => !used.has(n)), f = { sp: g.fish, name: free[Math.floor(Math.random() * free.length)] || fishById(g.fish).name, isNew: true }; if (s.fish.length < tankOf(s).fish) s.fish.push(f); else s.waiting.push(f); }
+    if (g.decor) { s.owned.push(g.decor); if (s.decor.length < tankOf(s).decor) s.decor.push(g.decor); }
+    if (g.water) { s.waters.push(g.water); s.water = g.water; }
+    save(s); return g;
   }
   // buying from the Pet Shop
   function buy(kind, id){
-    const s = load(), L = levelOf(s.xp), wallet = PB.wallet;
+    const s = load(), wallet = PB.wallet;
     const item = kind === 'fish' ? fishById(id) : kind === 'decor' ? decorById(id) : kind === 'tank' ? TANKS.find(t => t.id === id) : WATERS.find(w => w.id === id);
     if (!item) return 'missing';
-    if (L < item.lv) return 'level';
+    if (item.gift) return 'gift';
+    if ((item.tk || 0) > s.tank) return 'small';
+    if (kind === 'tank' && TANKS.indexOf(item) > s.tank + 1) return 'order';
     if (kind === 'fish' && s.fish.length >= tankOf(s).fish) return 'full';
     if (kind === 'decor' && s.owned.includes(id)) return 'owned';
     if (kind === 'tank' && TANKS.indexOf(item) <= s.tank) return 'owned';
@@ -136,9 +160,11 @@
     else if (s.decor.length >= tankOf(s).decor) return 'full'; else s.decor.push(id);
     save(s); if (game) game.reload(); return 'ok';
   }
+  // a fish that arrived while the tank was full waits until there's room
+  function bringIn(idx){ const s = load(); if (!s.waiting[idx]) return 'missing'; if (s.fish.length >= tankOf(s).fish) return 'full'; s.fish.push(Object.assign(s.waiting.splice(idx, 1)[0], { isNew: true })); save(s); if (game) game.reload('fish'); return 'ok'; }
   let game = null;
-  PB.tank = { FISH, DECOR, TANKS, WATERS, load, save, buy, release, toggleDecor, levelOf, xpFor, MAX_LV, tankOf, waterOf,
-    level: () => levelOf(load().xp), drawFish: (g, sp, x, y, size, t) => drawFish(g, fishById(sp), x, y, size, 1, t || 0, 0, 1), drawDecor: (g, id, x, y, sc) => drawDecor(g, id, x, y, sc || 1, 0) };
+  PB.tank = { FISH, DECOR, TANKS, WATERS, VISIT_GIFTS, load, save, buy, release, toggleDecor, bringIn, giftName, nextGift, tankOf, waterOf,
+    visits: () => load().visits, drawFish: (g, sp, x, y, size, t) => drawFish(g, fishById(sp), x, y, size, 1, t || 0, 0, 1), drawDecor: (g, id, x, y, sc) => drawDecor(g, id, x, y, sc || 1, 0) };
 
   // ---------- drawing fish ----------
   const shade = (c, k) => PB.shade(c, k);
@@ -304,6 +330,12 @@
         g.fillStyle = '#7a5434'; g.fillRect(-6, -120, 6, 74); g.fillStyle = 'rgba(240,230,210,.8)'; g.beginPath(); g.moveTo(0, -116); g.lineTo(34, -98); g.lineTo(26, -70); g.lineTo(0, -66); g.fill(); g.restore(); g.fillStyle = 'rgba(10,30,60,.3)'; g.fillRect(-20, -26, 16, 18); break;
       case 'rocket': g.save(); g.rotate(0.35); g.fillStyle = '#e8ecf8'; g.beginPath(); g.moveTo(0, -78); g.quadraticCurveTo(16, -60, 14, -10); g.lineTo(-14, -10); g.quadraticCurveTo(-16, -60, 0, -78); g.fill(); g.fillStyle = '#ff3b5c'; g.beginPath(); g.moveTo(-14, -24); g.lineTo(-26, -2); g.lineTo(-12, -10); g.fill(); g.beginPath(); g.moveTo(14, -24); g.lineTo(26, -2); g.lineTo(12, -10); g.fill(); g.fillStyle = '#28c8ff'; g.beginPath(); g.arc(0, -46, 6, 0, 7); g.fill(); g.restore(); break;
       case 'volcano': { g.fillStyle = '#5a4a44'; g.beginPath(); g.moveTo(-50, 0); g.lineTo(-14, -60); g.lineTo(14, -60); g.lineTo(50, 0); g.fill(); const gl = 0.6 + 0.4 * Math.sin(t * 2); g.fillStyle = `rgba(255,${120 + 60 * gl | 0},40,1)`; g.beginPath(); g.ellipse(0, -60, 14, 4, 0, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,120,40,.8)'; g.lineWidth = 3; g.beginPath(); g.moveTo(-6, -58); g.quadraticCurveTo(-14, -40, -22, -28); g.stroke(); break; }
+      case 'heartcoral': { g.fillStyle = '#ff5f8f'; g.beginPath(); g.moveTo(0, -6); g.bezierCurveTo(-30, -30, -18, -58, 0, -42); g.bezierCurveTo(18, -58, 30, -30, 0, -6); g.fill(); g.fillStyle = '#ffb3c8'; g.beginPath(); g.arc(-8, -40, 4, 0, 7); g.fill(); g.strokeStyle = '#d0406a'; g.lineWidth = 5; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -8); g.stroke(); break; }
+      case 'trophy': { const sh = 0.6 + 0.4 * Math.sin(t * 2); g.fillStyle = '#c98a00'; g.fillRect(-14, -8, 28, 8); g.fillRect(-4, -20, 8, 12); g.fillStyle = '#ffd23f'; g.beginPath(); g.moveTo(-16, -46); g.lineTo(16, -46); g.quadraticCurveTo(14, -20, 0, -20); g.quadraticCurveTo(-14, -20, -16, -46); g.fill();
+        g.strokeStyle = '#ffd23f'; g.lineWidth = 3; for (const sx of [-1, 1]) { g.beginPath(); g.arc(sx * 17, -38, 6, sx < 0 ? Math.PI * 0.5 : -Math.PI * 0.5, sx < 0 ? Math.PI * 1.5 : Math.PI * 0.5); g.stroke(); } g.fillStyle = `rgba(255,255,255,${0.5 * sh})`; g.fillRect(-9, -42, 4, 16); break; }
+      case 'lighthouse': { g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(-14, 0); g.lineTo(-9, -70); g.lineTo(9, -70); g.lineTo(14, 0); g.fill(); g.fillStyle = '#ff3b5c'; for (const yy of [-16, -44]) { g.beginPath(); g.moveTo(-13, yy); g.lineTo(-11, yy - 12); g.lineTo(11, yy - 12); g.lineTo(13, yy); g.fill(); }
+        g.fillStyle = '#2a3a5a'; g.fillRect(-11, -84, 22, 14); const on = 0.5 + 0.5 * Math.sin(t * 2.5); g.fillStyle = `rgba(255,230,120,${0.6 + 0.4 * on})`; g.fillRect(-7, -82, 14, 10); g.fillStyle = '#ff3b5c'; g.beginPath(); g.moveTo(-13, -84); g.lineTo(0, -96); g.lineTo(13, -84); g.fill(); break; }
+      case 'pearltower': { for (let k = 0; k < 6; k++) { const r = 11 - k * 1.2, y = -10 - k * 17, sh = 0.7 + 0.3 * Math.sin(t * 2 + k); const q = g.createRadialGradient(-r * 0.3, y - r * 0.3, 1, 0, y, r); q.addColorStop(0, '#ffffff'); q.addColorStop(1, `rgba(${230 * sh | 0},${215 * sh | 0},255,1)`); g.fillStyle = q; g.beginPath(); g.arc(0, y, r, 0, 7); g.fill(); } break; }
       case 'palace': { g.fillStyle = '#ffb8d8'; g.fillRect(-60, -70, 120, 70); g.fillRect(-70, -100, 26, 100); g.fillRect(44, -100, 26, 100); g.fillRect(-20, -120, 40, 50);
         g.fillStyle = '#c77dff'; for (const [cx, cy, r] of [[-57, -100, 15], [57, -100, 15], [0, -120, 22]]) { g.beginPath(); g.arc(cx, cy, r, Math.PI, 0); g.fill(); g.fillRect(cx - 1.5, cy - r - 12, 3, 12); }
         g.fillStyle = '#ffe14a'; for (const [cx, cy] of [[-57, -128], [57, -128], [0, -156]]) { g.beginPath(); g.arc(cx, cy, 3, 0, 7); g.fill(); }
@@ -350,11 +382,7 @@
     const dirt = () => Math.max(0, Math.min(1, (Date.now() - S.lastClean) / DIRTY_AFTER));
     function pop(x, y, text, color, life){ st.pops.push({ x, y, text, color: color || '#fff', life: life || 1.4, max: life || 1.4 }); }
     function sparkle(x, y, color, n){ if (reduceMotion) return; for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 120; st.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.9, color }); } }
-    function xp(n, x, y, why){
-      if (n <= 0) return; const up = addXp(S, n); save(S);
-      if (x != null) pop(x, y, `+${n} XP${why ? ' ' + why : ''}`, '#9cff5a', 1.3);
-      return up;
-    }
+    function coins(n, x, y, why){ if (n <= 0 || !PB.wallet) return; PB.wallet.add(n); save(S); if (x != null) pop(x, y, `+${n} coins${why ? ' ' + why : ''}`, '#ffd23f', 1.4); if (PB.sfx) PB.sfx('coin'); }
     // algae spots on the glass: more the longer it's been since the last clean
     function algae(){
       const n = Math.round(dirt() * 14), R = mulberry(seedFrom('algae-' + S.lastClean)), b = box(), out = [];
@@ -373,7 +401,7 @@
       if (st.eaten >= 4 && !st.fedThisTime) {
         st.fedThisTime = true; const c = care(), wasHungry = hunger() >= 0.3;
         S.lastFed = Date.now(); save(S);
-        if (wasHungry && c.feeds < CARE.feeds) { c.feeds++; xp(CARE.feedXp, f.x, f.y - 20, 'Yum!'); }
+        if (wasHungry && c.feeds < CARE.feeds) { c.feeds++; coins(CARE.feedCoins, f.x, f.y - 20, 'Yum!'); }
         else pop(f.x, f.y - 20, 'Full and happy!', '#ffe14a');
       }
     }
@@ -381,7 +409,7 @@
       f.trick = 1; f.happy = 1; if (PB.sfx) PB.sfx(['yay', 'pick', 'woohoo'][Math.floor(Math.random() * 3)] || 'pick'); sparkle(f.x, f.y, '#ffffff', 10);
       for (let k = 0; k < 3; k++) st.bubbles.push({ x: f.x + (Math.random() - 0.5) * 10, y: f.y - 6, r: 3 + Math.random() * 3, vy: 40 + Math.random() * 30, heart: true });
       f.label = 2.5;
-      const c = care(); if (c.tricks < CARE.tricks) { c.tricks++; xp(CARE.trickXp, f.x, f.y - 26); } else save(S);
+      const c = care(); c.tricks++; save(S);
     }
     function pearlSpots(){ return st.decor.filter(p => p.d.pearl); }
     const pearlReady = () => Date.now() >= S.pearl;
@@ -389,13 +417,12 @@
       const n = PEARL_COINS * p.d.pearl; if (PB.wallet) PB.wallet.add(n);
       S.pearl = Date.now() + PEARL_EVERY / (pearlSpots().length > 1 ? 1.5 : 1); save(S);
       if (PB.sfx) PB.sfx('coin'); sparkle(p.x, floorY() - 20, '#ffe14a', 16); pop(p.x, floorY() - 40, `+${n} coins!`, '#ffd23f', 1.4);
-      xp(CARE.pearlXp);
     }
     function wipeAt(x, y){
       for (const o of algae()) if (Math.hypot(o.x - x, o.y - y) < o.r + 18) { st.wiped.add(o.i); sparkle(o.x, o.y, '#9cf0a0', 6); if (PB.sfx && Math.random() < 0.4) PB.sfx('step'); }
       if (st.wiped.size && !algae().length) {
         const c = care(), d = dirt(); S.lastClean = Date.now(); st.wiped = new Set();
-        if (d >= 0.25 && !c.clean) { c.clean = true; xp(CARE.cleanXp, W / 2, box().y + 40, 'Sparkly clean!'); } else { save(S); pop(W / 2, box().y + 40, 'Sparkly clean!', '#9cf0ff'); }
+        if (d >= 0.25 && !c.clean) { c.clean = true; coins(CARE.cleanCoins, W / 2, box().y + 40, 'Sparkly clean!'); } else { save(S); pop(W / 2, box().y + 40, 'Sparkly clean!', '#9cf0ff'); }
         if (PB.sfx) PB.sfx('win');
       }
     }
@@ -492,17 +519,18 @@
       { id: 'info', x: 368, label: '⭐', sub: 'My Tank' },
     ];
     function hud(){
-      const L = levelOf(S.xp), a = xpFor(L), b = xpFor(Math.min(MAX_LV, L + 1)), frac = L >= MAX_LV ? 1 : (S.xp - a) / (b - a);
+      const ng = nextGift(S), prev = [...VISIT_GIFTS].reverse().find(g => g.day <= S.visits), from = prev ? prev.day : 0, frac = ng ? (S.visits - from) / (ng.day - from) : 1;
       ctx.save(); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.shadowColor = 'rgba(120,70,20,.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3; ctx.beginPath(); ctx.roundRect(14, 12, W - 28, 92, 20); ctx.fill(); ctx.shadowColor = 'transparent';
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#1d3a6a'; ctx.font = `24px ${FONT}`; ctx.fillText(tankOf(S).name, 30, 44);
-      ctx.font = `800 13px ${BODY}`; ctx.fillStyle = '#4a6a9a'; ctx.fillText(`${S.fish.length} of ${tankOf(S).fish} fish · ${S.decor.length} of ${tankOf(S).decor} decorations`, 30, 64);
-      // level badge and XP bar
+      ctx.font = `800 13px ${BODY}`; ctx.fillStyle = '#4a6a9a'; ctx.fillText(`${S.fish.length} of ${tankOf(S).fish} fish \u00b7 ${S.decor.length} of ${tankOf(S).decor} decorations`, 30, 64);
+      // visits so far, and how close the next surprise is
       ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(W - 56, 46, 26, 0, 7); ctx.fill(); ctx.strokeStyle = '#c98a00'; ctx.lineWidth = 3; ctx.stroke();
-      ctx.fillStyle = '#5a3a00'; ctx.textAlign = 'center'; ctx.font = `11px ${FONT}`; ctx.fillText('LEVEL', W - 56, 38); ctx.font = `20px ${FONT}`; ctx.fillText(String(L), W - 56, 59);
-      ctx.fillStyle = 'rgba(29,58,106,.15)'; ctx.beginPath(); ctx.roundRect(30, 76, W - 130, 14, 7); ctx.fill(); ctx.fillStyle = '#4cc96a'; ctx.beginPath(); ctx.roundRect(30, 76, Math.max(14, (W - 130) * frac), 14, 7); ctx.fill();
-      ctx.fillStyle = '#1d3a6a'; ctx.font = `800 10px ${BODY}`; ctx.fillText(L >= MAX_LV ? 'TOP LEVEL!' : `${fmt(S.xp - a)} / ${fmt(b - a)} XP`, 30 + (W - 130) / 2, 87);
-      // today's care checklist
-      const c = care(), items = [[`\u{1F364} ${c.feeds}/${CARE.feeds}`, c.feeds >= CARE.feeds], [`\u{1F9FD} ${c.clean ? '✓' : dirt() < 0.25 ? 'clean' : '!'}`, c.clean || dirt() < 0.25], [`⭐ ${c.tricks}/${CARE.tricks}`, c.tricks >= CARE.tricks]];
+      ctx.fillStyle = '#5a3a00'; ctx.textAlign = 'center'; ctx.font = `10px ${FONT}`; ctx.fillText('VISITS', W - 56, 38); ctx.font = `20px ${FONT}`; ctx.fillText(String(S.visits), W - 56, 59);
+      ctx.fillStyle = 'rgba(29,58,106,.15)'; ctx.beginPath(); ctx.roundRect(30, 76, W - 130, 14, 7); ctx.fill(); ctx.fillStyle = '#ff7ab8'; ctx.beginPath(); ctx.roundRect(30, 76, Math.max(14, (W - 130) * frac), 14, 7); ctx.fill();
+      ctx.fillStyle = '#1d3a6a'; ctx.font = `800 10px ${BODY}`;
+      ctx.fillText(ng ? `\u{1F381} ${ng.day - S.visits} more visit${ng.day - S.visits === 1 ? '' : 's'} until a surprise!` : 'You found every surprise!', 30 + (W - 130) / 2, 87);
+      // today's care
+      const c = care(), items = [[`\u{1F364} ${c.feeds >= 1 || hunger() < 0.3 ? 'fed \u2713' : 'hungry'}`, c.feeds >= 1 || hunger() < 0.3], [`\u{1F9FD} ${c.clean || dirt() < 0.25 ? 'clean \u2713' : 'dirty'}`, c.clean || dirt() < 0.25], [`\u{1F41A} ${pearlReady() ? 'pearl ready!' : 'no pearl yet'}`, !pearlReady()]];
       ctx.font = `800 12px ${BODY}`; let x = 30; for (const [tx, done] of items) { const w = ctx.measureText(tx).width + 14; ctx.fillStyle = done ? '#d8f8d8' : '#fff3d0'; ctx.beginPath(); ctx.roundRect(x, 110, w, 22, 11); ctx.fill(); ctx.fillStyle = done ? '#1f7a30' : '#8a5a00'; ctx.textAlign = 'left'; ctx.fillText(tx, x + 7, 125); x += w + 6; }
       ctx.restore();
     }
@@ -525,23 +553,25 @@
     // a short "welcome back" when you arrive
     function arrive(){
       const c = care(), msgs = [];
-      if (!c.visit) { c.visit = true; xp(CARE.visitXp); msgs.push('Your fish missed you!'); }
+      if (!c.visit) { c.visit = true; msgs.push('Welcome back!'); }
+      const g = visit(S);
+      if (g) { build(); if (PB.sfx) PB.sfx('fanfare'); for (let k = 0; k < 4; k++) sparkle(80 + k * 110, box().y + 100, ['#ffd23f', '#5ee0ff', '#ff5f8f', '#9cff5a'][k], 20);
+        if (PB.meta && PB.meta.banner) setTimeout(() => PB.meta.banner(`\u{1F381} Visit ${g.day} surprise: ${giftName(g)}!${g.fish && S.waiting.length && S.waiting[S.waiting.length - 1].sp === g.fish ? ' It\u2019s waiting in My Tank until you have room.' : ''}`, true), 400); }
       if (hunger() >= 0.3) msgs.push('The fish are hungry. Tap Feed!'); else if (dirt() >= 0.25 && !c.clean) msgs.push('The glass is dirty. Wipe it with your finger!'); else if (pearlReady()) msgs.push('A pearl is ready in the clam!');
       save(S); if (msgs.length) tip(msgs.join(' '), 4.5);
     }
 
     game = {
-      id: 'tank', toy: true, sfxScore: false, music: 'tank', title: 'MY FISH TANK', W, H, statLabel: 'Tank level', scoreLabel: 'Coins', type: 'endless', maxLives: 0, noDaily: true,
+      id: 'tank', toy: true, sfxScore: false, music: 'tank', title: 'MY FISH TANK', W, H, statLabel: 'Visits', scoreLabel: 'Coins', type: 'endless', maxLives: 0, noDaily: true,
       tile: { order: 10, name: 'My Fish Tank', kind: 'Grow your own aquarium', art: artTile, isNew: true },
-      tileNote(){ const s = load(); return `Tank level ${levelOf(s.xp)} · ${s.fish.length} fish`; },
-      controls: ['Tap Feed, then tap the water to drop food. Your fish will swim up for a snack!', 'When the glass gets green, wipe it with your finger.', 'Tap a fish to see a trick and learn its name.', 'Tap the shiny pearl in the clam for coins.', 'Caring for your tank every day earns XP. Level up to unlock new fish, decorations and bigger tanks in the Pet Shop!', 'Nothing bad ever happens to your fish, so you can visit whenever you like.'],
+      tileNote(){ const s = load(); return `${s.fish.length} fish \u00b7 ${s.visits} visit${s.visits === 1 ? '' : 's'}`; },
+      controls: ['Tap Feed, then tap the water to drop food. Your fish will swim up for a snack!', 'When the glass gets green, wipe it with your finger.', 'Tap a fish to see a trick and learn its name.', 'Tap the shiny pearl in the clam for coins.', 'Use the coins you earn in every game to buy new fish, decorations and bigger tanks in the Pet Shop.', 'Every day you visit counts toward a special surprise you can\u2019t buy. Missing a day is fine: your visits never reset!', 'Nothing bad ever happens to your fish, so you can visit whenever you like.'],
       init(){},
       preview(){ build(); },
       start(){ build(); st.mode = null; arrive(); },
       reload(kind, id){ build(); if (kind === 'fish') { const f = st.fish[st.fish.length - 1]; if (f) { f.label = 4; sparkle(f.x, f.y, '#ffe14a', 20); } if (PB.sfx) PB.sfx('yay'); } if (kind === 'tank' && PB.sfx) PB.sfx('fanfare'); },
-      levelUp(L){ if (st) { pop(W / 2, box().y + 60, `Level ${L}!`, '#ffd23f', 2.2); for (let k = 0; k < 4; k++) sparkle(80 + k * 110, box().y + 100, ['#ffd23f', '#5ee0ff', '#ff5f8f', '#9cff5a'][k], 20); } },
       frame(dt){ if (st.tip) { st.tip.t -= dt; if (st.tip.t <= 0) st.tip = null; } update(dt); draw(); },
-      hud(){ return { lives: null, stat: levelOf(S.xp), score: PB.wallet ? PB.wallet.get() : 0 }; },
+      hud(){ return { lives: null, stat: S.visits, score: PB.wallet ? PB.wallet.get() : 0 }; },
       metrics(){ return { score: 0 }; },
       debug(){ return { st, S: () => S, update, box, algae, hunger, dirt, dropFood, wipeAt, tapFish: i => tapFish(st.fish[i]), takePearl, care, pearlSpots }; },
       pointerDown(x, y){
