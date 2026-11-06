@@ -10,9 +10,9 @@
     const GOLD = '#f5c84c';
     // Bold, easy-to-tell-apart colors, in the order they join the shelf (a new one every 3 levels).
     const BASE = [['#ff1f2d','Dragon fire'],['#1f5fff','Midnight ink'],['#ffe600','Sunbeam'],['#18b83a','Frog juice'],['#8a2be2','Wizard mist'],['#ff8c00','Pumpkin brew'],
-                  ['#f4f4f4','Unicorn milk'],['#ff7ac8','Fairy blush'],['#7a3f12','Troll tea'],['#00e0ff','Mermaid tears'],['#a8ff1a','Goblin slime'],['#8a93a6','Ghost smoke']];
-    // From level 75 the last colors are swapped, one at a time, for shades close to a color already on the shelf.
-    const CLOSE = [[11, '#b0102a', 'Vampire wine'], [10, '#0f8a5f', 'Forest tonic'], [9, '#4aa8ff', 'Sky elixir'], [8, '#ffb000', 'Honey glow'], [7, '#c77dff', 'Pixie punch'], [6, '#ff5520', 'Lava soup']];
+                  ['#f4f4f4','Unicorn milk'],['#ff7ac8','Fairy blush'],['#7a3f12','Troll tea'],['#00e0ff','Mermaid tears'],['#161616','Shadow ink'],['#6e7686','Ghost smoke']];
+    // Every level uses these same 12 colors: no two look alike (no extra shades of red, green or yellow later on).
+    const CLOSE = [];
     const COLORS = BASE.map(c => c[0]), NAMES = BASE.map(c => c[1]);
     function usePalette(n){
       BASE.forEach(([c, nm], i) => { COLORS[i] = c; NAMES[i] = nm; });
