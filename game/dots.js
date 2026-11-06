@@ -47,17 +47,53 @@
       }
       return stuck / tries;
     }
-    // Make several puzzles and keep the one whose difficulty is closest to what this level wants
-    function makePuzzle(n, k, seed, want){
-      const R = mulberry(seedFrom(seed)); let best = null;
-      for (let cand = 0; cand < (want == null ? 1 : want > 0.4 ? 80 : 30); cand++) {
-        const pz = makeOne(n, k, R); if (!pz) continue;
-        if (want == null) return pz;
-        pz.stuck = stuckRate(n, pz.pairs, R, 40);
-        if (!best || Math.abs(pz.stuck - want) < Math.abs(best.stuck - want)) best = pz;
-        if (Math.abs(best.stuck - want) < 0.04) break;
-      }
-      return best;
+    // A thinking test: how much work does a sensible player need to solve it? This solver works like a person:
+    // it does the closest pairs first and draws the most direct line it can, and only takes a longer way around
+    // when it has to (it allows every line S extra squares beyond the straight distance, S = 0, 1, 2, ...).
+    // The number of squares it has to try before everything connects is the puzzle's "effort". Easy puzzles solve
+    // almost straight away; hard ones need lines that go the long way round and lots of trying again.
+    function effort(n, pairs, cap){
+      const k = pairs.length, grid = new Int16Array(n * n).fill(-1), man = p => Math.abs(p.a[0] - p.b[0]) + Math.abs(p.a[1] - p.b[1]);
+      pairs.forEach((p, i) => { grid[p.a[0] * n + p.a[1]] = i; grid[p.b[0] * n + p.b[1]] = i; });
+      const order = pairs.map((p, i) => i).sort((x, y) => man(pairs[x]) - man(pairs[y]));
+      let nodes = 0, S = 0;
+      const solveFrom = idx => {
+        if (idx === k) return true;
+        const i = order[idx], p = pairs[i], goal = p.b[0] * n + p.b[1], br = p.b[0], bc = p.b[1], limit = man(p) + S, used = [];
+        const step = (r, c, len) => {
+          if (++nodes > cap) throw 0;
+          const opts = [];
+          for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+            const rr = r + dr, cc = c + dc; if (rr < 0 || cc < 0 || rr >= n || cc >= n) continue;
+            const key = rr * n + cc;
+            if (key === goal) { opts.length = 0; opts.push([rr, cc, -1]); break; }
+            if (grid[key] !== -1) continue;
+            const d = Math.abs(rr - br) + Math.abs(cc - bc); if (len + 1 + d > limit) continue;
+            opts.push([rr, cc, d]);
+          }
+          opts.sort((x, y) => x[2] - y[2]);
+          for (const [rr, cc, d] of opts) {
+            if (d === -1) { if (solveFrom(idx + 1)) return true; continue; }
+            const key = rr * n + cc; grid[key] = 100 + i; used.push(key);
+            if (step(rr, cc, len + 1)) return true;
+            grid[key] = -1; used.pop();
+          }
+          return false;
+        };
+        return step(p.a[0], p.a[1], 0);
+      };
+      try { for (S = 0; S <= n * 2; S += 2) if (solveFrom(0)) return nodes; } catch (e) { return cap; }
+      return cap;
+    }
+    // Make a batch of puzzles, sort them by effort, and take the one at the spot this level wants
+    // (q 0 = the easiest of the batch, 1 = the hardest). Most random puzzles are easy, so the hard levels look
+    // through a big batch and keep the toughest one.
+    function makePuzzle(n, k, seed, pick){
+      const R = mulberry(seedFrom(seed)), list = [];
+      if (!pick) return makeOne(n, k, R);
+      for (let cand = 0; cand < pick.count; cand++) { const pz = makeOne(n, k, R); if (!pz) continue; pz.effort = effort(n, pz.pairs, 40000); list.push(pz); }
+      list.sort((x, y) => x.effort - y.effort);
+      return list[Math.round(Math.max(0, Math.min(1, pick.q)) * (list.length - 1))];
     }
     function makeOne(n, k, R){
       for (let tries = 0; tries < 60; tries++) {
@@ -73,17 +109,20 @@
     // The board only ever grows as you go up (it never shrinks on an easy level). What changes from level to level
     // is how tangled the puzzle is: easy ones mostly connect the obvious way, SUPER HARD ones almost never do.
     function levelSize(n){
-      if (n === 'daily') return { n: 8, k: 8, want: 0.75 };
-      if (n <= 3) return [{ n: 4, k: 3, want: 0 }, { n: 4, k: 3, want: 0.1 }, { n: 5, k: 4, want: 0.2 }][n - 1];
-      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(9, size + 1);
-      const c = PB.levels.challenge(n), want = n <= 10 ? 0.15 + c : Math.min(0.99, 0.55 + 0.5 * c + 0.15 * Math.min(1, n / 200));
-      return { n: size, k, want };
+      if (n === 'daily') return { n: 8, k: 9, pick: { count: 60, q: 1 } };
+      if (n <= 3) return [{ n: 4, k: 3, pick: { count: 6, q: 0 } }, { n: 4, k: 3, pick: { count: 6, q: 0.3 } }, { n: 5, k: 4, pick: { count: 8, q: 0.5 } }][n - 1];
+      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(10, size + 1 + (n > 150 ? 1 : 0));
+      const tier = PB.levels.tier(n), grown = Math.min(1, n / 150);
+      // the first 10 levels stay gentle; after that even easy ones come from the harder half of the batch
+      if (n <= 10) return { n: size, k, pick: { count: 12, q: tier === 'super' ? 1 : tier === 'hard' ? 0.85 : 0.5 } };
+      const pick = tier === 'super' ? { count: 90, q: 1 } : tier === 'hard' ? { count: 45, q: 1 } : tier === 'easy' ? { count: 30, q: 0.7 + 0.2 * grown } : { count: 35, q: 0.85 + 0.12 * grown };
+      return { n: size, k, pick };
     }
 
     // ---------- state ----------
     function fresh(mode, level){
       const daily = mode === 'daily', L = daily ? 'daily' : level || 1, sz = levelSize(L);
-      const pz = makePuzzle(sz.n, sz.k, daily ? 'dots-daily-' + PB.today() : 'dots-level-' + L, sz.want);
+      const pz = makePuzzle(sz.n, sz.k, daily ? 'dots-daily-' + PB.today() : 'dots-level-' + L, sz.pick);
       st = { mode, level: L, n: pz.n, k: pz.k, pairs: pz.pairs, paths: pz.pairs.map(() => []), done: pz.pairs.map(() => false), draw: null,
         hints: HINTS, hinted: 0, moves: 0, time: 0, over: false, parts: [], pops: [], joy: pz.pairs.map(() => 0), shake: 0, msg: null, won: false, look: [W / 2, BY + BW / 2], blink: 0 };
       st.cs = BW / st.n;
@@ -294,7 +333,7 @@
         { text: 'Solve the daily puzzle', m: 'won', n: [1] },
         { text: 'Solve it without a hint', m: 'nohint', n: [1] },
       ],
-      debug(){ return { st, makePuzzle, stuckRate, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
+      debug(){ return { st, makePuzzle, stuckRate, effort, makeOne, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
       pointerDown(x, y){
         if (st.over) return;
         if (inBtn(BTN.hint, x, y)) { hint(); return; }
