@@ -142,9 +142,9 @@
     function startAt(x, y){
       const cell = cellAt(x, y); if (!cell || st.over) return;
       const d = st.dotAt.get(key(...cell));
-      if (d != null) { st.paths[d] = [cell]; st.done[d] = false; st.draw = { i: d }; if (PB.sfx) PB.sfx('pick'); return; }
+      if (d != null) { if (st.hintLines) st.hintLines.delete(d); st.paths[d] = [cell]; st.done[d] = false; st.draw = { i: d }; if (PB.sfx) PB.sfx('pick'); return; }
       const o = owner(...cell);
-      if (o >= 0) { const p = st.paths[o], at = p.findIndex(q => q[0] === cell[0] && q[1] === cell[1]); st.paths[o] = p.slice(0, at + 1); st.done[o] = false; st.draw = { i: o }; if (PB.sfx) PB.sfx('pick'); }
+      if (o >= 0) { if (st.hintLines) st.hintLines.delete(o); const p = st.paths[o], at = p.findIndex(q => q[0] === cell[0] && q[1] === cell[1]); st.paths[o] = p.slice(0, at + 1); st.done[o] = false; st.draw = { i: o }; if (PB.sfx) PB.sfx('pick'); }
     }
     function stepTo(cell){
       const i = st.draw.i, p = st.paths[i], last = p[p.length - 1];
@@ -210,11 +210,12 @@
       if (want < 0) return;
       const sol = st.pairs[want].sol;
       st.paths.forEach((p, j) => { if (j !== want && p.some(q => sol.some(s => s[0] === q[0] && s[1] === q[1]))) { st.paths[j] = []; st.done[j] = false; } });
-      st.paths[want] = sol.map(q => [q[0], q[1]]); st.hints--; st.hinted++;
+      st.paths[want] = sol.map(q => [q[0], q[1]]); st.hints--; st.hinted++; (st.hintLines = st.hintLines || new Set()).add(want);
       const [x, y] = center(sol[Math.floor(sol.length / 2)]); pop(x, y, 'Like this!', '#fff3a0', 1.2); if (PB.sfx) PB.sfx('power');
       connect(want); checkWin();
     }
-    function restart(){ if (st.over) return; st.paths = st.pairs.map(() => []); st.done = st.pairs.map(() => false); if (PB.sfx) PB.sfx('whoosh'); }
+    // Clear rubs out your lines but keeps any line a hint drew (you already used that hint)
+    function restart(){ if (st.over) return; const keep = st.hintLines || new Set(); st.paths = st.paths.map((p, i) => keep.has(i) ? p : []); st.done = st.done.map((d, i) => keep.has(i) ? d : false); if (PB.sfx) PB.sfx('whoosh'); }
 
     // ---------- drawing ----------
     const BTN = { hint: [W / 2 - 110, 650, 100, 50], reset: [W / 2 + 10, 650, 100, 50] };

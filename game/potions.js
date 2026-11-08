@@ -204,7 +204,12 @@
       if (st.anim || st.over) return;
       const time = st.time, spec = st.spec;
       st.bottles = makeBottles(spec); st.sel = -1; st.undo = []; st.undos = spec.undos || 3; st.sealed = new Set(); st.score = 0; st.stuckSaid = false; st.sealFx = []; st.pours = 0;
-      st.time = full ? spec.time : time; layout();
+      st.time = full ? spec.time : time;
+      // Clear keeps the power-ups you already used on this level (extra flasks stay, Magic Eye stays on)
+      const used = st.used || { flask: 0, reveal: false };
+      if (full) st.used = { flask: 0, reveal: false };
+      else { for (let k = 0; k < used.flask; k++) st.bottles.push([]); if (used.reveal) st.bottles.forEach(t => t.forEach(l => { l.hidden = false; })); }
+      layout();
       pop(W / 2, 236, full ? 'Fresh start!' : 'Potions back to the start', GOLD, 1.4);
       if (PB.sfx) PB.sfx(full ? 'whoosh' : 'pick');
     }
@@ -1153,6 +1158,7 @@
       if (b.id === 'flask' && st.bottles.length >= 16) { pop(W / 2, 128, 'The shelf is full!', GOLD, 1.4); if (PB.sfx) PB.sfx('nope'); return; }
       if (!PB.meta.useBoost(b.id)) return;
       st.boostFlash = { id: b.id, t: 0.6 }; st.sel = -1; if (PB.sfx) PB.sfx('power');
+      st.used = st.used || { flask: 0, reveal: false }; if (b.id === 'flask') st.used.flask++; else st.used.reveal = true;
       if (b.id === 'flask') {
         st.bottles.push([]); for (const u of st.undo) u.push([]); layout();
         const p = st.pos[st.pos.length - 1]; sparkle(p.x + p.w / 2, p.y + p.h / 2, '#d0f4ff', 24); pop(p.x + p.w / 2, p.y - 20, 'Extra flask!', '#d0f4ff', 1.4);
