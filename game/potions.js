@@ -78,7 +78,8 @@
     function makeBottles(spec){
       const R = mulberry(seedFrom(spec.seed));
       let best = null, bestHard = -1, fallback = null, found = 0;
-      for (let attempt = 0; attempt < 40 && found < (spec.tries || 1); attempt++) {
+      // only boards the solver has proven can be finished with plain pours are used (keep looking if none yet)
+      for (let attempt = 0; (attempt < 40 && found < (spec.tries || 1)) || (!best && attempt < 400); attempt++) {
         const pool = []; for (let c=0;c<spec.k;c++) for (let i=0;i<CAP;i++) pool.push(c);
         shuffle(pool, R);
         const bottles = []; for (let b=0;b<spec.k;b++) bottles.push(pool.slice(b*CAP, b*CAP + CAP));
