@@ -197,11 +197,15 @@
       st.bottles = st.undo.pop(); st.undos--; st.sel = -1; st.sealFx = []; st.stuckSaid = false;
       st.sealed = new Set(st.bottles.map((b, i) => isSealed(b) ? i : -1).filter(i => i >= 0));
     }
-    function restart(){
+    // Clear: put every potion back where it started, but the hourglass keeps running.
+    // Restart: the whole level again from the beginning, with a full hourglass.
+    function restart(full){
       if (st.anim || st.over) return;
       const time = st.time, spec = st.spec;
-      st.bottles = makeBottles(spec); st.sel = -1; st.undo = []; st.undos = spec.undos || 3; st.sealed = new Set(); st.score = 0; st.stuckSaid = false;
-      st.time = time; layout();
+      st.bottles = makeBottles(spec); st.sel = -1; st.undo = []; st.undos = spec.undos || 3; st.sealed = new Set(); st.score = 0; st.stuckSaid = false; st.sealFx = []; st.pours = 0;
+      st.time = full ? spec.time : time; layout();
+      pop(W / 2, 236, full ? 'Fresh start!' : 'Potions back to the start', GOLD, 1.4);
+      if (PB.sfx) PB.sfx(full ? 'whoosh' : 'pick');
     }
     function sparkle(x, y, color, n){
       if (reduceMotion) return;
@@ -214,7 +218,7 @@
       if (st.intro > 0) st.intro = Math.max(0, st.intro - dt);
       if (!st.over && st.phase === 'play' && !(st.intro > 0)) {
         st.time = Math.max(0, st.time - dt);
-        if (st.spec.strict && !st.anim && !st.stuckSaid && !anyPour()) { st.stuckSaid = true; pop(W / 2, 152, st.undos > 0 ? 'No pours left! Try Undo' : 'No pours left! Tap Restart', '#ff9a3d', 2.2); }
+        if (st.spec.strict && !st.anim && !st.stuckSaid && !anyPour()) { st.stuckSaid = true; pop(W / 2, 152, st.undos > 0 ? 'No pours left! Try Undo' : 'No pours left! Tap Clear', '#ff9a3d', 2.2); }
         if (st.time <= 0) timeUp();
       }
       if (st.anim) {
@@ -841,14 +845,14 @@
       for (let i=0;i<8;i++) { const a = i / 8 * Math.PI * 2; ctx.save(); ctx.translate(Math.cos(a) * 121, Math.sin(a) * 121); ctx.rotate(a + Math.PI / 2); ctx.fillText(glyphs[i], 0, 0); ctx.restore(); }
       ctx.restore();
     }
-    function drawButton(x, y, label, sub, enabled){
-      ctx.globalAlpha = enabled ? 1 : 0.4;
-      const bgr = ctx.createLinearGradient(0, y - 17, 0, y + 17); bgr.addColorStop(0, '#c88cff'); bgr.addColorStop(0.5, '#8a3ad8'); bgr.addColorStop(1, '#5a1aa0');
+    function drawButton(x, y, label, sub, enabled, h = 34){
+      ctx.globalAlpha = enabled ? 1 : 0.4; const hh = h / 2;
+      const bgr = ctx.createLinearGradient(0, y - hh, 0, y + hh); bgr.addColorStop(0, '#c88cff'); bgr.addColorStop(0.5, '#8a3ad8'); bgr.addColorStop(1, '#5a1aa0');
       ctx.fillStyle = bgr; ctx.strokeStyle = '#ffd86a'; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.roundRect(x - 54, y - 17, 108, 34, 17); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.roundRect(x - 46, y - 14, 92, 11, 6); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(x - 54, y - hh, 108, h, hh); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.roundRect(x - 46, y - hh + 3, 92, h * 0.3, 6); ctx.fill();
       ctx.fillStyle = '#fff3d6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = `800 14px ${BODY}`; ctx.fillText(label + (sub != null ? ` (${sub})` : ''), x, y + 1);
+      ctx.font = `800 ${h < 30 ? 13 : 14}px ${BODY}`; ctx.fillText(label + (sub != null ? ` (${sub})` : ''), x, y + 1);
       ctx.globalAlpha = 1;
     }
     // ---------- 3D look: glass flasks with glowing potion layers, lit by the floating candles ----------
@@ -1005,8 +1009,9 @@
       const hurry = !st.over && st.time <= 10, beat = hurry ? 1 + 0.18 * Math.max(0, Math.sin(st.clock * 12)) : 1;
       ctx.save(); ctx.translate(tx + tw + 8, ty + 11); ctx.scale(beat, beat); ctx.fillStyle = hurry ? '#ff6b81' : '#fff3d6'; ctx.font = `800 14px ${BODY}`; ctx.fillText(timeStr(st.time), 0, 0); ctx.restore();
       drawHourglass(190, 55, 62, frac, st.clock);
-      drawButton(W - 64, 32, 'Undo', st.undos, st.undos > 0 && st.undo.length > 0 && !st.anim);
-      drawButton(W - 64, 74, 'Restart', null, !st.anim);
+      drawButton(W - 64, 26, 'Undo', st.undos, st.undos > 0 && st.undo.length > 0 && !st.anim, 26);
+      drawButton(W - 64, 55, 'Clear', null, !st.anim, 26);
+      drawButton(W - 64, 84, '\u21BA Restart', null, !st.anim, 26);
       if (st.spec.strict) drawRule();
       if (!in3D) for (const c of CANDLES) floatingCandle(c, st.clock);
 
@@ -1216,7 +1221,7 @@
       id:'potions', sfxScore:false, music:'potions', title:'POTION SORT', W, H, statLabel:'Time', type:'levels', levels:500, maxLives:0,
       failTitle:"Time's up!", dailyText:'One big brew, one try a day', powersTitle:'Magic tips',
       tile:{ order:4, name:'Potion Sort', kind:"Wizard's potion puzzle \u00b7 500 levels", art: artTile },
-      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out.', 'On HARD and SUPER HARD levels you can only pour onto the same color or into an empty flask. Think ahead!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
+      controls: ['Tap a flask to pick it up, then tap another flask to pour.', 'You can pour into any flask that has room, even onto a different color.', 'Fill every flask with a single color before the hourglass runs out.', 'Clear puts every potion back where it started (the hourglass keeps going). Restart starts the whole level again with a full hourglass.', 'On HARD and SUPER HARD levels you can only pour onto the same color or into an empty flask. Think ahead!', 'New colors join as you go, so later levels get tough.', 'Finish faster for more stars.', 'Power-ups at the top: Extra Flask and Magic Eye. Get more in the Swag Shop, gifts and level-map chests.'],
       powers: [
         { name:'Undo', desc:'Take back a pour. You get 3 per level', icon: g => { g.fillStyle = '#2a1a4a'; g.strokeStyle = GOLD; g.lineWidth = 1.5; g.beginPath(); g.roundRect(2, 3, 42, 22, 11); g.fill(); g.stroke(); g.fillStyle = '#fff3d6'; g.font = `800 10px ${BODY}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Undo', 23, 14); } },
         { name:'Corked flask', desc:'A full flask of one color seals itself', icon: g => { g.fillStyle = COLORS[0]; g.fillRect(15, 6, 16, 20); g.fillStyle = '#b07a45'; g.fillRect(16, 1, 14, 6); } },
@@ -1240,7 +1245,7 @@
       pointerDown(x, y){
         if (st.over) return;
         if (st.intro > 0) { st.intro = 0; return; }
-        if (x > W - 122 && y < 94) { if (y < 53) doUndo(); else restart(); return; }
+        if (x > W - 122 && y < 99) { if (y < 40) doUndo(); else if (y < 69) restart(false); else restart(true); return; }
         { const bz = boostAt(x, y); if (bz) { useBoost(bz); return; } }
         for (let i=0;i<st.pos.length;i++) { const p = st.pos[i]; if (x > p.x - 8 && x < p.x + p.w + 8 && y > p.y - 40 && y < p.y + p.h + 14) { tap(i); return; } }
         st.sel = -1;
