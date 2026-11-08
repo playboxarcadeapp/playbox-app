@@ -367,7 +367,12 @@
           if (dx*dx + dy*dy <= b.r*b.r) {
             if (fx.fire > 0 && k.kind !== 'steel') { k.hp = 1; breakBrick(k); continue; }
             breakBrick(k);
-            if (Math.abs(dx) > Math.abs(dy)) b.vx = -b.vx; else b.vy = -b.vy;
+            // bounce away from the side that was hit and move the ball clear of the brick, so it can't stay
+            // inside a brick that's still there (steel, or a brick that needs more hits) and slide along it
+            let nx = dx, ny = dy;
+            if (!nx && !ny) { const l = b.x - k.x, r = k.x + k.w - b.x, t = b.y - k.y, bt = k.y + k.h - b.y, m = Math.min(l, r, t, bt); nx = m === l ? -1 : m === r ? 1 : 0; ny = m === t ? -1 : m === bt ? 1 : 0; }
+            if (Math.abs(nx) > Math.abs(ny)) { b.vx = Math.sign(nx) * Math.abs(b.vx); b.x = (nx > 0 ? k.x + k.w : k.x) + Math.sign(nx) * (b.r + 0.5); }
+            else { b.vy = Math.sign(ny) * Math.abs(b.vy); b.y = (ny > 0 ? k.y + k.h : k.y) + Math.sign(ny) * (b.r + 0.5); }
             break;
           }
         }
