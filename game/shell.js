@@ -61,35 +61,54 @@
   function paintCoins(){ const c = fmt(wallet.get()); $('hubCoins').innerHTML = coinSvg + `<b>${c}</b> coins`; $('hCoins').textContent = c; }
   const coinsForScore = score => Math.max(1, Math.min(25, Math.round(Math.sqrt(Math.max(0, score)) / 4)));
 
-  // ---------- Daily challenges: one real goal per game per day ----------
+  // ---------- Daily challenges: one goal per game per day, done during normal play ----------
+  // Most goals add up over the day ("Mine 250 gems today", "Beat 3 levels today"); a few are one-run feats
+  // (run: true, "Grow to 35 long"). Progress is saved after every run, so stopping and coming back is fine.
   function challengeFor(g, day = today()){
     if (!g.dailyGoals || !g.dailyGoals.length) return null;
     const R = mulberry(seedFrom('goal-' + g.id + '-' + day));
     const t = g.dailyGoals[Math.floor(R() * g.dailyGoals.length)];
     const goal = t.n[Math.floor(R() * t.n.length)];
-    const lim = t.limit ? t.limit[Math.floor(R() * t.limit.length)] : null;
-    return { ...t, goal, lim, label: t.text.replace('{n}', fmt(lim != null ? lim : goal)) };
+    return { ...t, goal, label: t.text.replace('{n}', fmt(goal)) };
   }
   const dailyLog = () => { const d = store.get('pb-daily-done') || {}; return d.date === today() ? d : { date: today(), games: {} }; };
   const challengeDone = g => !!dailyLog().games[g.id];
+  const dailyProg = () => { const d = store.get('pb-daily-prog') || {}; return d.date === today() ? d : { date: today(), games: {} }; };
+  const goalSoFar = g => dailyProg().games[g.id] || 0;
   const CHALLENGE_COINS = 20;
-  let chal = null;  // the challenge being played right now
-  function checkChallenge(){
-    if (!chal || chal.done || chal.failed || !G.metrics) return;
-    const m = G.metrics(), h = G.hud();
-    if (chal.noHit && h.lives != null && h.lives < chal.lives0) return missChallenge('You got bumped! Try again for the goal.');
-    if (chal.zero && m[chal.zero] > 0) return missChallenge('Try again without using it!');
-    if (chal.max && chal.lim != null && m[chal.max] > chal.lim) return missChallenge('Too many! Try again for the goal.');
-    chal.value = m[chal.m] || 0;
+  let chal = null;  // today's goal for the game being played (null once it's done)
+  function startChallenge(){
+    const c = challengeFor(G);
+    chal = c && !challengeDone(G) ? { ...c, base: goalSoFar(G), counted: 0, bad: false, lives0: G.hud().lives } : null;
+    if (chal) setTimeout(() => { if (chal && phase === 'play') toast(`Today's goal: ${chal.label}${chal.run || chal.goal === 1 ? '' : ` (${fmt(Math.min(chal.base, chal.goal))}/${fmt(chal.goal)})`}`, false); }, 900);
+  }
+  // this run's amount toward the goal (extra: things the shell knows, like whether a level was won)
+  function runAmount(extra){
+    const m = Object.assign({}, G.metrics ? G.metrics() : {}, extra || {}), h = G.hud();
+    if (chal.noHit && !chal.bad && h.lives != null && h.lives < chal.lives0) { chal.bad = true; toast('You got bumped, so this run won\u2019t count for today\u2019s goal. Try again!', false); }
+    if (chal.bad || (chal.zero && m[chal.zero] > 0)) return 0;
+    return m[chal.m] || 0;
+  }
+  const goalValue = cur => chal.run ? Math.max(chal.base, cur) : chal.base + Math.max(0, cur - chal.counted);
+  function checkChallenge(extra){
+    if (!chal || chal.done || mode !== 'classic') return;
+    chal.value = goalValue(runAmount(extra));
     if (chal.value >= chal.goal) {
       chal.done = true;
-      const first = !challengeDone(G);
-      if (first) { const d = dailyLog(); d.games[G.id] = true; store.set('pb-daily-done', d); wallet.add(CHALLENGE_COINS); }
-      toast(first ? `Challenge complete! +${CHALLENGE_COINS} coins` : 'Challenge complete again!', true);
+      const d = dailyLog(); d.games[G.id] = true; store.set('pb-daily-done', d); wallet.add(CHALLENGE_COINS);
+      const p = dailyProg(); p.games[G.id] = chal.goal; store.set('pb-daily-prog', p);
+      toast(`\u2605 Daily goal done! +${CHALLENGE_COINS} coins`, true);
       if (PB.sfx) PB.sfx('life');
     }
   }
-  function missChallenge(msg){ chal.failed = true; toast(msg, false); }
+  // save this run's progress (called when a run ends or you leave the game)
+  function commitChallenge(extra){
+    if (!chal || chal.done || mode !== 'classic') return;
+    checkChallenge(extra); if (chal.done) return;
+    const cur = runAmount(extra), v = goalValue(cur);
+    chal.base = v; chal.counted = chal.run ? 0 : Math.max(chal.counted, cur);
+    const p = dailyProg(); p.games[G.id] = v; store.set('pb-daily-prog', p);
+  }
   let toastT = null;
   function toast(text, good){
     const t = $('toast'); t.innerHTML = (good ? coinSvg : '') + '<span></span>'; t.querySelector('span').textContent = text;
@@ -129,10 +148,11 @@
       const c = challengeFor(g); if (!c) continue;
       const done = challengeDone(g); if (done) doneN++;
       const b = document.createElement('button'); b.className = 'chal' + (done ? ' done' : '');
+      const sofar = goalSoFar(g), part = !done && !c.run && c.goal > 1 && sofar > 0 ? ` (${fmt(Math.min(sofar, c.goal))}/${fmt(c.goal)})` : '';
       b.innerHTML = `<span class="ck" aria-hidden="true">${done ? '\u2713' : ''}</span><span class="tx"><b></b><span></span></span><span class="rw">${done ? 'Done' : coinSvg + '+' + CHALLENGE_COINS}</span>`;
-      b.querySelector('b').textContent = g.tile.name; b.querySelector('.tx span').textContent = c.label;
+      b.querySelector('b').textContent = g.tile.name; b.querySelector('.tx span').textContent = c.label + part;
       b.setAttribute('aria-label', `${g.tile.name}: ${c.label}${done ? ', done' : ''}`);
-      b.addEventListener('click', () => { openGame(g.id); startGame('daily'); });
+      b.addEventListener('click', () => { openGame(g.id); });
       list.appendChild(b);
     }
     $('chalCount').textContent = `${doneN} of ${list.children.length} done`;
@@ -199,7 +219,7 @@
   const setText = (id, v) => { if (hudCache[id] !== v) { hudCache[id] = v; $(id).textContent = v; } };
   const setHidden = (id, v) => { const k = id + '#h'; if (hudCache[k] !== v) { hudCache[k] = v; $(id).hidden = v; } };
   function updateHud(){
-    if (mode === 'daily' && phase === 'play') checkChallenge();
+    if (phase === 'play') checkChallenge();
     const h = G.hud(); soundCues(h);
     setHidden('hLives', h.lives == null);
     if (h.lives != null) setText('hLives', '\u2665'.repeat(Math.max(h.lives, 0)) || '\u2013');
@@ -209,9 +229,10 @@
     setText('hScore', fmtScore(G, h.score));
     setText('hBest', fmtScore(G, h.best != null ? h.best : Math.max(cachedBest, h.score)));
     const tag = $('hMode');
-    if (mode === 'daily' && phase !== 'menu') {
+    if (G.type !== 'levels' && chal && phase !== 'menu') {
+      // endless games show today's goal on the HUD as you play
       setHidden('hMode', false);
-      setText('hMode', !chal ? 'DAILY' : chal.done ? '\u2605 GOAL DONE' : chal.failed ? 'GOAL MISSED' : chal.m === 'won' || chal.m === 'timeLeft' || chal.m === 'left' ? '\u2605 GOAL' : `\u2605 ${fmt(Math.min(chal.value || 0, chal.goal))}/${fmt(chal.goal)}`);
+      setText('hMode', chal.done ? '\u2605 GOAL DONE' : chal.run || chal.goal === 1 ? '\u2605 GOAL' : `\u2605 ${fmt(Math.min(chal.value || chal.base || 0, chal.goal))}/${fmt(chal.goal)}`);
     }
     else if (G.type === 'levels' && phase !== 'menu') { setHidden('hMode', false); setText('hMode', 'LEVEL ' + level); }
     else setHidden('hMode', true);
@@ -256,13 +277,13 @@
       $('mClassicBest').textContent = `Best: ${fmtScore(G, bestFor(G, 'classic'))} \u00b7 Today: ${fmtScore(G, bestFor(G, 'today'))}`;
       $('btnLevels').hidden = true;
     }
-    $('btnDaily').hidden = !!G.noDaily;
+    $('btnDaily').hidden = true;
     { const hb = $('btnHangar'); hb.hidden = !G.hangar; if (G.hangar) { const plus = !PB.plus || PB.plus.on(); hb.querySelector('small').textContent = plus ? `Ship Power ${G.hangar.power()} \u00b7 upgrade your ship` : 'Upgrades \u00b7 Playbox Plus'; } }
     paintFree();
     const note = $('mNote'); if (note) { const t = G.menuNote && G.type === 'levels' ? G.menuNote(Math.min(progress(G).unlocked, G.levels)) : ''; note.hidden = !t; note.textContent = t; }
     if (PB.music) PB.music.duck(true);
-    const c = challengeFor(G);
-    $('mDailyBest').textContent = c ? (challengeDone(G) ? '\u2713 ' + c.label : c.label + ` \u00b7 +${CHALLENGE_COINS} coins`) : (G.dailyText || 'A new challenge every day');
+    const c = challengeFor(G), gl = $('mGoal');
+    if (gl) { gl.hidden = !c; if (c) { const done = challengeDone(G), sofar = goalSoFar(G); gl.innerHTML = done ? `\u2713 Today's goal done: ${c.label}` : `\u2605 Today's goal: ${c.label}${!c.run && c.goal > 1 ? ` (${fmt(Math.min(sofar, c.goal))}/${fmt(c.goal)})` : ''} \u00b7 ${coinSvg}+${CHALLENGE_COINS}`; gl.className = 'goalline' + (done ? ' done' : ''); } }
     showView('menu');
   }
   function paintFree(){
@@ -280,7 +301,7 @@
       ? `You beat ${PB.plus.FREE.levels} new levels in ${name} today. Come back tomorrow for ${PB.plus.FREE.levels} more, replay any level you\u2019ve already beaten, or try the Daily Challenge.`
       : `You\u2019ve had your ${PB.plus.FREE.runs} free plays of ${name} today. Come back tomorrow for more, or try the Daily Challenge. It\u2019s always free!`;
     $('btnLimitOld').hidden = !lv;
-    $('btnLimitDaily').hidden = !!G.noDaily;
+    $('btnLimitDaily').hidden = true;
     showView('limit');
   }
   function showGate(gt){
@@ -413,8 +434,7 @@
     }
     lastEntryId = null; prevHud = null; revives = 0;
     if (PB.meta) PB.meta.onPlay(G.id, m, level);
-    chal = m === 'daily' ? challengeFor(G) : null;
-    if (chal) { chal.lives0 = G.hud().lives; chal.value = 0; setTimeout(() => { if (chal && phase === 'play') toast('Goal: ' + chal.label, false); }, 900); }
+    if (m === 'classic') startChallenge(); else chal = null;
     if (PB.sfx) PB.sfx('start'); if (PB.music) PB.music.duck(false);
     paused = false; showView(null);
     // the first time a game is played, show its key controls
@@ -441,12 +461,12 @@
 
   // Endless games (and daily challenges) end here
   shell.gameOver = function(score, summary){
-    if (mode === 'daily') checkChallenge();
+    commitChallenge();
     phase = 'over'; lastScore = Math.floor(score);
     const mult = PB.meta ? PB.meta.coinMult(G.id) : 1, earned = coinsForScore(lastScore) * mult; wallet.add(earned);
     $('oCoins').innerHTML = coinSvg + `<span>+${fmt(earned)} coins${mult > 1 ? ` (\u00d7${mult} ${PB.meta.event().name})` : ''}</span>`;
     const lastKey = 'pb-lastrun-' + G.id + '-' + mode, prevRun = store.get(lastKey) || 0; store.set(lastKey, lastScore);
-    $('oChal').hidden = !chal; if (chal) { $('oChal').textContent = chal.done ? '\u2605 Daily goal complete!' : 'Daily goal: ' + chal.label + (chal.failed ? ' (missed)' : ''); $('oChal').className = 'chalres' + (chal.done ? ' ok' : ''); }
+    $('oChal').hidden = !chal; if (chal) { $('oChal').textContent = chal.done ? '\u2605 Today\u2019s goal complete!' : `Today\u2019s goal: ${chal.label}${chal.run || chal.goal === 1 ? '' : ` (${fmt(Math.min(chal.base, chal.goal))}/${fmt(chal.goal)})`}`; $('oChal').className = 'chalres' + (chal.done ? ' ok' : ''); }
     const boards = mode === 'classic' ? boardsOf(G) : [mode];
     const prevBest = bestFor(G, mode), q = boards.some(b => qualifies(G, b, lastScore));
     if (PB.sfx) PB.sfx(lastScore > prevBest && lastScore > 0 ? 'win' : 'lose'); if (PB.music) PB.music.duck(true);
@@ -502,6 +522,7 @@
     if (mode === 'daily') { shell.gameOver(score, summary); return; }
     if (!win && !info.final && offerRevive(() => shell.levelDone({ ...info, final: true }))) return;
     phase = 'over'; lastScore = Math.floor(score);
+    commitChallenge({ won: win ? 1 : 0, perfect: win && stars >= 3 ? 1 : 0 });
     const firstClear = win && !(progress(G).stars[level] > 0);
     const mult = PB.meta ? PB.meta.coinMult(G.id) : 1, earned = (win ? 2 + stars + (firstClear ? 5 : 0) : 1) * mult; wallet.add(earned);
     $('lCoins').innerHTML = coinSvg + `<span>+${earned} coin${earned === 1 ? '' : 's'}${firstClear ? ' (first clear bonus!)' : ''}${mult > 1 ? ` (\u00d7${mult} event)` : ''}</span>`;
@@ -578,7 +599,7 @@
   $('btnHelpBack').addEventListener('click', () => showView('menu'));
   $('btnScores').addEventListener('click', () => {
     $('tabClassic').hidden = false; $('tabWeekly').hidden = false; $('tabToday').hidden = false;
-    $('tabDaily').hidden = !!G.noDaily; $('tabDaily').textContent = 'Challenge';
+    $('tabDaily').hidden = true; $('tabDaily').textContent = 'Challenge';
     setTab('classic'); showView('scores');
   });
   $('btnScoresBack').addEventListener('click', () => showView('menu'));
@@ -628,7 +649,7 @@
     last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
   }
   function closeGame(){
-    clearTimeout(overTimer);
+    clearTimeout(overTimer); if (phase === 'play') commitChallenge();
     cancelAnimationFrame(raf); raf = null; play.hidden = true; $('hub').hidden = false; paused = false; hideCoach();
     if (PB.music) PB.music.play('hub');
     refreshHub(); $('tile-' + G.id).focus();

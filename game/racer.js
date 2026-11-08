@@ -618,9 +618,9 @@
       hud(){ const pl = st.finished ? st.place : 1 + st.rivals.filter(r => r.d > st.d).length, won = st.level - 1 + (st.finished && st.place === 1 ? 1 : 0), best = Math.max(won, (PB.bestOf && PB.bestOf('racer')) || 0); return st.mode === 'daily' ? { lives: st.lives, stat: st.level, statLabel: 'Race', score: won } : { lives: st.lives, stat: PLACE[pl - 1], score: won, best }; },
       metrics(){ return { score: st.score, level: st.level, stars: st.stars }; },
       dailyGoals: [
-        { text:'Collect {n} stars', m:'stars', n:[40, 60, 80] },
-        { text:'Reach race {n}', m:'level', n:[3, 4] },
-        { text:'Reach race {n} without crashing', m:'level', n:[2, 3], noHit:true },
+        { text:'Collect {n} stars today', m:'stars', n:[40, 70, 100] },
+        { text:'Win {n} races today', m:'won', n:[1, 2] },
+        { text:'Win a race without crashing', m:'perfect', n:[1] },
       ],
       pointerDown(x, y){
         if (st.phase !== 'play') return;

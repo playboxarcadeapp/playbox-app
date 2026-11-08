@@ -660,9 +660,9 @@
       debug(){ return { st, speed: baseSpeed, step, launch }; },
       metrics(){ return { score: st.score, level: st.level, won: st.classic && st.phase === 'over' && st.bricks.every(k => k.hp <= 0 || k.kind === 'steel') ? 1 : 0 }; },
       dailyGoals: [
-        { text:'Score {n} points', m:'score', n:[2500, 4000, 6000] },
-        { text:'Reach level {n}', m:'level', n:[3, 4, 5] },
-        { text:'Reach level {n} without losing a ball', m:'level', n:[2, 3], noHit:true },
+        { text:'Beat {n} levels today', m:'won', n:[2, 3] },
+        { text:'Score {n} points today', m:'score', n:[3000, 5000, 8000] },
+        { text:'Beat a level without losing a ball', m:'perfect', n:[1] },
       ],
       // Slide anywhere: the paddle follows your finger sideways, so your finger can stay low and out of the way
       pointerDown(x){ drag = { x, px: st.paddle.x }; launch(); },

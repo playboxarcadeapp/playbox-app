@@ -662,7 +662,10 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
 .pluscard.on { border-width: 1px; box-shadow: none; padding: 8px 14px; } .pluscard.on .pci { width: 34px; height: 34px; font-size: 1.1rem; }
 .mbtn.locked .mi { filter: grayscale(.6); opacity: .75; }
 .mbtn.locked::after { content: 'PLUS'; position: absolute; top: 6px; right: 6px; font-size: .6rem; font-weight: 900; letter-spacing: .08em; padding: 2px 6px; border-radius: 8px; background: var(--yellow); color: #2a1e00; }
-.panel p.freeleft { margin-top: -4px; font-size: .85rem; } .panel p.freeleft b { color: var(--ptext); }
+.panel p.goalline { margin: 4px 0 6px; padding: 8px 12px; border-radius: 12px; background: rgba(255,210,63,.14); border: 1.5px dashed rgba(255,210,63,.6); font-weight: 800; font-size: .86rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.goalline.done { background: rgba(120,220,120,.14); border-color: rgba(120,220,120,.6); }
+.goalline .coin, .goalline svg { width: 1em; height: 1em; }
+.freeleft { margin-top: -4px; font-size: .85rem; } .panel p.freeleft b { color: var(--ptext); }
 .mmlock { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 6px 0 2px; } .mmlock .ml { font-size: 2.4rem; }
 #plusModal { position: fixed; inset: 0; z-index: 60; background: rgba(4,6,20,.82); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) 14px max(16px, env(safe-area-inset-bottom, 0px)); font-family: var(--body); color: var(--text); }
 #plusModal[hidden] { display: none; }
@@ -807,9 +810,10 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           <button class="btn primary" id="btnClassic"><span id="btnClassicLabel">Play</span><small id="mClassicBest">Best: 0</small></button>
           <p class="freeleft" id="mFree" hidden></p>
           <p class="freeleft" id="mNote" hidden></p>
+          <p class="goalline" id="mGoal" hidden></p>
           <button class="btn ghost" id="btnLevels" hidden>All levels</button>
           <button class="btn ghost" id="btnHangar" hidden><span>🚀 Hangar</span><small></small></button>
-          <button class="btn gold" id="btnDaily"><span>Daily Challenge</span><small id="mDailyBest">New every day</small></button>
+          <button class="btn gold" id="btnDaily" hidden><span>Daily Challenge</span><small id="mDailyBest">New every day</small></button>
           <div class="btnrow">
             <button class="btn ghost" id="btnHelp">How to play</button>
             <button class="btn ghost" id="btnScores">High scores</button>
@@ -879,7 +883,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
           <div class="revic">🌙</div>
           <p class="summary" id="xText"></p>
           <button class="btn primary" id="btnPlusGo"><span>Unlock everything</span><small>Playbox Plus · ask a grown-up</small></button>
-          <button class="btn gold" id="btnLimitDaily"><span>Daily Challenge</span><small>Always free</small></button>
+          <button class="btn gold" id="btnLimitDaily" hidden><span>Daily Challenge</span><small>Always free</small></button>
           <div class="btnrow">
             <button class="btn ghost" id="btnLimitOld">Replay a level</button>
             <button class="btn ghost" id="btnLimitBack">Other games</button>
@@ -917,7 +921,7 @@ h2 { color: #c9c3ff; letter-spacing: .18em; }
             <button role="tab" id="tabClassic" aria-selected="true">All time</button>
             <button role="tab" id="tabWeekly" aria-selected="false" hidden>This week</button>
             <button role="tab" id="tabToday" aria-selected="false">Today</button>
-            <button role="tab" id="tabDaily" aria-selected="false">Today's challenge</button>
+            <button role="tab" id="tabDaily" aria-selected="false" hidden>Today's challenge</button>
           </div>
           <ol class="scores" id="sList"></ol>
           <button class="btn ghost" id="btnScoresBack">Back</button>

@@ -1412,9 +1412,10 @@
       hud(){ return { lives: null, stat: ammoLeft(), score: st.score }; },
       metrics(){ return { score: st.score, blocks: st.knocked - (st.gobs || 0), goblins: st.gobs || 0, left: st.over && st.win ? ammoLeft() : 0, won: st.over && st.win ? 1 : 0 }; },
       dailyGoals: [
-        { text:'Smash or knock down {n} castle blocks', m:'blocks', n:[10, 14, 18] },
-        { text:'Bonk every goblin with {n} shots to spare', m:'left', n:[1, 2] },
-        { text:'Bonk {n} goblins', m:'goblins', n:[3, 4] },
+        { text:'Knock down {n} castle blocks today', m:'blocks', n:[40, 60, 80] },
+        { text:'Bonk {n} goblins today', m:'goblins', n:[10, 15, 20] },
+        { text:'Win a level with {n} shots to spare', m:'left', n:[1, 2], run:true },
+        { text:'Beat {n} levels today', m:'won', n:[2, 3] },
       ],
       pointerDown(x, y){
         if (st.over || !E || !st.cam) return;

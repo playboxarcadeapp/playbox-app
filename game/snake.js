@@ -629,9 +629,9 @@
       debug(){ return st; }, debugRespawn(){ respawnSnake(); return st; },
       metrics(){ return { score: st.score, eaten: st.eaten, level: st.level, length: st.snake.length }; },
       dailyGoals: [
-        { text:'Eat {n} fruit', m:'eaten', n:[20, 30, 40] },
-        { text:'Grow to {n} long', m:'length', n:[25, 35, 45] },
-        { text:'Reach level {n} without bumping into anything', m:'level', n:[3, 4], noHit:true },
+        { text:'Eat {n} fruit today', m:'eaten', n:[40, 60, 80] },
+        { text:'Grow to {n} long', m:'length', n:[25, 35, 45], run:true },
+        { text:'Reach level {n} without bumping into anything', m:'level', n:[3, 4], run:true, noHit:true },
       ],
       // Keep your finger down and slide it around: every new direction you drag turns the snake (no need to lift)
       pointerDown(x, y){ down = { x, y, used: false, last: null }; },

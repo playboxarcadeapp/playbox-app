@@ -330,8 +330,8 @@
       hud(){ return { lives: null, stat: `${st.done.filter(Boolean).length}/${st.k}`, score: st.score || 0 }; },
       metrics(){ return { score: st.score || 0, won: st.won ? 1 : 0, nohint: st.won && !st.hinted ? 1 : 0, hints: st.hinted }; },
       dailyGoals: [
-        { text: 'Solve the daily puzzle', m: 'won', n: [1] },
-        { text: 'Solve it without a hint', m: 'nohint', n: [1] },
+        { text: 'Solve {n} puzzles today', m: 'won', n: [2, 3, 4] },
+        { text: 'Solve {n} puzzles without a hint today', m: 'nohint', n: [1, 2] },
       ],
       debug(){ return { st, makePuzzle, stuckRate, effort, makeOne, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
       pointerDown(x, y){

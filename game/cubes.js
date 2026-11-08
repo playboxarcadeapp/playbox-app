@@ -593,9 +593,9 @@
       debug(){ return { st }; }, debugBoost(id){ const b = boostList().find(q => q.id === id); if (b) pressBoost(b); }, debugHammer(i){ hammer(st.blocks[i]); },
       metrics(){ return { score: st.score, level: st.level, won: st.won ? 1 : 0 }; },
       dailyGoals: [
-        { text:'Reach level {n}', m:'level', n:[3, 4, 5] },
-        { text:'Score {n} points', m:'score', n:[2000, 3000, 4500] },
-        { text:'Reach level {n} without losing a life', m:'level', n:[2, 3], noHit:true },
+        { text:'Beat {n} levels today', m:'won', n:[2, 3, 4] },
+        { text:'Get 3 stars on {n} levels today', m:'perfect', n:[1, 2] },
+        { text:'Score {n} points today', m:'score', n:[3000, 5000] },
       ],
       pointerDown(x, y){
         if (st.phase !== 'play' || st.pending != null || st.retry != null || st.done) return;

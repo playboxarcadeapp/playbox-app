@@ -843,9 +843,10 @@
       hud(){ return { lives: null, stat: st.moves, score: st.score }; },
       metrics(){ return { score: st.score, gems: st.gems || 0, chain: st.maxChain || 0 }; },
       dailyGoals: [
-        { text:'Mine {n} gems', m:'gems', n:[80, 100, 120] },
-        { text:'Score {n} points', m:'score', n:[3000, 4500, 6000] },
-        { text:'Make a {n}-in-a-row chain reaction', m:'chain', n:[3, 4] },
+        { text:'Mine {n} gems today', m:'gems', n:[150, 250, 350] },
+        { text:'Beat {n} levels today', m:'won', n:[2, 3] },
+        { text:'Make a {n}-in-a-row chain reaction', m:'chain', n:[3, 4], run:true },
+        { text:'Get 3 stars on {n} levels today', m:'perfect', n:[1, 2] },
       ],
       pointerDown(x, y){
         if (st.busy || st.over) return;

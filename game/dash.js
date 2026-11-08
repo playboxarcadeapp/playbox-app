@@ -2273,6 +2273,11 @@
       debugStep(n){ for (let i=0;i<n;i++) { if (st.phase === 'play') update(1 / 60); effects(1 / 60); } },
       debug(){ return { st, update, curSeg, zones: ZONES, startTally, skipTally, zoneIdx, zoneInfo, nextZoneFrom, lapAt, ensureWorld, LAP }; },
       metrics(){ return { score: st.score, food: st.food, dist: Math.floor(st.dist), turns: st.turns || 0, coins: st.coins || 0 }; },
+      dailyGoals: [
+        { text:'Collect {n} coins today', m:'coins', n:[300, 600, 900] },
+        { text:'Run {n} m in one go', m:'dist', n:[1000, 2000, 3000], run:true },
+        { text:'Run {n} m today', m:'dist', n:[3000, 5000, 8000] },
+      ],
       pointerDown(x, y){ down = { x, y, used:false }; },
       pointerMove(x, y){ if (!down || down.used) return; const dx = x - down.x, dy = y - down.y; if (Math.hypot(dx, dy) > 34) { down.used = true; swipe(dx, dy); } },
       pointerUp(x, y){

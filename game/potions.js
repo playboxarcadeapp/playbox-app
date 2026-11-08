@@ -1232,9 +1232,10 @@
       revive(){ st.over = false; st.time = 45; st.warned = false; pop(W / 2, 128, '+45 seconds!', GOLD, 1.6); },
       metrics(){ return { score: st.score, won: st.won ? 1 : 0, timeLeft: st.won ? Math.ceil(st.time) : 0, undoUsed: (st.spec.undos || 3) - st.undos, pours: st.pours || 0 }; },
       dailyGoals: [
-        { text:'Sort every potion with {n} seconds left', m:'timeLeft', n:[10, 15, 20] },
-        { text:'Sort every potion without using Undo', m:'won', n:[1], zero:'undoUsed' },
-        { text:'Sort every potion in {n} pours or less', m:'won', n:[1], max:'pours', limit:[50, 45, 40] },
+        { text:'Beat {n} levels today', m:'won', n:[2, 3] },
+        { text:'Win a level with {n} seconds left', m:'timeLeft', n:[20, 30, 45], run:true },
+        { text:'Win a level without using Undo', m:'won', n:[1], zero:'undoUsed' },
+        { text:'Get 3 stars on {n} levels today', m:'perfect', n:[1, 2] },
       ],
       pointerDown(x, y){
         if (st.over) return;
