@@ -6,8 +6,10 @@
   function createDots(shell){
     const W = 480, H = 720, BX = 20, BY = 150, BW = 440;
     const FONT = '"Lilita One", "Arial Rounded MT Bold", "Arial Black", sans-serif', BODY = '"Nunito", "Segoe UI", sans-serif';
-    const COLS = ['#ff3b3b', '#2f7bff', '#22c55e', '#ffd400', '#ff8a00', '#a855f7', '#ff5fb8', '#14d4e0', '#9a6a3a'];
-    const NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink', 'Aqua', 'Brown'];
+    const COLS = ['#ff3b3b', '#2f7bff', '#22c55e', '#ffd400', '#ff8a00', '#a855f7', '#ff5fb8', '#14d4e0', '#9a6a3a', '#f4f4f4', '#2b2b38'];
+    const NAMES = ['Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink', 'Aqua', 'Brown', 'White', 'Black'];
+    // walls sit on the line between two squares; a wall key is "smaller square index - bigger square index"
+    const wkey = (a, b) => a < b ? a + '-' + b : b + '-' + a;
     const HINTS = 3;
     let st = null;
 
@@ -52,20 +54,23 @@
     // when it has to (it allows every line S extra squares beyond the straight distance, S = 0, 1, 2, ...).
     // The number of squares it has to try before everything connects is the puzzle's "effort". Easy puzzles solve
     // almost straight away; hard ones need lines that go the long way round and lots of trying again.
-    function effort(n, pairs, cap){
+    function effort(n, pairs, cap, walls){ const r = solveLikeAPerson(n, pairs, cap, walls); return r.nodes; }
+    function solveLikeAPerson(n, pairs, cap, walls, R){
       const k = pairs.length, grid = new Int16Array(n * n).fill(-1), man = p => Math.abs(p.a[0] - p.b[0]) + Math.abs(p.a[1] - p.b[1]);
       pairs.forEach((p, i) => { grid[p.a[0] * n + p.a[1]] = i; grid[p.b[0] * n + p.b[1]] = i; });
-      const order = pairs.map((p, i) => i).sort((x, y) => man(pairs[x]) - man(pairs[y]));
+      const order = pairs.map((p, i) => i).sort((x, y) => man(pairs[x]) - man(pairs[y]) + (R ? (R() - 0.5) * 6 : 0));
+      const paths = pairs.map(() => []), W = walls || new Set();
       let nodes = 0, S = 0;
       const solveFrom = idx => {
         if (idx === k) return true;
-        const i = order[idx], p = pairs[i], goal = p.b[0] * n + p.b[1], br = p.b[0], bc = p.b[1], limit = man(p) + S, used = [];
+        const i = order[idx], p = pairs[i], goal = p.b[0] * n + p.b[1], br = p.b[0], bc = p.b[1], limit = man(p) + S, used = [p.a[0] * n + p.a[1]];
         const step = (r, c, len) => {
           if (++nodes > cap) throw 0;
           const opts = [];
           for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
             const rr = r + dr, cc = c + dc; if (rr < 0 || cc < 0 || rr >= n || cc >= n) continue;
             const key = rr * n + cc;
+            if (W.size && W.has(wkey(r * n + c, key))) continue;
             if (key === goal) { opts.length = 0; opts.push([rr, cc, -1]); break; }
             if (grid[key] !== -1) continue;
             const d = Math.abs(rr - br) + Math.abs(cc - bc); if (len + 1 + d > limit) continue;
@@ -73,7 +78,7 @@
           }
           opts.sort((x, y) => x[2] - y[2]);
           for (const [rr, cc, d] of opts) {
-            if (d === -1) { if (solveFrom(idx + 1)) return true; continue; }
+            if (d === -1) { paths[i] = used.concat([goal]); if (solveFrom(idx + 1)) return true; continue; }
             const key = rr * n + cc; grid[key] = 100 + i; used.push(key);
             if (step(rr, cc, len + 1)) return true;
             grid[key] = -1; used.pop();
@@ -82,18 +87,47 @@
         };
         return step(p.a[0], p.a[1], 0);
       };
-      try { for (S = 0; S <= n * 2; S += 2) if (solveFrom(0)) return nodes; } catch (e) { return cap; }
-      return cap;
+      try { for (S = 0; S <= n * 2; S += 2) if (solveFrom(0)) return { nodes, paths }; } catch (e) { return { nodes: cap, paths: null }; }
+      return { nodes: cap, paths: null };
+    }
+    // Walls make a puzzle harder by closing the shortcuts. Each pair's real line (the puzzle was cut from a full
+    // answer) often winds around; a person's first try is the most direct route. Wherever a pair has a route that's
+    // shorter than its real line, we put a wall across that route, on a spot the real answer never crosses (so
+    // the puzzle always stays solvable). Keep going until the direct routes are closed or the wall budget is used:
+    // then the easy, obvious lines simply don't work and you have to find the winding ones.
+    function addWalls(pz, budget, R, slack){
+      const n = pz.n, walls = new Set(), solEdges = new Set(), dotAt = new Map();
+      pz.pairs.forEach((p, i) => { dotAt.set(p.a[0] * n + p.a[1], i); dotAt.set(p.b[0] * n + p.b[1], i);
+        for (let k = 1; k < p.sol.length; k++) solEdges.add(wkey(p.sol[k - 1][0] * n + p.sol[k - 1][1], p.sol[k][0] * n + p.sol[k][1])); });
+      const route = i => {   // shortest open route for pair i (other pairs' dots and walls block; other lines don't)
+        const p = pz.pairs[i], start = p.a[0] * n + p.a[1], goal = p.b[0] * n + p.b[1], prev = new Int32Array(n * n).fill(-1), q = [start]; prev[start] = start;
+        while (q.length) { const c = q.shift(); if (c === goal) break; const r = Math.floor(c / n), cc = c % n;
+          for (const [rr, c2] of PB.shuffle([[r - 1, cc], [r + 1, cc], [r, cc - 1], [r, cc + 1]], R)) { if (rr < 0 || c2 < 0 || rr >= n || c2 >= n) continue; const k2 = rr * n + c2;
+            if (prev[k2] >= 0 || walls.has(wkey(c, k2))) continue; const d = dotAt.get(k2); if (d != null && d !== i) continue; prev[k2] = c; q.push(k2); } }
+        if (prev[goal] < 0) return null; const path = [goal]; for (let c = goal; c !== start; c = prev[c]) path.push(prev[c]); return path.reverse();
+      };
+      const stuck = new Set();
+      for (let round = 0; round < budget * 4 && walls.size < budget; round++) {
+        let best = null;
+        pz.pairs.forEach((p, i) => { if (stuck.has(i)) return; const r = route(i); if (!r) return; const gap = (p.sol.length - 1) - (r.length - 1) - slack; if (gap > 0 && (!best || gap > best.gap || (gap === best.gap && R() < 0.5))) best = { i, r, gap }; });
+        if (!best) break;
+        const open = []; for (let k = 1; k < best.r.length; k++) { const e = wkey(best.r[k - 1], best.r[k]); if (!solEdges.has(e) && !walls.has(e)) open.push({ e, mid: Math.abs(k - best.r.length / 2) }); }
+        if (!open.length) { stuck.add(best.i); continue; }
+        open.sort((x, y) => x.mid - y.mid); walls.add(open[Math.floor(R() * Math.min(3, open.length))].e);
+      }
+      pz.walls = walls; return pz;
     }
     // Make a batch of puzzles, sort them by effort, and take the one at the spot this level wants
     // (q 0 = the easiest of the batch, 1 = the hardest). Most random puzzles are easy, so the hard levels look
     // through a big batch and keep the toughest one.
     function makePuzzle(n, k, seed, pick){
       const R = mulberry(seedFrom(seed)), list = [];
-      if (!pick) return makeOne(n, k, R);
+      if (!pick) { const pz = makeOne(n, k, R); pz.walls = new Set(); return pz; }
       for (let cand = 0; cand < pick.count; cand++) { const pz = makeOne(n, k, R); if (!pz) continue; pz.effort = effort(n, pz.pairs, 40000); list.push(pz); }
       list.sort((x, y) => x.effort - y.effort);
-      return list[Math.round(Math.max(0, Math.min(1, pick.q)) * (list.length - 1))];
+      const pz = list[Math.round(Math.max(0, Math.min(1, pick.q)) * (list.length - 1))];
+      if (pick.walls) addWalls(pz, pick.walls, R, pick.slack || 0); else pz.walls = new Set();
+      return pz;
     }
     function makeOne(n, k, R){
       for (let tries = 0; tries < 60; tries++) {
@@ -109,13 +143,16 @@
     // The board only ever grows as you go up (it never shrinks on an easy level). What changes from level to level
     // is how tangled the puzzle is: easy ones mostly connect the obvious way, SUPER HARD ones almost never do.
     function levelSize(n){
-      if (n === 'daily') return { n: 8, k: 9, pick: { count: 60, q: 1 } };
+      if (n === 'daily') return { n: 8, k: 10, pick: { count: 60, q: 1, walls: 22, slack: 1 } };
       if (n <= 3) return [{ n: 4, k: 3, pick: { count: 6, q: 0 } }, { n: 4, k: 3, pick: { count: 6, q: 0.3 } }, { n: 5, k: 4, pick: { count: 8, q: 0.5 } }][n - 1];
-      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(10, size + 1 + (n > 150 ? 1 : 0));
+      // boards get packed tighter as you go (more pairs on the same board = less room to go around)
+      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(11, size + (n > 10 ? 1 : 0) + (n > 30 ? 1 : 0));
       const tier = PB.levels.tier(n), grown = Math.min(1, n / 150);
       // the first 10 levels stay gentle; after that even easy ones come from the harder half of the batch
       if (n <= 10) return { n: size, k, pick: { count: 12, q: tier === 'super' ? 1 : tier === 'hard' ? 0.85 : 0.5 } };
       const pick = tier === 'super' ? { count: 90, q: 1 } : tier === 'hard' ? { count: 45, q: 1 } : tier === 'easy' ? { count: 30, q: 0.7 + 0.2 * grown } : { count: 35, q: 0.85 + 0.12 * grown };
+      // walls (from level 15) close shortcuts: a few on easy levels, lots on SUPER HARD ones
+      if (n >= 15) { pick.walls = Math.round((tier === 'super' ? 16 + 20 * grown : tier === 'hard' ? 10 + 12 * grown : tier === 'easy' ? 3 + 5 * grown : 6 + 8 * grown) * (size / 8)); pick.slack = tier === 'super' ? 0 : tier === 'hard' ? 0 : tier === 'easy' ? 2 : 1; }
       return { n: size, k, pick };
     }
 
@@ -125,7 +162,7 @@
       const pz = makePuzzle(sz.n, sz.k, daily ? 'dots-daily-' + PB.today() : 'dots-level-' + L, sz.pick);
       st = { mode, level: L, n: pz.n, k: pz.k, pairs: pz.pairs, paths: pz.pairs.map(() => []), done: pz.pairs.map(() => false), draw: null,
         hints: HINTS, hinted: 0, moves: 0, time: 0, over: false, parts: [], pops: [], joy: pz.pairs.map(() => 0), shake: 0, msg: null, won: false, look: [W / 2, BY + BW / 2], blink: 0 };
-      st.cs = BW / st.n;
+      st.cs = BW / st.n; st.walls = pz.walls || new Set();
       st.dotAt = new Map(); pz.pairs.forEach((p, i) => { st.dotAt.set(p.a[0] * st.n + p.a[1], i); st.dotAt.set(p.b[0] * st.n + p.b[1], i); });
     }
     const key = (r, c) => r * st.n + c;
@@ -153,6 +190,7 @@
       const back = p.findIndex(q => q[0] === cell[0] && q[1] === cell[1]);
       if (back >= 0) { st.paths[i] = p.slice(0, back + 1); st.done[i] = false; return true; }
       if (st.done[i]) return false;                                   // already holding hands: only backing up is allowed
+      if (st.walls.has(wkey(key(...last), key(...cell)))) return bumpWall(last, cell);
       const d = st.dotAt.get(key(...cell));
       if (d != null && d !== i) return blocked(cell);                  // another color's dot
       const o = owner(...cell);
@@ -160,6 +198,10 @@
       p.push(cell);
       if (d === i && isEnd(i, cell) && p.length > 1) connect(i);
       return true;
+    }
+    function bumpWall(a, b){
+      if (!st.draw.bumped) { st.draw.bumped = true; if (PB.sfx) PB.sfx('nope'); const [x1, y1] = center(a), [x2, y2] = center(b); pop((x1 + x2) / 2, (y1 + y2) / 2 - 12, 'Wall!', '#ffffff', 0.8); if (PB.buzz) PB.buzz('light'); }
+      return false;
     }
     function blocked(cell){
       if (!st.draw.bumped) { st.draw.bumped = true; if (PB.sfx) PB.sfx('nope'); const [x, y] = center(cell); pop(x, y - 10, 'No crossing!', '#ffffff', 0.8); if (PB.buzz) PB.buzz('light'); }
@@ -236,15 +278,15 @@
       ctx.fillText(`${together} of ${st.k} friends together`, 32, 80);
       ctx.fillText(st.hinted ? `Hints used: ${st.hinted}` : 'No hints used yet', 32, 100);
       // a row of little faces: one per color, smiling once they're joined
-      for (let i = 0; i < st.k; i++) { const x = W - 40 - (st.k - 1 - i) * 26, y = 80; face(x, y, 10, COLS[st.pairs[i].color], st.done[i], 0, i); }
+      for (let i = 0; i < st.k; i++) { const gap = st.k > 8 ? 21 : 26, x = W - 38 - (st.k - 1 - i) * gap, y = st.k > 7 ? 96 : 80; face(x, y, 10, COLS[st.pairs[i].color], st.done[i], 0, i); }
       ctx.restore();
     }
     function face(x, y, r, col, happy, bounce, idx){
       ctx.save(); ctx.translate(x, y - bounce * 6); const s = 1 + bounce * 0.25; ctx.scale(s, s);
       ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = r * 0.4; ctx.shadowOffsetY = r * 0.12;
       const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r); g.addColorStop(0, '#ffffff'); g.addColorStop(0.18, col); g.addColorStop(1, PB.shade(col, -0.3));
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.shadowColor = 'transparent';
-      ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = Math.max(1.2, r * 0.1); ctx.lineCap = 'round';
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.shadowColor = 'transparent'; ctx.strokeStyle = 'rgba(40,30,80,.45)'; ctx.lineWidth = Math.max(1, r * 0.08); ctx.stroke();
+      ctx.strokeStyle = col === '#2b2b38' ? 'rgba(255,255,255,.85)' : 'rgba(0,0,0,.6)'; ctx.lineWidth = Math.max(1.2, r * 0.1); ctx.lineCap = 'round';
       if (happy) { for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * r * 0.34, -r * 0.12, r * 0.16, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); } ctx.fillStyle = 'rgba(255,120,150,.6)'; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * r * 0.55, r * 0.16, r * 0.14, 0, 7); ctx.fill(); } }
       else {
         const lx = Math.max(-1, Math.min(1, (st.look[0] - x) / 200)) * r * 0.08, ly = Math.max(-1, Math.min(1, (st.look[1] - y) / 200)) * r * 0.08, bl = st.blink > 0 && (idx % 3 === Math.floor(st.time) % 3);
@@ -264,6 +306,14 @@
       ctx.strokeStyle = 'rgba(90,70,160,.18)'; ctx.lineWidth = 2; ctx.beginPath();
       for (let k = 1; k < n; k++) { ctx.moveTo(BX + k * cs, BY + 6); ctx.lineTo(BX + k * cs, BY + BW - 6); ctx.moveTo(BX + 6, BY + k * cs); ctx.lineTo(BX + BW - 6, BY + k * cs); }
       ctx.stroke();
+      // walls: thick bars on the edge between two squares
+      if (st.walls.size) { ctx.save(); ctx.lineCap = 'round';
+        for (const w of st.walls) { const [a, b] = w.split('-').map(Number), ra = Math.floor(a / n), ca = a % n, rb = Math.floor(b / n), cb = b % n;
+          let x1, y1, x2, y2; if (ra === rb) { x1 = x2 = BX + Math.max(ca, cb) * cs; y1 = BY + ra * cs + 3; y2 = y1 + cs - 6; } else { y1 = y2 = BY + Math.max(ra, rb) * cs; x1 = BX + ca * cs + 3; x2 = x1 + cs - 6; }
+          ctx.strokeStyle = 'rgba(20,10,50,.35)'; ctx.lineWidth = cs * 0.16; ctx.beginPath(); ctx.moveTo(x1, y1 + 2); ctx.lineTo(x2, y2 + 2); ctx.stroke();
+          ctx.strokeStyle = '#5a4a8a'; ctx.lineWidth = cs * 0.14; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+          ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = cs * 0.04; ctx.beginPath(); ctx.moveTo(x1, y1 - cs * 0.03); ctx.lineTo(x2, y2 - cs * 0.03); ctx.stroke(); }
+        ctx.restore(); }
       // the lines
       st.paths.forEach((p, i) => {
         if (p.length < 2) return; const col = COLS[st.pairs[i].color];
@@ -292,7 +342,7 @@
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const q of st.pops) { if (!q.text) continue; ctx.save(); ctx.globalAlpha = Math.min(1, q.life / q.max * 2); ctx.font = `24px ${FONT}`; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,10,50,.7)'; ctx.strokeText(q.text, q.x, q.y); ctx.fillStyle = q.color; ctx.fillText(q.text, q.x, q.y); ctx.restore(); }
       if (st.msg) { ctx.save(); ctx.font = `26px ${FONT}`; const w = Math.min(W - 40, ctx.measureText(st.msg).width + 50), y = BY + BW / 2; ctx.fillStyle = 'rgba(43,29,107,.92)'; ctx.beginPath(); ctx.roundRect(W / 2 - w / 2, y - 30, w, 60, 30); ctx.fill(); ctx.strokeStyle = '#ffd400'; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillText(st.msg, W / 2, y + 2, W - 60); ctx.restore(); }
-      else if (st.intro > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, st.intro); ctx.font = `20px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText('Drag from a dot to its twin!', W / 2, BY + BW + 30); ctx.restore(); }
+      else if (st.intro > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, st.intro); ctx.font = `20px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(st.introText || 'Drag from a dot to its twin!', W / 2, BY + BW + 30); ctx.restore(); }
     }
     function update(dt){
       st.time += dt; st.intro = Math.max(0, (st.intro || 0) - dt);
@@ -318,7 +368,7 @@
       id: 'dots', sfxScore: false, music: 'dots', title: 'DOT FRIENDS', W, H, statLabel: 'Friends', type: 'levels', levels: 500, maxLives: 0, noStars: true,
       tile: { order: 9, name: 'Dot Friends', kind: 'Connect the dots · no timer', art: artTile, isNew: true },
       dailyText: 'One big puzzle a day. Take your time!',
-      controls: ['Put your finger on a dot and draw a line to the dot of the same color.', 'Lines can’t cross, and they can’t go through another color.', 'Go back over your line to rub it out, or tap a dot to start that color again.', 'Connect every pair to win. You don\u2019t have to fill the board.', 'There’s no timer, so take your time. You can stop and come back any time.', 'Stuck? Tap Hint and a friend will show you one line.'],
+      controls: ['Put your finger on a dot and draw a line to the dot of the same color.', 'Lines can’t cross, and they can’t go through another color or a wall.', 'Go back over your line to rub it out, or tap a dot to start that color again.', 'Connect every pair to win. You don\u2019t have to fill the board.', 'There’s no timer, so take your time. You can stop and come back any time.', 'Stuck? Tap Hint and a friend will show you one line.'],
       powersTitle: 'Helpers',
       powers: [
         { name: 'Hint', desc: 'Draws one line for you. 3 per puzzle', icon: g => { g.font = '20px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('\u{1F4A1}', 23, 15); } },
@@ -326,7 +376,7 @@
       ],
       init(){},
       preview(){ fresh('classic', 1); },
-      start(mode, rand, lives, msg, level){ fresh(mode, level); st.intro = st.level === 1 || st.level === 'daily' ? 5 : 2.5; },
+      start(mode, rand, lives, msg, level){ fresh(mode, level); st.intro = st.level === 1 || st.level === 'daily' ? 5 : 2.5; if (st.level === 15) { st.introText = 'New! Walls: lines can\u2019t go through them'; st.intro = 5; } },
       frame(dt){ update(dt); draw(); },
       hud(){ return { lives: null, stat: `${st.done.filter(Boolean).length}/${st.k}`, score: st.score || 0 }; },
       metrics(){ return { score: st.score || 0, won: st.won ? 1 : 0, nohint: st.won && !st.hinted ? 1 : 0, hints: st.hinted }; },
@@ -334,7 +384,7 @@
         { text: 'Solve {n} puzzles today', m: 'won', n: [2, 3, 4] },
         { text: 'Solve {n} puzzles without a hint today', m: 'nohint', n: [1, 2] },
       ],
-      debug(){ return { st, makePuzzle, stuckRate, effort, makeOne, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
+      debug(){ return { st, makePuzzle, stuckRate, effort, solveLikeAPerson, addWalls, makeOne, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
       pointerDown(x, y){
         if (st.over) return;
         if (inBtn(BTN.hint, x, y)) { hint(); return; }
