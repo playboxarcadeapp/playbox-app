@@ -14,16 +14,17 @@
     let st = null;
 
     // ---------- Level generation (built backwards from a solved board, so every level can be solved) ----------
-    function genLevel(L, R){
+    function genLevel(L, R, opt){
+      opt = opt || {};
       const size = L <= 2 ? 6 : L <= 6 ? 7 : 8;
       const nColors = Math.min(3 + Math.floor((L - 1) / 2), 6);
-      const target = Math.min(7 + L, 20);
+      const target = opt.target || Math.min(7 + L, 20), lockP = opt.lockP || 0, narrow = opt.narrow || 0;
       for (let attempt = 0; attempt < 30; attempt++) {
         const exits = [];
         for (let c=0;c<nColors;c++) {
           for (let tries=0; tries<40; tries++) {
             const side = ['top','bottom','left','right'][Math.floor(R()*4)];
-            const len = R() < 0.5 ? 2 : R() < 0.5 ? 1 : 3;
+            const len = R() < narrow ? 1 : R() < 0.5 ? 2 : R() < 0.5 ? 1 : 3;
             const start = Math.floor(R() * (size - len + 1));
             if (exits.some(e => e.side === side && start < e.start + e.len + 1 && e.start < start + len + 1)) continue;
             exits.push({ side, start, len, color: c }); break;
@@ -36,7 +37,9 @@
         const scramble = (steps) => {
           for (let s=0;s<steps;s++) {
             const i = Math.floor(R() * blocks.length), b = blocks[i];
-            const [dr, dc] = Object.values(DIRS)[Math.floor(R()*4)];
+            // arrow blocks only ever slide along their arrow, so shuffling them that way keeps the level solvable
+            const dirs = b.lock === 'r' ? [DIRS.top, DIRS.bottom] : b.lock === 'c' ? [DIRS.left, DIRS.right] : Object.values(DIRS);
+            const [dr, dc] = dirs[Math.floor(R() * dirs.length)];
             const dist = 1 + Math.floor(R() * 3);
             for (let k=0;k<dist;k++) { if (fits(b, b.r+dr, b.c+dc, i)) { b.r += dr; b.c += dc; } else break; }
           }
@@ -55,6 +58,7 @@
             if (e.side === 'top') { r = 0; c = off; } else if (e.side === 'bottom') { r = size - hR; c = off; }
             else if (e.side === 'left') { c = 0; r = off; } else { c = size - hC; r = off; }
             const b = { color, cells, r, c };
+            if (R() < lockP) b.lock = along ? 'r' : 'c';   // an arrow block: slides only toward (and away from) its exit
             if (fits(b, r, c, -2)) { blocks.push(b); placed = true; scramble(4 + Math.min(L, 12)); }
             else scramble(3);
           }
@@ -62,7 +66,37 @@
         scramble(30 + Math.min(L, 110) * 4);
         if (blocks.length >= Math.min(target - 2, 7)) return { size, exits, blocks, colors: nColors };
       }
-      return genLevel(Math.max(1, L - 1), R);
+      return genLevel(Math.max(1, L - 1), R, opt);
+    }
+    // How tricky is a level? A quick player just takes out any block that can reach its exit right now, again
+    // and again. On an easy level that clears the board; on a hard one it gets stuck, because a block first has to
+    // be parked somewhere else to make room. We try that a few times and score how often it gets stuck, plus how
+    // few blocks can leave at the very start.
+    function trickiness(lv, R){
+      const n = lv.size;
+      const canLeave = (b, occ) => {
+        const dirs = b.lock === 'r' ? ['top', 'bottom'] : b.lock === 'c' ? ['left', 'right'] : ['top', 'bottom', 'left', 'right'];
+        const seen = new Set([b.r + ',' + b.c]), q = [[b.r, b.c]];
+        while (q.length) { const [r, c] = q.shift();
+          for (const side of dirs) { const [dr, dc] = DIRS[side], nr = r + dr, nc = c + dc; let outside = false, ok = true;
+            for (const [r0, c0] of b.cells) { const rr = nr + r0, cc = nc + c0; if (rr < 0 || rr >= n || cc < 0 || cc >= n) { outside = true; continue; } if (occ[rr][cc] !== -1 && occ[rr][cc] !== b.i) { ok = false; break; } }
+            if (!ok) continue;
+            if (outside) { const e = lv.exits.find(x => x.side === side && x.color === b.color); if (!e) continue; const along = side === 'top' || side === 'bottom';
+              const lo = Math.min(...b.cells.map(p => along ? c + p[1] : r + p[0])), hi = Math.max(...b.cells.map(p => along ? c + p[1] : r + p[0])); if (lo >= e.start && hi < e.start + e.len) return true; continue; }
+            const k = nr + ',' + nc; if (!seen.has(k)) { seen.add(k); q.push([nr, nc]); } } }
+        return false;
+      };
+      let stuck = 0, first = 0;
+      for (let t = 0; t < 6; t++) {
+        const left = lv.blocks.map((b, i) => ({ ...b, i }));
+        for (let step = 0; left.length; step++) {
+          const occ = Array.from({ length: n }, () => Array(n).fill(-1)); for (const b of left) for (const [r0, c0] of b.cells) occ[b.r + r0][b.c + c0] = b.i;
+          const free = left.filter(b => canLeave(b, occ)); if (step === 0 && t === 0) first = free.length;
+          if (!free.length) { stuck++; break; }
+          const go = free[Math.floor(R() * free.length)]; left.splice(left.indexOf(go), 1);
+        }
+      }
+      return stuck / 6 + (1 - first / lv.blocks.length) * 0.5;
     }
 
     // Classic play is 500 set levels (the same puzzle every time you play a level). The daily challenge
@@ -97,12 +131,23 @@
       const R = st.mode === 'daily' ? mulberry(seedFrom('cubes-daily-' + PB.today() + '-' + st.level)) : st.endless ? st.rand : mulberry(seedFrom('cubes-level-' + st.level));
       // classic levels follow the shared groups-of-10 pattern: easy, HARD and SUPER HARD levels in every 10
       const c = st.mode === 'daily' ? 0.3 : PB.levels.challenge(st.level);
-      const lv = genLevel(st.mode === 'daily' ? st.level + 9 : st.level <= 3 ? st.level + 6 : 8 + Math.round(c * 6), R);
+      let lv;
+      if (st.mode === 'daily' || st.level <= 3) lv = genLevel(st.mode === 'daily' ? st.level + 9 : st.level + 6, R);
+      else {
+        // crowded boards, arrow blocks (level 8 on), skinny one-square gates; the HARD and SUPER HARD levels keep
+        // the trickiest of a batch of boards (the one where taking blocks out "as they come" gets stuck most)
+        const n = st.level, tier = PB.levels.tier(n), grown = Math.min(1, n / 120);
+        const opt = { target: Math.round(13 + c * 9 + grown * 3), lockP: n < 8 ? 0 : Math.min(0.75, 0.2 + c * 0.55), narrow: Math.min(0.6, 0.1 + c * 0.5) };
+        const tries = tier === 'super' ? 20 : tier === 'hard' ? 16 : 8, q = tier === 'super' || tier === 'hard' ? 1 : tier === 'easy' ? 0.3 : 0.6, list = [];
+        for (let k = 0; k < tries; k++) { const one = genLevel(14, R, opt); one.trick = trickiness(one, R); list.push(one); }
+        list.sort((a, b) => a.trick - b.trick); lv = list[Math.round(q * (list.length - 1))];
+        if (n === 8) st.lockIntro = 4;
+      }
       st.size = lv.size; st.exits = lv.exits;
-      st.blocks = lv.blocks.map((b, i) => ({ ...b, id: i, vx: b.c, vy: b.r, out: null }));
+      st.blocks = lv.blocks.map((b, i) => ({ ...b, id: i, vx: b.c, vy: b.r, out: null })); st.trick = lv.trick;
       st.cell = Math.min(54, Math.floor(400 / st.size));
       st.bx = Math.round((W - st.cell * st.size) / 2); st.by = 160 + Math.round((440 - st.cell * st.size) / 2);
-      st.timeMax = Math.round((10 + st.blocks.length * 3.7) * (st.mode === 'daily' ? Math.max(0.7, 1 - st.level * 0.012) : st.level <= 3 ? 1 : 1.05 - 0.38 * c));
+      st.timeMax = Math.round((10 + st.blocks.length * 3.7) * (st.mode === 'daily' ? Math.max(0.7, 1 - st.level * 0.012) : st.level <= 3 ? 1 : 1.15 - 0.35 * c));
       st.time = st.timeMax; st.running = false; st.drag = null; st.freezes = 1; st.freezeT = 0;
     }
     const occupied = (self) => { const g = Array.from({length:st.size}, () => Array(st.size).fill(-1)); st.blocks.forEach(b => { if (!b.out && b.id !== self) b.cells.forEach(([dr,dc]) => g[b.r+dr][b.c+dc] = b.id); }); return g; };
@@ -155,6 +200,7 @@
     function pop(x, y, text, color, life){ st.pops.push({ x, y, text, color, life: life || 1 }); }
 
     function update(dt){
+      if (st.lockIntro > 0) st.lockIntro = Math.max(0, st.lockIntro - dt);
       st.clock += dt;
       if (st.phase === 'play') {
         if (st.running) {
@@ -348,7 +394,7 @@
       E.end(); if (!tile) E.present(ctx, W, H);
     }
     function draw(){
-      if (assets3D()) drawWith3D(); else { drawFlat(); drawSymbols(); }
+      if (assets3D()) drawWith3D(); else { drawFlat(); drawLocks(); drawSymbols(); }
       drawBoosts();
     }
     function drawWith3D(){
@@ -367,7 +413,22 @@
         ctx.restore(); }
       drawHeader();
       if (!(PB.prefs && PB.prefs.symbols)) for (const e of st.exits) for (const g of gateCells(e, bw, cs)) gateArrow(ctx, g, e.side, Math.min(cs * 0.17, 9));
-      drawSymbols(); drawFooter();
+      drawLocks(); drawSymbols(); drawFooter();
+    }
+    // a white double arrow on each arrow block, showing the only way it can slide
+    function drawLocks(){
+      const cs = st.cell;
+      for (const b of st.blocks) { if (!b.lock || (b.out && b.out.t >= 0.5)) continue;
+        let ox = 0, oy = 0; if (b.out) { const [dr, dc] = DIRS[b.out.side], d = b.out.t * cs * 3; ox = dc * d; oy = dr * d; }
+        // on the block's middle-most cell
+        const mr = b.cells.reduce((a, p) => a + p[0], 0) / b.cells.length, mc = b.cells.reduce((a, p) => a + p[1], 0) / b.cells.length;
+        let cell = b.cells[0], best = 1e9; for (const p of b.cells) { const d = Math.abs(p[0] - mr) + Math.abs(p[1] - mc); if (d < best) { best = d; cell = p; } }
+        const x = st.bx + (b.vx + cell[1] + 0.5) * cs + ox, y = st.by + (b.vy + cell[0] + 0.78) * cs + oy, L = cs * 0.28, v = b.lock === 'r';
+        ctx.save(); ctx.translate(x, y); if (v) ctx.rotate(Math.PI / 2); ctx.globalAlpha = b.out ? 1 - b.out.t * 2 : 1;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        for (const [w, col] of [[cs * 0.12, 'rgba(0,0,0,.45)'], [cs * 0.06, '#ffffff']]) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(-L, 0); ctx.lineTo(L, 0); ctx.moveTo(-L + L * 0.45, -L * 0.42); ctx.lineTo(-L, 0); ctx.lineTo(-L + L * 0.45, L * 0.42); ctx.moveTo(L - L * 0.45, -L * 0.42); ctx.lineTo(L, 0); ctx.lineTo(L - L * 0.45, L * 0.42); ctx.stroke(); }
+        ctx.restore(); }
+      if (st.lockIntro > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, st.lockIntro); ctx.font = `20px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 5; const t = 'New! Arrow blocks only slide the way they point'; ctx.strokeText(t, W / 2, st.by + cs * st.size + 46, W - 30); ctx.fillText(t, W / 2, st.by + cs * st.size + 46, W - 30); ctx.restore(); }
     }
     // chunky outlined text, like the big cartoon titles in console games
     function label(text, x, y, size, fill, align){ ctx.font = `${size}px ${DISPLAY}`; ctx.textAlign = align || 'left'; ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, size * 0.22); ctx.strokeStyle = 'rgba(30,30,70,.85)'; ctx.strokeText(text, x, y); ctx.fillStyle = fill; ctx.fillText(text, x, y); }
@@ -612,10 +673,10 @@
         const d = st.drag; if (!d) return;
         const b = st.blocks[d.id]; if (!b || b.out) { st.drag = null; return; }
         const fc = (x - d.ax) / st.cell, fr = (y - d.ay) / st.cell;
-        if (!d.axis) { if (Math.max(Math.abs(fc), Math.abs(fr)) < 0.18) return; d.axis = Math.abs(fc) >= Math.abs(fr) ? 'c' : 'r'; }
+        if (!d.axis) { if (Math.max(Math.abs(fc), Math.abs(fr)) < 0.18) return; d.axis = b.lock || (Math.abs(fc) >= Math.abs(fr) ? 'c' : 'r'); }
         // switching direction: finish the current line (snap) and start a new one from here
         const main = d.axis === 'c' ? fc : fr, perp = d.axis === 'c' ? fr : fc;
-        if (Math.abs(perp) > 0.45 && Math.abs(perp) > Math.abs(main - Math.round(main)) + 0.3 && Math.abs(perp) > Math.abs(main) * 0.6) {
+        if (!b.lock && Math.abs(perp) > 0.45 && Math.abs(perp) > Math.abs(main - Math.round(main)) + 0.3 && Math.abs(perp) > Math.abs(main) * 0.6) {
           b.fc = null; b.fr = null; d.br = b.r; d.bc = b.c; d.ax = x - (d.axis === 'c' ? 0 : fc * st.cell) * 0; d.ay = y;
           d.ax = x; d.ay = y; d.axis = d.axis === 'c' ? 'r' : 'c'; return;
         }

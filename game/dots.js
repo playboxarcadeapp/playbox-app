@@ -117,6 +117,45 @@
       }
       pz.walls = walls; return pz;
     }
+    // A quick player: joins one pair at a time along the shortest open route (closest pairs first, give or take),
+    // and never goes back. Returns how badly that goes over a fixed set of tries: every time the player gets
+    // stuck counts a lot, longer forced routes count a little. Good puzzles trap this player.
+    function quickPlayer(pz, walls, seeds){
+      const n = pz.n, N = n * n, k = pz.pairs.length, dot = new Int16Array(N).fill(-1);
+      pz.pairs.forEach((p, i) => { dot[p.a[0] * n + p.a[1]] = i; dot[p.b[0] * n + p.b[1]] = i; });
+      const nb = []; for (let c = 0; c < N; c++) { const r = Math.floor(c / n), cc = c % n, L = []; if (r > 0) L.push(c - n); if (r < n - 1) L.push(c + n); if (cc > 0) L.push(c - 1); if (cc < n - 1) L.push(c + 1); nb.push(L.filter(d => !walls.has(wkey(c, d)))); }
+      const man = p => Math.abs(p.a[0] - p.b[0]) + Math.abs(p.a[1] - p.b[1]);
+      let fails = 0, len = 0; const used = new Int16Array(N), prev = new Int32Array(N), q = new Int32Array(N);
+      for (const sd of seeds) {
+        const R = mulberry(sd); used.fill(0);
+        const order = pz.pairs.map((p, i) => [man(p) + R() * 3, i]).sort((x, y) => x[0] - y[0]).map(x => x[1]);
+        let ok = true;
+        for (const i of order) {
+          const p = pz.pairs[i], s0 = p.a[0] * n + p.a[1], g = p.b[0] * n + p.b[1]; prev.fill(-1); prev[s0] = s0; let h = 0, t = 0; q[t++] = s0;
+          while (h < t) { const c = q[h++]; if (c === g) break; const L = nb[c], o = Math.floor(R() * L.length);
+            for (let j = 0; j < L.length; j++) { const d = L[(j + o) % L.length]; if (prev[d] >= 0 || used[d] || (dot[d] >= 0 && dot[d] !== i)) continue; prev[d] = c; q[t++] = d; } }
+          if (prev[g] < 0) { ok = false; break; }
+          for (let c = g; c !== s0; c = prev[c]) { used[c] = 1; len++; } used[s0] = 1;
+        }
+        if (!ok) fails++;
+      }
+      return { fail: fails / seeds.length, score: fails * 1000 + len / seeds.length };
+    }
+    // Put up walls one at a time, keeping a wall only if it makes the quick player do worse. Walls never sit on
+    // the real answer's lines, so the puzzle can always be solved. Shortcuts that lead into a trap stay open.
+    function trapWalls(pz, budget, R, trials){
+      const n = pz.n, walls = new Set(), sol = new Set(), seeds = []; for (let t = 0; t < trials; t++) seeds.push(Math.floor(R() * 1e9));
+      for (const p of pz.pairs) for (let j = 1; j < p.sol.length; j++) sol.add(wkey(p.sol[j - 1][0] * n + p.sol[j - 1][1], p.sol[j][0] * n + p.sol[j][1]));
+      const edges = []; for (let c = 0; c < n * n; c++) { if (c % n < n - 1) edges.push(wkey(c, c + 1)); if (c + n < n * n) edges.push(wkey(c, c + n)); }
+      let cur = quickPlayer(pz, walls, seeds);
+      for (let pass = 0; pass < 2 && walls.size < budget; pass++)
+        for (const e of PB.shuffle(edges.filter(e => !sol.has(e) && !walls.has(e)), R)) {
+          if (walls.size >= budget) break;
+          walls.add(e); const r = quickPlayer(pz, walls, seeds);
+          if (r.score > cur.score) cur = r; else walls.delete(e);
+        }
+      pz.walls = walls; pz.trap = cur.fail; return pz;
+    }
     // Make a batch of puzzles, sort them by effort, and take the one at the spot this level wants
     // (q 0 = the easiest of the batch, 1 = the hardest). Most random puzzles are easy, so the hard levels look
     // through a big batch and keep the toughest one.
@@ -125,6 +164,12 @@
       if (!pick) { const pz = makeOne(n, k, R); pz.walls = new Set(); return pz; }
       for (let cand = 0; cand < pick.count; cand++) { const pz = makeOne(n, k, R); if (!pz) continue; pz.effort = effort(n, pz.pairs, 40000); list.push(pz); }
       list.sort((x, y) => x.effort - y.effort);
+      if (pick.trap) {
+        // try the walls on the toughest few of the batch and keep the one the quick player does worst on
+        let best = null;
+        for (const pz of list.slice(-pick.trap).reverse()) { trapWalls(pz, pick.walls, R, 16); if (!best || pz.trap > best.trap) best = pz; }
+        return best;
+      }
       const pz = list[Math.round(Math.max(0, Math.min(1, pick.q)) * (list.length - 1))];
       if (pick.walls) addWalls(pz, pick.walls, R, pick.slack || 0); else pz.walls = new Set();
       return pz;
@@ -143,23 +188,73 @@
     // The board only ever grows as you go up (it never shrinks on an easy level). What changes from level to level
     // is how tangled the puzzle is: easy ones mostly connect the obvious way, SUPER HARD ones almost never do.
     function levelSize(n){
-      if (n === 'daily') return { n: 8, k: 10, pick: { count: 60, q: 1, walls: 22, slack: 1 } };
+      if (n === 'daily') return { n: 8, k: 10, pick: { count: 50, q: 1, walls: 30, trap: 3 } };
       if (n <= 3) return [{ n: 4, k: 3, pick: { count: 6, q: 0 } }, { n: 4, k: 3, pick: { count: 6, q: 0.3 } }, { n: 5, k: 4, pick: { count: 8, q: 0.5 } }][n - 1];
       // boards get packed tighter as you go (more pairs on the same board = less room to go around)
-      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 70 ? 7 : n <= 150 ? 8 : 9, k = Math.min(11, size + (n > 10 ? 1 : 0) + (n > 30 ? 1 : 0));
-      const tier = PB.levels.tier(n), grown = Math.min(1, n / 150);
+      const size = n <= 10 ? 5 : n <= 30 ? 6 : n <= 60 ? 7 : n <= 100 ? 8 : n <= 180 ? 9 : 10, k = Math.min(11, size + (n > 10 ? 1 : 0) + (n > 30 ? 1 : 0));
+      const tier = PB.levels.tier(n), grown = Math.min(1, n / 150), big = size >= 9;
       // the first 10 levels stay gentle; after that even easy ones come from the harder half of the batch
       if (n <= 10) return { n: size, k, pick: { count: 12, q: tier === 'super' ? 1 : tier === 'hard' ? 0.85 : 0.5 } };
-      const pick = tier === 'super' ? { count: 90, q: 1 } : tier === 'hard' ? { count: 45, q: 1 } : tier === 'easy' ? { count: 30, q: 0.7 + 0.2 * grown } : { count: 35, q: 0.85 + 0.12 * grown };
+      const pick = tier === 'super' ? { count: big ? 40 : 90, q: 1 } : tier === 'hard' ? { count: big ? 24 : 45, q: 1 } : tier === 'easy' ? { count: big ? 14 : 30, q: 0.7 + 0.2 * grown } : { count: big ? 16 : 35, q: 0.85 + 0.12 * grown };
       // walls (from level 15) close shortcuts: a few on easy levels, lots on SUPER HARD ones
       if (n >= 15) { pick.walls = Math.round((tier === 'super' ? 16 + 20 * grown : tier === 'hard' ? 10 + 12 * grown : tier === 'easy' ? 3 + 5 * grown : 6 + 8 * grown) * (size / 8)); pick.slack = tier === 'super' ? 0 : tier === 'hard' ? 0 : tier === 'easy' ? 2 : 1; }
+      // from level 31 the HARD and SUPER HARD walls are "trap" walls: the obvious short line for a pair is
+      // left open when taking it blocks someone else, and the safe ways round get closed
+      if (n > 30 && (tier === 'super' || tier === 'hard' || (n > 60 && tier === 'normal'))) {
+        pick.trap = tier === 'super' ? 4 : tier === 'hard' ? 3 : 2;
+        pick.walls = Math.round((tier === 'super' ? 30 + 20 * grown : tier === 'hard' ? 22 + 14 * grown : 14 + 8 * grown) * (size / 8));
+      }
       return { n: size, k, pick };
+    }
+
+    // How much thinking each level should take, measured as the solver's effort: it rises through the levels,
+    // and SUPER HARD > HARD > normal > easy inside every group of 10.
+    function targetEffort(n, tier){
+      // [level 15, level 128, level 300 and on]; in between it grows smoothly
+      const r = { easy: [60, 1500, 6000], normal: [150, 5000, 25000], hard: [400, 20000, 100000], super: [1200, 60000, 300000] }[tier];
+      const [lo, hi, f] = n <= 128 ? [r[0], r[1], (Math.max(15, n) - 15) / 113] : [r[1], r[2], Math.min(1, (n - 128) / 172)];
+      return lo * Math.pow(hi / lo, f);
+    }
+    function measure(pz, cap){
+      const e = [0, 1, 2].map(j => solveLikeAPerson(pz.n, pz.pairs, cap, pz.walls, j ? mulberry(j * 7919) : null).nodes).sort((a, b) => a - b);
+      return e[1];
+    }
+    // Build one level from scratch: try puzzles (each with trap walls) until one needs about the right effort.
+    // The game ships with all 500 already built (dots-levels.js), because the tough ones take a while to find.
+    function buildLevel(L, tries){
+      const sz = levelSize(L);
+      if (L < 15) return makePuzzle(sz.n, sz.k, 'dots-level-' + L, sz.pick);
+      const tier = PB.levels.tier(L), target = targetEffort(L, tier), R = mulberry(seedFrom('dots-level-' + L));
+      let best = null;
+      for (let t = 0; t < tries; t++) {
+        const pz = makeOne(sz.n, sz.k, R); if (!pz) continue;
+        trapWalls(pz, sz.pick.walls || 4, R, 12); pz.effort = measure(pz, Math.round(target * 4)); pz.dist = Math.abs(Math.log((pz.effort + 1) / target));
+        if (!best || pz.dist < best.dist) best = pz;
+        if (best.dist < 0.2) break;
+      }
+      return best;
+    }
+    // levels are stored small: each line as its start square + a string of moves (u d l r), walls as square + r/d
+    const DIRCH = { u: [-1, 0], d: [1, 0], l: [0, -1], r: [0, 1] };
+    function packLevel(pz){
+      const n = pz.n, sq = (r, c) => (r * n + c).toString(36).padStart(2, '0');
+      const lines = pz.pairs.map(p => p.color + ':' + sq(p.sol[0][0], p.sol[0][1]) + p.sol.slice(1).map((q, j) => { const dr = q[0] - p.sol[j][0], dc = q[1] - p.sol[j][1]; return dr < 0 ? 'u' : dr > 0 ? 'd' : dc < 0 ? 'l' : 'r'; }).join(''));
+      const walls = [...pz.walls].map(w => { const [a, b] = w.split('-').map(Number); return a.toString(36).padStart(2, '0') + (b - a === 1 ? 'r' : 'd'); }).join('');
+      return { n, l: lines, w: walls, e: pz.effort };
+    }
+    function unpackLevel(d){
+      const n = d.n, pairs = d.l.map(s => { const [col, rest] = s.split(':'), c0 = parseInt(rest.slice(0, 2), 36), sol = [[Math.floor(c0 / n), c0 % n]];
+        for (const ch of rest.slice(2)) { const [dr, dc] = DIRCH[ch], q = sol[sol.length - 1]; sol.push([q[0] + dr, q[1] + dc]); }
+        return { color: +col, a: sol[0], b: sol[sol.length - 1], sol }; });
+      const walls = new Set(); for (let j = 0; j < d.w.length; j += 3) { const a = parseInt(d.w.slice(j, j + 2), 36); walls.add(wkey(a, d.w[j + 2] === 'r' ? a + 1 : a + n)); }
+      return { n, k: pairs.length, pairs, walls };
     }
 
     // ---------- state ----------
     function fresh(mode, level){
       const daily = mode === 'daily', L = daily ? 'daily' : level || 1, sz = levelSize(L);
-      const pz = makePuzzle(sz.n, sz.k, daily ? 'dots-daily-' + PB.today() : 'dots-level-' + L, sz.pick);
+      const stored = !daily && window.DOTS_LEVELS && window.DOTS_LEVELS[L - 1];
+      const pz = stored ? unpackLevel(stored) : daily ? makePuzzle(sz.n, sz.k, 'dots-daily-' + PB.today(), sz.pick) : buildLevel(L, 6);
       st = { mode, level: L, n: pz.n, k: pz.k, pairs: pz.pairs, paths: pz.pairs.map(() => []), done: pz.pairs.map(() => false), draw: null,
         hints: HINTS, hinted: 0, moves: 0, time: 0, over: false, parts: [], pops: [], joy: pz.pairs.map(() => 0), shake: 0, msg: null, won: false, look: [W / 2, BY + BW / 2], blink: 0 };
       st.cs = BW / st.n; st.walls = pz.walls || new Set();
@@ -384,7 +479,7 @@
         { text: 'Solve {n} puzzles today', m: 'won', n: [2, 3, 4] },
         { text: 'Solve {n} puzzles without a hint today', m: 'nohint', n: [1, 2] },
       ],
-      debug(){ return { st, makePuzzle, stuckRate, effort, solveLikeAPerson, addWalls, makeOne, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
+      debug(){ return { st, buildLevel, packLevel, unpackLevel, targetEffort, measure, quickPlayer, trapWalls, makePuzzle, stuckRate, effort, solveLikeAPerson, addWalls, makeOne, stepTo, startAt, moveTo, endDraw, hint, center, levelSize }; },
       pointerDown(x, y){
         if (st.over) return;
         if (inBtn(BTN.hint, x, y)) { hint(); return; }
